@@ -38,6 +38,17 @@ export async function signUp(app: TestApp, email: string, password = 'senha-fort
   });
 }
 
+/** Creates a verified user (optionally SUPER_ADMIN) and returns its session cookie. */
+export async function createUserSession(
+  app: TestApp,
+  email: string,
+  role: 'USER' | 'SUPER_ADMIN' = 'USER',
+) {
+  await signUp(app, email);
+  await prisma.user.update({ where: { email }, data: { emailVerified: true, role } });
+  return (await signIn(app, email)).cookie;
+}
+
 export async function signIn(app: TestApp, email: string, password = 'senha-forte-123') {
   const res = await app.inject({
     method: 'POST',

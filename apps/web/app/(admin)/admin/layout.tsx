@@ -1,5 +1,6 @@
 import { forbidden, redirect } from 'next/navigation';
 import type { ReactNode } from 'react';
+import { AdminNav } from '@/components/admin/admin-nav';
 import { AppHeader, NavLink } from '@/components/app-header';
 import { getMe } from '@/lib/session';
 
@@ -13,6 +14,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
       <AppHeader home="/admin" userName={me.user.name} badge="Super admin">
         <NavLink href="/app">Painel do cliente</NavLink>
       </AppHeader>
+      <AdminNav />
       <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">{children}</main>
     </div>
   );

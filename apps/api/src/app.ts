@@ -9,11 +9,14 @@ import {
   validatorCompiler,
   type ZodTypeProvider,
 } from 'fastify-type-provider-zod';
+import secureJson from 'secure-json-parse';
+import { parseEncryptionKey } from './lib/crypto';
 import type { Env } from './lib/env';
 import { HttpError } from './lib/errors';
 import { loggerOptions } from './lib/logger';
 import { createSmtpMailer, type Mailer } from './lib/mailer';
 import { sessionGuards } from './lib/session';
+import { createSettingsStore } from './lib/settings';
 import { adminRoutes } from './modules/admin/routes';
 import { createAuth } from './modules/auth/auth';
 import { authRoutes } from './modules/auth/routes';
@@ -27,6 +30,8 @@ export async function buildApp(env: Env, deps: AppDeps = {}) {
   const mailer = deps.mailer ?? createSmtpMailer(env);
   const auth = createAuth(env, prisma, mailer);
   const guards = sessionGuards(env, auth);
+  const settings = createSettingsStore(prisma);
+  const encryptionKey = parseEncryptionKey(env.ENCRYPTION_KEY);
 
   const app = Fastify({
     logger: loggerOptions(env),
@@ -40,6 +45,24 @@ export async function buildApp(env: Env, deps: AppDeps = {}) {
 
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
+
+  // Same as Fastify's JSON parser (prototype-poisoning safe), but an empty body is accepted
+  // as "no body" — many clients send `content-type: application/json` on bodiless POSTs.
+  app.removeContentTypeParser('application/json');
+  app.addContentTypeParser('application/json', { parseAs: 'string' }, (_req, body, done) => {
+    if (body === '') return done(null, undefined);
+    try {
+      done(
+        null,
+        secureJson.parse(body as string, { protoAction: 'error', constructorAction: 'error' }),
+      );
+    } catch {
+      done(
+        Object.assign(new Error('JSON inválido'), { statusCode: 400, code: 'invalid_json' }),
+        undefined,
+      );
+    }
+  });
 
   app.setErrorHandler<FastifyError>((err, req, reply) => {
     if (err instanceof HttpError) {
@@ -74,8 +97,8 @@ export async function buildApp(env: Env, deps: AppDeps = {}) {
 
   await app.register(healthRoutes);
   await app.register(authRoutes, { auth });
-  await app.register(dashboardRoutes, { prisma, guards });
-  await app.register(adminRoutes, { prisma, guards });
+  await app.register(dashboardRoutes, { prisma, guards, settings });
+  await app.register(adminRoutes, { prisma, env, guards, settings, encryptionKey });
 
   return app;
 }

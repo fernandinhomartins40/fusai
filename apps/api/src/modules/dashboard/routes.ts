@@ -3,13 +3,21 @@ import { createOrganizationSchema, createProjectSchema } from '@fuseai/shared';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import { currentUser, type sessionGuards } from '../../lib/session';
+import type { SettingsStore } from '../../lib/settings';
 import { createOrganization, createProject } from './organizations';
 
-type Options = { prisma: PrismaClient; guards: ReturnType<typeof sessionGuards> };
+type Options = {
+  prisma: PrismaClient;
+  guards: ReturnType<typeof sessionGuards>;
+  settings: SettingsStore;
+};
 
 /** Cookie-authenticated routes used by the customer dashboard. */
-export const dashboardRoutes: FastifyPluginAsyncZod<Options> = async (app, { prisma, guards }) => {
-  app.addHook('preHandler', guards.requireUser);
+export const dashboardRoutes: FastifyPluginAsyncZod<Options> = async (
+  app,
+  { prisma, guards, settings },
+) => {
+  app.addHook('onRequest', guards.requireUser);
 
   app.get('/internal/me', async (req) => {
     const user = currentUser(req);
@@ -49,7 +57,7 @@ export const dashboardRoutes: FastifyPluginAsyncZod<Options> = async (app, { pri
     { schema: { body: createOrganizationSchema } },
     async (req, reply) => {
       const user = currentUser(req);
-      const org = await createOrganization(prisma, user.id, req.body);
+      const org = await createOrganization(prisma, user.id, req.body, settings);
       return reply.status(201).send({ id: org.id, name: org.name, slug: org.slug });
     },
   );

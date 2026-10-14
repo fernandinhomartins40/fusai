@@ -27,3 +27,15 @@ Registro das decisões tomadas onde o PRD não especifica (ou onde algo divergiu
 - **D-018 — Turbo repassa as variáveis do projeto.** O modo estrito do Turbo removia variáveis do shell (ex.: `DATABASE_URL`); elas foram listadas em `globalPassThroughEnv`.
 - **D-019 — `output: 'standalone'` só fora do Windows.** No Windows a cópia standalone exige symlinks (Modo de Desenvolvedor). A imagem de produção é construída em Linux, onde fica sempre ligada.
 - **D-020 — Rate limit de auth em memória por ora.** Better Auth com regras próprias (login/cadastro 5/min; reset/reenvio 3 a cada 5 min), IP vindo do `req.ip` do Fastify (com `trustProxy`, atrás do Caddy). Migra para Redis na Fase 4.
+
+## Fase 2
+
+- **D-021 — Decimal exato em BigInt.** Preços usam `mulDecimalsCeil` sobre strings decimais (custo 8 casas, câmbio 6, margem 3), sem float nem biblioteca. Prisma `Decimal` é convertido com `.toFixed()` (nunca `.toString()`, que pode gerar notação exponencial).
+- **D-022 — Cache de tokens no modo FIXED.** Não existe preço fixo separado para entrada em cache; usa o preço fixo de entrada.
+- **D-023 — Settings como strings JSON.** Valores decimais e micros ficam como string no `Setting.value` (BigInt-safe); `settingsSchema` valida e normaliza vírgula para ponto. Cache de 60 s é por instância da API (`createSettingsStore`); com várias réplicas a mudança propaga em até 60 s.
+- **D-024 — Schemas de modelo sem defaults no zod.** No zod 4, `.partial()` ainda aplica `.default()`, o que faria um PATCH resetar campos omitidos. A API aplica os defaults de criação e valida o preço fixo no registro mesclado (há teste de regressão).
+- **D-025 — Guardas de sessão em `onRequest`.** Rodam antes do parse/validação do corpo, então quem não tem permissão recebe 401/403, nunca 400 com detalhes de validação.
+- **D-026 — Teste de conexão = `GET /models`.** Barato (não gasta tokens) e padrão OpenAI. A chave é removida de qualquer mensagem de erro do upstream antes de responder.
+- **D-027 — `ENCRYPTION_KEY` obrigatório.** A API não sobe sem uma chave de 32 bytes em base64. O `.env.example` traz o campo vazio com o comando para gerar. Trocar a chave invalida as chaves de provedor salvas (o admin vê "erro" e recadastra).
+- **D-028 — Formulários admin sem TanStack Query.** Páginas do admin são server components que leem a API; formulários client chamam a API e fazem `router.refresh()`. TanStack Query entra quando houver dados ao vivo/polling (Fases 5–6).
+- **D-029 — Corpo JSON vazio é aceito.** Parser JSON próprio (via `secure-json-parse`, o mesmo do Fastify) trata corpo vazio como ausente; JSON malformado ou com `__proto__`/`constructor` → 400.

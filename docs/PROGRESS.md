@@ -4,7 +4,7 @@
 |---|---|
 | 0 — Fundação | ✅ concluída (ver pendências) |
 | 1 — Banco e autenticação | ✅ concluída (ver pendências) |
-| 2 — Provedores, modelos e preços | ⏳ |
+| 2 — Provedores, modelos e preços | ✅ concluída (ver pendências) |
 | 3 — Billing core | ⏳ |
 | 4 — Chaves de API e gateway | ⏳ |
 | 5 — Painel do cliente | ⏳ |
@@ -83,3 +83,37 @@ pnpm lint && pnpm typecheck && pnpm test   # testes da API usam o banco fuseai_t
 - Rate limit do Better Auth está em memória (um processo). Passa para Redis junto com o rate limit do gateway na Fase 4.
 - A etapa “gerar primeira chave + Kit de Integração” do onboarding entra na Fase 4 (chaves) / Fase 8 (kit).
 - Navegação completa do painel (sidebar etc.) é da Fase 5; a visão geral atual é provisória.
+
+## Fase 2 — Provedores, modelos e preços (admin)
+
+### Feito
+- **`@fuseai/shared/pricing`**: fórmula do PRD §7.5 com aritmética decimal exata em BigInt (`decimal.ts`, sem float), sempre arredondando para cima; precedência de margem org > modelo > global; modo FIXED; custo em R$ e margem em basis points. Mesmo código roda na API e no preview do admin.
+- **Criptografia** das chaves de provedor com AES-256-GCM (`v1.iv.tag.ciphertext`, IV aleatório), máscara `sk-…abcd`; `ENCRYPTION_KEY` obrigatório e validado no boot.
+- **API admin** (só `SUPER_ADMIN`, guarda em `onRequest`, antes da validação do corpo):
+  - Provedores: listar/detalhar (chave só mascarada), criar, editar (chave nova substitui; em branco mantém), excluir (bloqueado se houver modelos), **testar conexão** (`GET {baseUrl}/models`, lista os modelos do upstream, latência, erro com a chave apagada da mensagem). Não ativa sem chave. Em produção exige `https`.
+  - Modelos: CRUD com preço calculado (entrada, cache, saída, custo em R$, margem); valida provedor, slug único, fallbacks (existem, não é ele mesmo, até 5) e preço fixo; exclusão bloqueada se houver consumo (e limpa referências de fallback).
+  - Preços globais: câmbio, margem padrão, taxa de recarga, recarga mínima, alerta de saldo baixo, bônus de boas-vindas. Cache de 60 s por instância, invalidado em toda alteração.
+  - Toda alteração gera `AuditLog` (sem segredos; o de settings guarda “de → para”).
+- **Web admin**: abas Visão geral · Provedores · Modelos · Preços. Provedores em cards com teste de conexão inline; tabela de modelos com preço R$/1M, margem e toggle de ativação; formulário de modelo com **preço final ao vivo** e **simulador de margem** (receita, custo, lucro, margem para um consumo mensal); formulário de preços globais. Toasts (sonner), componentes novos em `@fuseai/ui`: Table, Switch, Select, Textarea.
+- API aceita corpo JSON vazio com `content-type: application/json` (parser seguro contra prototype poisoning).
+
+### Como testar
+```bash
+# .env precisa de ENCRYPTION_KEY válido: openssl rand -base64 32
+docker compose up -d && pnpm db:migrate && pnpm db:seed && pnpm dev
+# entre como admin@fuseai.com.br em http://localhost:3000/admin
+# Provedores -> DeepSeek -> Editar: cole a chave, marque "ativo", salve -> "Testar conexão"
+# Modelos -> DeepSeek Chat: confira os custos no site oficial -> ative -> veja o preço em R$
+# Preços: altere o câmbio e veja os preços dos modelos mudarem
+pnpm test   # pricing (shared) + admin (API, com upstream falso)
+```
+
+### Verificado
+- `pnpm lint`, `pnpm typecheck`, `pnpm test` (54 testes: 31 shared, 23 API) e `pnpm build` passando.
+- Aceite via HTTP com servidores reais e um upstream falso compatível com OpenAI no lugar da DeepSeek: ativar sem chave → 400; salvar chave + ativar → máscara `sk-…cdef`; testar conexão → ok, 2 modelos, ~20 ms; chave errada → `ok:false`, 401 com mensagem limpa; ativar `fuse/deepseek-chat` → saída R$ 24,20/1M (1,10 × 5,50 × 4), entrada R$ 5,94, cache R$ 1,54, margem 75%; chave cifrada no banco (sem texto puro); auditoria sem a chave; todas as páginas do admin respondem 200.
+
+### Pendências
+- Não testado com chave real da DeepSeek (não há chave neste ambiente); o teste de conexão chama `GET /models`, padrão OpenAI que os provedores-alvo expõem.
+- Sem verificação visual em navegador (só HTTP) — vale abrir `/admin/modelos/novo` em 375px.
+- Saúde do provedor (latência/erros/circuit breaker) e job diário de câmbio ficam para as Fases 4 e 10.
+- Docker continua indisponível nesta máquina.

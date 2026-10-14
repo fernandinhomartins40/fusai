@@ -1,0 +1,26 @@
+import type { PrismaClient } from '@fuseai/db';
+import { settingsSchema } from '@fuseai/shared';
+import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
+import type { SettingsStore } from '../../lib/settings';
+import { audit } from './audit';
+
+type Options = { prisma: PrismaClient; settings: SettingsStore };
+
+export const adminSettingsRoutes: FastifyPluginAsyncZod<Options> = async (
+  app,
+  { prisma, settings },
+) => {
+  app.get('/internal/admin/settings', async () => settings.get());
+
+  app.put('/internal/admin/settings', { schema: { body: settingsSchema } }, async (req) => {
+    const before = await settings.get();
+    const after = await settings.save(req.body);
+    const changed = Object.fromEntries(
+      Object.entries(after)
+        .filter(([key, value]) => before[key as keyof typeof before] !== value)
+        .map(([key, value]) => [key, { from: before[key as keyof typeof before], to: value }]),
+    );
+    await audit(prisma, req, 'settings.update', null, changed);
+    return after;
+  });
+};

@@ -29,3 +29,18 @@ Requisições não-GET precisam vir do `APP_URL` (`Origin`), senão 403.
 | Método | Rota | Descrição |
 |---|---|---|
 | GET | `/internal/admin/overview` | `{ users, organizations, providers, activeModels }`. 401 sem sessão, 403 sem papel. |
+| GET | `/internal/admin/providers` | Lista provedores: `{ id, slug, name, baseUrl, status, priority, timeoutMs, hasKey, keyMask, keyError, modelCount }`. A chave nunca é retornada. |
+| GET | `/internal/admin/providers/:id` | Detalhe (mesmo formato). |
+| POST | `/internal/admin/providers` | `{ slug, name, baseUrl, apiKey?, status?, priority?, timeoutMs? }`. 400 ao ativar sem chave; 409 se o slug existe. |
+| PATCH | `/internal/admin/providers/:id` | Campos parciais; `apiKey` substitui a chave (omitido = mantém). |
+| DELETE | `/internal/admin/providers/:id` | 204; 409 se houver modelos. |
+| POST | `/internal/admin/providers/:id/test` | `{ ok, status, latencyMs, models[], error }` via `GET {baseUrl}/models`. |
+| GET | `/internal/admin/models` | Modelos com `pricing: { markup, inputPerM, cachedInputPerM, outputPerM, inputCostBrlPerM, outputCostBrlPerM, inputMarginBps, outputMarginBps }` (micros em string). |
+| GET | `/internal/admin/models/:id` | Detalhe. |
+| POST | `/internal/admin/models` | Custos em US$/1M como string decimal; preço fixo em micros (string). Novo modelo entra inativo. |
+| PATCH | `/internal/admin/models/:id` | Campos parciais (omitidos não mudam). |
+| DELETE | `/internal/admin/models/:id` | 204; 409 se já houver consumo. |
+| GET | `/internal/admin/settings` | `{ usd_brl_rate, default_markup, topup_fee_pct, min_topup_cents, low_balance_threshold_micros, welcome_bonus_micros }`. |
+| PUT | `/internal/admin/settings` | Substitui todos; aceita vírgula decimal. Invalida o cache de preços. |
+
+Todas as alterações do admin geram `AuditLog`.

@@ -21,6 +21,13 @@ const envSchema = z.object({
   GOOGLE_CLIENT_ID: optional,
   GOOGLE_CLIENT_SECRET: optional,
 
+  ENCRYPTION_KEY: z
+    .string()
+    .refine(
+      (v) => Buffer.from(v, 'base64').length === 32,
+      'ENCRYPTION_KEY must be 32 bytes in base64 (generate with: openssl rand -base64 32)',
+    ),
+
   EMAIL_FROM: z.string().default('FuseAI <nao-responda@fuseai.com.br>'),
   RESEND_API_KEY: optional,
   SMTP_URL: z.string().default('smtp://localhost:1025'),
@@ -46,6 +53,7 @@ export function testEnv(overrides: Partial<NodeJS.ProcessEnv> = {}): Env {
     NODE_ENV: 'test',
     DATABASE_URL: process.env.DATABASE_URL ?? 'postgresql://localhost/unused',
     BETTER_AUTH_SECRET: 'test-secret-test-secret-test-secret',
+    ENCRYPTION_KEY: Buffer.alloc(32, 7).toString('base64'),
     ...overrides,
   });
 }

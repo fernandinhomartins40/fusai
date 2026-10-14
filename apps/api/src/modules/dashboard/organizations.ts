@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto';
 import type { BillingMode, PrismaClient } from '@fuseai/db';
 import { slugify } from '@fuseai/shared';
 import { forbidden, notFound } from '../../lib/errors';
-import { getBigIntSetting } from '../../lib/settings';
+import type { SettingsStore } from '../../lib/settings';
 
 const PROJECT_EDITOR_ROLES = new Set(['OWNER', 'ADMIN', 'DEVELOPER']);
 
@@ -21,8 +21,9 @@ export async function createOrganization(
   prisma: PrismaClient,
   userId: string,
   input: { name: string; document: string; phone: string },
+  settings: SettingsStore,
 ) {
-  const welcomeBonus = await getBigIntSetting(prisma, 'welcome_bonus_micros', 0n);
+  const welcomeBonus = BigInt((await settings.get()).welcome_bonus_micros);
   const slug = await uniqueSlug(
     input.name,
     async (s) => (await prisma.organization.count({ where: { slug: s } })) > 0,

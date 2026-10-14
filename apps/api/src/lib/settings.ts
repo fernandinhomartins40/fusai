@@ -1,15 +1,49 @@
 import type { PrismaClient } from '@fuseai/db';
+import { DEFAULT_SETTINGS, type Settings, settingsSchema } from '@fuseai/shared';
 
-/** Reads an integer setting stored as a JSON string or number (e.g. micros). */
-export async function getBigIntSetting(
-  prisma: PrismaClient,
-  key: string,
-  fallback: bigint,
-): Promise<bigint> {
-  const row = await prisma.setting.findUnique({ where: { key } });
-  if (row == null) return fallback;
-  const value = row.value;
-  if (typeof value === 'number' && Number.isInteger(value)) return BigInt(value);
-  if (typeof value === 'string' && /^-?\d+$/.test(value)) return BigInt(value);
-  return fallback;
+const TTL_MS = 60_000;
+
+/**
+ * Global settings (exchange rate, markup, top-up rules) cached in memory for 60s.
+ * Admin writes call `invalidate()` so new prices apply immediately on this instance.
+ */
+export function createSettingsStore(prisma: PrismaClient) {
+  let cache: { value: Settings; expiresAt: number } | null = null;
+
+  async function load(): Promise<Settings> {
+    const rows = await prisma.setting.findMany();
+    const raw: Record<string, unknown> = { ...DEFAULT_SETTINGS };
+    for (const row of rows) {
+      if (row.key in DEFAULT_SETTINGS) raw[row.key] = String(row.value);
+    }
+    const parsed = settingsSchema.safeParse(raw);
+    return parsed.success ? parsed.data : DEFAULT_SETTINGS;
+  }
+
+  return {
+    async get(): Promise<Settings> {
+      if (cache && cache.expiresAt > Date.now()) return cache.value;
+      const value = await load();
+      cache = { value, expiresAt: Date.now() + TTL_MS };
+      return value;
+    },
+    async save(values: Settings): Promise<Settings> {
+      await prisma.$transaction(
+        Object.entries(values).map(([key, value]) =>
+          prisma.setting.upsert({
+            where: { key },
+            update: { value: String(value) },
+            create: { key, value: String(value) },
+          }),
+        ),
+      );
+      cache = null;
+      return this.get();
+    },
+    invalidate() {
+      cache = null;
+    },
+  };
 }
+
+export type SettingsStore = ReturnType<typeof createSettingsStore>;
