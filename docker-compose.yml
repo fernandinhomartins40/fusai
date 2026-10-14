@@ -8,6 +8,7 @@ services:
       POSTGRES_USER: fuseai
       POSTGRES_PASSWORD: fuseai
       POSTGRES_DB: fuseai
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8"
     ports:
       - "5432:5432"
     volumes:

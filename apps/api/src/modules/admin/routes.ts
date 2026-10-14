@@ -4,6 +4,7 @@ import type { Env } from '../../lib/env';
 import type { sessionGuards } from '../../lib/session';
 import type { SettingsStore } from '../../lib/settings';
 import { adminModelRoutes } from './models';
+import { adminOrganizationRoutes } from './organizations';
 import { adminProviderRoutes } from './providers';
 import { adminSettingsRoutes } from './settings';
 
@@ -33,4 +34,5 @@ export const adminRoutes: FastifyPluginAsyncZod<Options> = async (app, opts) => 
   await app.register(adminProviderRoutes, opts);
   await app.register(adminModelRoutes, opts);
   await app.register(adminSettingsRoutes, opts);
+  await app.register(adminOrganizationRoutes, opts);
 };

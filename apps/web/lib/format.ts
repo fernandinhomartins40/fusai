@@ -19,3 +19,12 @@ export function microsToInput(micros: string | bigint | null): string {
 export const pct = (bps: number) => formatBps(bps);
 
 export const intBR = (n: number) => n.toLocaleString('pt-BR');
+
+const dateTimeFormat = new Intl.DateTimeFormat('pt-BR', {
+  timeZone: 'America/Sao_Paulo',
+  dateStyle: 'short',
+  timeStyle: 'short',
+});
+
+/** Stored in UTC, shown in America/Sao_Paulo (PRD §16). */
+export const dateTimeBR = (iso: string) => dateTimeFormat.format(new Date(iso));

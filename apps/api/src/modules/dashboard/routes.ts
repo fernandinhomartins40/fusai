@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { currentUser, type sessionGuards } from '../../lib/session';
 import type { SettingsStore } from '../../lib/settings';
 import { createOrganization, createProject } from './organizations';
+import { dashboardWalletRoutes } from './wallet';
 
 type Options = {
   prisma: PrismaClient;
@@ -18,6 +19,7 @@ export const dashboardRoutes: FastifyPluginAsyncZod<Options> = async (
   { prisma, guards, settings },
 ) => {
   app.addHook('onRequest', guards.requireUser);
+  await app.register(dashboardWalletRoutes, { prisma });
 
   app.get('/internal/me', async (req) => {
     const user = currentUser(req);

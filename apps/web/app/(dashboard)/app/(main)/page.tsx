@@ -9,15 +9,10 @@ import {
 } from '@fuseai/ui/components/card';
 import { FolderKanban, Wallet } from 'lucide-react';
 import type { Metadata } from 'next';
+import { billingModeLabel } from '@/lib/admin-labels';
 import { getMe } from '@/lib/session';
 
 export const metadata: Metadata = { title: 'Visão geral' };
-
-const billingModeLabel: Record<string, string> = {
-  ORG_WALLET: 'Carteira da organização',
-  END_USER_WALLET: 'Carteira do usuário final',
-  HYBRID: 'Híbrido',
-};
 
 export default async function OverviewPage() {
   const me = await getMe();

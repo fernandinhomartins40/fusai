@@ -6,7 +6,7 @@
  * All decimal inputs are plain strings (use Prisma Decimal `.toFixed()`, never `.toString()`).
  */
 import { mulDecimalsCeil } from './decimal';
-import { MICROS_PER_BRL } from './money';
+import { costForTokens, MICROS_PER_BRL } from './money';
 
 export type PriceModeValue = 'AUTO' | 'FIXED';
 
@@ -78,4 +78,29 @@ export function marginBps(priceMicros: bigint, costMicros: bigint): number {
 
 export function formatBps(bps: number): string {
   return `${(bps / 100).toFixed(1).replace('.', ',')}%`;
+}
+
+/** Output tokens assumed when the request does not set `max_tokens` (PRD §7.4). */
+export const DEFAULT_MAX_OUTPUT_FOR_HOLD = 4096;
+
+/**
+ * Maximum cost of a request, used as the balance hold (PRD §7.4 step 1):
+ *   estimated input × input price + min(max_tokens ?? 4096, model max output) × output price.
+ * Rounded up like every charge.
+ */
+export function estimateHoldMicros(input: {
+  promptTokens: number;
+  maxTokens?: number | null;
+  modelMaxOutputTokens: number;
+  inputPerM: bigint;
+  outputPerM: bigint;
+}): bigint {
+  const output = Math.min(
+    input.maxTokens && input.maxTokens > 0 ? input.maxTokens : DEFAULT_MAX_OUTPUT_FOR_HOLD,
+    input.modelMaxOutputTokens,
+  );
+  return (
+    costForTokens(Math.max(0, Math.ceil(input.promptTokens)), input.inputPerM) +
+    costForTokens(output, input.outputPerM)
+  );
 }

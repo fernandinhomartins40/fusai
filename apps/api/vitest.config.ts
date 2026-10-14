@@ -12,6 +12,8 @@ function testDatabaseUrl(): string {
     process.env.DATABASE_URL ?? 'postgresql://fuseai:fuseai@localhost:5432/fuseai',
   );
   url.pathname = `${url.pathname.replace(/_test$/, '')}_test`;
+  // Enough connections for the concurrency tests to really run in parallel.
+  if (!url.searchParams.has('connection_limit')) url.searchParams.set('connection_limit', '25');
   return url.toString();
 }
 

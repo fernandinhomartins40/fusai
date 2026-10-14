@@ -5,7 +5,7 @@
 | 0 — Fundação | ✅ concluída (ver pendências) |
 | 1 — Banco e autenticação | ✅ concluída (ver pendências) |
 | 2 — Provedores, modelos e preços | ✅ concluída (ver pendências) |
-| 3 — Billing core | ⏳ |
+| 3 — Billing core | ✅ concluída (ver pendências) |
 | 4 — Chaves de API e gateway | ⏳ |
 | 5 — Painel do cliente | ⏳ |
 | 6 — Pix (Asaas) | ⏳ |
@@ -117,3 +117,38 @@ pnpm test   # pricing (shared) + admin (API, com upstream falso)
 - Sem verificação visual em navegador (só HTTP) — vale abrir `/admin/modelos/novo` em 375px.
 - Saúde do provedor (latência/erros/circuit breaker) e job diário de câmbio ficam para as Fases 4 e 10.
 - Docker continua indisponível nesta máquina.
+
+## Fase 3 — Billing core
+
+### Feito
+- **Migrações** `billing_core` (tabela `WalletHold` + `UNIQUE(type, referenceType, referenceId)` no ledger) e `wallet_checks` (`CHECK reservedMicros >= 0` e `amountMicros >= 0` nas holds).
+- **`apps/api/src/modules/billing/wallet.ts`**:
+  - `applyLedger`: único caminho para mudar saldo (`UPDATE … RETURNING` + `LedgerEntry` com `balanceAfter`), então a soma do ledger sempre bate com o saldo.
+  - `reserve`: exatamente o `UPDATE … WHERE balance - reserved + creditLimit >= hold` do PRD §7.4, na mesma transação que cria a `WalletHold` (TTL 15 min). Hold zero ainda exige saldo disponível ≥ 0 (carteira negativa por estorno fica bloqueada).
+  - `settle`: libera a hold e debita o custo real (`USAGE`), idempotente por `requestId` (inclusive em liquidações simultâneas); se a hold já expirou, cobra sem mexer no reservado. `release` = liquidar com custo 0.
+  - `releaseExpiredHolds`: uma única instrução SQL (CTE) libera holds órfãs.
+  - Estimativa de reserva `estimateHoldMicros` em `@fuseai/shared` (entrada estimada + min(max_tokens ?? 4096, máx. do modelo) de saída).
+- **Worker** `src/worker.ts` (`dev:worker` / `node dist/worker.js`): limpeza de holds a cada 5 min.
+- **API**: carteira e extrato paginado por cursor para membros da organização; admin com lista de clientes (busca por nome, slug, CPF/CNPJ, email), detalhe (carteira, holds ativas, conferência ledger × saldo, membros, projetos), extrato e **ajuste manual** (motivo obrigatório, limite de R$ 1.000.000, ledger `ADJUSTMENT` com `actorId` + `AuditLog wallet.adjust`).
+- **Web**: abas no painel do cliente (Visão geral · Carteira); `/app/carteira` com saldo/reservado/disponível e extrato com “Carregar mais”; admin `/admin/clientes` (busca e paginação) e `/admin/clientes/[id]` com formulário de crédito/débito.
+- Bônus de boas-vindas do onboarding agora passa por `applyLedger` (referência única por organização).
+
+### Como testar
+```bash
+docker compose up -d && pnpm db:migrate && pnpm db:seed && pnpm dev
+# admin: /admin/clientes -> abra um cliente -> lance um crédito com motivo
+# cliente: /app/carteira mostra o lançamento; /admin/clientes/[id] mostra "Ledger confere com o saldo"
+pnpm --filter @fuseai/api dev:worker   # limpeza de reservas órfãs
+pnpm test   # inclui o teste de 50 reservas concorrentes
+```
+
+### Verificado
+- `pnpm lint`, `pnpm typecheck`, `pnpm test` (67 testes: 33 shared, 34 API) e `pnpm build` passando.
+- **Critérios de aceite**: 50 reservas concorrentes de R$ 0,03 numa carteira PREPAID de R$ 1,00 → exatamente 33 aceitas, `balance - reserved` nunca negativo (amostrado durante a execução, pool de 25 conexões); carga mista de 50 reservas+liquidações → reservado 0, nenhuma hold restante, soma do ledger = saldo = inicial − cobrado; pós-pago para em −limite; 5 liquidações simultâneas do mesmo request cobram uma vez. **Teste de mutação**: trocando a reserva atômica por "ler e depois atualizar", o teste falha (50 aceitas em vez de 33).
+- Fluxo HTTP com servidores reais: admin credita R$ 50 e debita R$ 1,234567 → carteira do cliente R$ 48,77, ambos no extrato de `/app/carteira`, `AuditLog` com valor, motivo e autor; cliente recebe 403 ao tentar ajustar; detalhe do admin mostra ledger conferindo.
+- Worker liberou uma hold órfã expirada (reservado 777 → 0).
+
+### Pendências
+- Limpeza via BullMQ (job repetível) entra com o Redis na Fase 4; por enquanto `setInterval` no worker.
+- Export CSV do extrato e gráficos ficam na Fase 5. Suspender/billingType/limite pós-pago/impersonate na Fase 10 (o modelo já suporta).
+- Docker indisponível nesta máquina; verificação feita com Postgres 16 embutido.

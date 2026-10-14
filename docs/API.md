@@ -22,6 +22,8 @@ Requisições não-GET precisam vir do `APP_URL` (`Origin`), senão 403.
 |---|---|---|
 | GET | `/internal/me` | Usuário (`role`) + organizações com papel, saldo (`balanceMicros`, `reservedMicros` como string) e projetos. |
 | POST | `/internal/onboarding/organization` | `{ name, document (CPF/CNPJ), phone }` → cria org, carteira e membership OWNER. 201 `{ id, name, slug }`. |
+| GET | `/internal/organizations/:orgId/wallet` | `{ id, balanceMicros, reservedMicros, availableMicros, billingType, creditLimitMicros }` (membros; 404 para não membros). |
+| GET | `/internal/organizations/:orgId/wallet/ledger?cursor&limit` | Extrato, mais recente primeiro: `{ items[{ id, type, amountMicros, balanceAfter, referenceType, referenceId, description, createdAt }], nextCursor }`. |
 | POST | `/internal/organizations/:orgId/projects` | `{ name, billingMode? }` → 201 `{ id, name, slug, billingMode }`. Exige papel OWNER/ADMIN/DEVELOPER (404 se não for membro). |
 
 ## Admin (só `SUPER_ADMIN`)
@@ -42,5 +44,9 @@ Requisições não-GET precisam vir do `APP_URL` (`Origin`), senão 403.
 | DELETE | `/internal/admin/models/:id` | 204; 409 se já houver consumo. |
 | GET | `/internal/admin/settings` | `{ usd_brl_rate, default_markup, topup_fee_pct, min_topup_cents, low_balance_threshold_micros, welcome_bonus_micros }`. |
 | PUT | `/internal/admin/settings` | Substitui todos; aceita vírgula decimal. Invalida o cache de preços. |
+| GET | `/internal/admin/organizations?q&cursor&limit` | Clientes (busca por nome, slug, CPF/CNPJ, email de membro) com saldo. |
+| GET | `/internal/admin/organizations/:id` | Detalhe: membros, projetos e carteira (`activeHolds`, `ledgerSumMicros`, `consistent`). |
+| GET | `/internal/admin/organizations/:id/ledger` | Extrato (mesmo formato do cliente). |
+| POST | `/internal/admin/organizations/:id/wallet/adjust` | `{ amountMicros (string com sinal), reason }` → 201 com o lançamento `ADJUSTMENT`. |
 
 Todas as alterações do admin geram `AuditLog`.

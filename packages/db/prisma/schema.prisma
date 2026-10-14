@@ -254,6 +254,21 @@ model Wallet {
   org            Organization? @relation(fields: [orgId], references: [id])
   appUser        AppUser?      @relation(fields: [appUserId], references: [id])
   entries        LedgerEntry[]
+  holds          WalletHold[]
+}
+
+/// Active balance reservation of one gateway request (PRD 7.4). Deleted on settle/release;
+/// expired rows are released by the cleanup job (orphaned requests).
+model WalletHold {
+  id           String   @id // requestId
+  walletId     String
+  amountMicros BigInt
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+  wallet       Wallet   @relation(fields: [walletId], references: [id], onDelete: Cascade)
+
+  @@index([walletId])
+  @@index([expiresAt])
 }
 
 model LedgerEntry {
@@ -270,6 +285,8 @@ model LedgerEntry {
   wallet        Wallet     @relation(fields: [walletId], references: [id])
 
   @@index([walletId, createdAt])
+  // One USAGE per request, one PURCHASE/BONUS/REFUND per payment (NULL references stay free).
+  @@unique([type, referenceType, referenceId])
 }
 
 model CreditPackage {

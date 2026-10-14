@@ -15,6 +15,44 @@ export async function resetDb() {
   await prisma.$executeRawUnsafe(`TRUNCATE TABLE ${list} RESTART IDENTITY CASCADE`);
 }
 
+/** Organization with a wallet funded through the ledger (so ledger sum == balance). */
+export async function createFundedOrg(
+  opts: {
+    balanceMicros?: bigint;
+    billingType?: 'PREPAID' | 'POSTPAID' | 'INTERNAL';
+    creditLimitMicros?: bigint;
+    slug?: string;
+  } = {},
+) {
+  const org = await prisma.organization.create({
+    data: {
+      name: 'Org Teste',
+      slug: opts.slug ?? `org-${Math.random().toString(36).slice(2, 10)}`,
+      billingType: opts.billingType ?? 'PREPAID',
+      creditLimitMicros: opts.creditLimitMicros ?? 0n,
+      wallet: { create: { ownerType: 'ORGANIZATION' } },
+    },
+    include: { wallet: true },
+  });
+  const wallet = org.wallet;
+  if (!wallet) throw new Error('wallet not created');
+  if (opts.balanceMicros) {
+    await prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`UPDATE "Wallet" SET "balanceMicros" = ${opts.balanceMicros} WHERE id = ${wallet.id}`;
+      await tx.ledgerEntry.create({
+        data: {
+          walletId: wallet.id,
+          type: 'ADJUSTMENT',
+          amountMicros: opts.balanceMicros as bigint,
+          balanceAfter: opts.balanceMicros as bigint,
+          description: 'saldo inicial de teste',
+        },
+      });
+    });
+  }
+  return { org, walletId: wallet.id };
+}
+
 export async function createTestApp() {
   const mailer = createMemoryMailer();
   const app = await buildApp(testEnv({ APP_URL }), { prisma, mailer });

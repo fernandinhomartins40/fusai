@@ -12,9 +12,11 @@ export default async function OnboardingPage() {
   if (org && org.projects.length > 0) redirect('/app');
 
   return (
-    <OnboardingWizard
-      userName={me.user.name.split(' ')[0] ?? ''}
-      existingOrg={org ? { id: org.id, name: org.name } : null}
-    />
+    <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
+      <OnboardingWizard
+        userName={me.user.name.split(' ')[0] ?? ''}
+        existingOrg={org ? { id: org.id, name: org.name } : null}
+      />
+    </main>
   );
 }

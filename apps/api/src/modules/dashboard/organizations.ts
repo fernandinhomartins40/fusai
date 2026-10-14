@@ -1,10 +1,9 @@
 import { randomBytes } from 'node:crypto';
 import type { BillingMode, PrismaClient } from '@fuseai/db';
 import { slugify } from '@fuseai/shared';
-import { forbidden, notFound } from '../../lib/errors';
 import type { SettingsStore } from '../../lib/settings';
-
-const PROJECT_EDITOR_ROLES = new Set(['OWNER', 'ADMIN', 'DEVELOPER']);
+import { applyLedger } from '../billing/wallet';
+import { requireMembership } from './membership';
 
 async function uniqueSlug(base: string, exists: (slug: string) => Promise<boolean>) {
   const root = slugify(base) || 'org';
@@ -39,19 +38,15 @@ export async function createOrganization(
         members: { create: { userId, role: 'OWNER' } },
       },
     });
-    const wallet = await tx.wallet.create({
-      data: { ownerType: 'ORGANIZATION', orgId: org.id, balanceMicros: welcomeBonus },
-    });
+    const wallet = await tx.wallet.create({ data: { ownerType: 'ORGANIZATION', orgId: org.id } });
     if (welcomeBonus > 0n) {
-      await tx.ledgerEntry.create({
-        data: {
-          walletId: wallet.id,
-          type: 'BONUS',
-          amountMicros: welcomeBonus,
-          balanceAfter: welcomeBonus,
-          referenceType: 'admin',
-          description: 'Bônus de boas-vindas',
-        },
+      await applyLedger(tx, {
+        walletId: wallet.id,
+        type: 'BONUS',
+        amountMicros: welcomeBonus,
+        referenceType: 'welcome',
+        referenceId: org.id,
+        description: 'Bônus de boas-vindas',
       });
     }
     return org;
@@ -64,12 +59,7 @@ export async function createProject(
   orgId: string,
   input: { name: string; billingMode: BillingMode },
 ) {
-  const membership = await prisma.membership.findUnique({
-    where: { userId_orgId: { userId, orgId } },
-  });
-  if (!membership) throw notFound('Organização não encontrada');
-  if (!PROJECT_EDITOR_ROLES.has(membership.role))
-    throw forbidden('Sem permissão para criar projetos');
+  await requireMembership(prisma, userId, orgId, ['OWNER', 'ADMIN', 'DEVELOPER']);
 
   const slug = await uniqueSlug(
     input.name,

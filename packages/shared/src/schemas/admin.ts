@@ -132,3 +132,37 @@ export const DEFAULT_SETTINGS: Settings = {
   low_balance_threshold_micros: '5000000',
   welcome_bonus_micros: '0',
 };
+
+// ---- Wallet adjustments ----
+
+/** Largest single manual adjustment (R$ 1.000.000) — guards against typos. */
+export const MAX_ADJUSTMENT_MICROS = 1_000_000_000_000n;
+const INTEGER_RE = /^-?\d+$/;
+
+export const walletAdjustSchema = z.object({
+  /** Signed micros as a string: positive credits, negative debits. */
+  amountMicros: z
+    .string()
+    .trim()
+    .regex(/^-?\d+$/, 'Valor inválido')
+    // zod 4 runs refinements even after the regex fails: only parse well-formed integers.
+    .refine((v) => !INTEGER_RE.test(v) || BigInt(v) !== 0n, 'O valor não pode ser zero')
+    .refine((v) => {
+      if (!INTEGER_RE.test(v)) return true;
+      const n = BigInt(v);
+      return (n < 0n ? -n : n) <= MAX_ADJUSTMENT_MICROS;
+    }, 'Valor acima do limite de R$ 1.000.000'),
+  reason: z.string().trim().min(5, 'Descreva o motivo (mínimo 5 caracteres)').max(300),
+});
+export type WalletAdjustInput = z.input<typeof walletAdjustSchema>;
+
+export const ledgerQuerySchema = z.object({
+  cursor: z.string().min(1).optional(),
+  limit: z.coerce.number().int().min(1).max(200).optional(),
+});
+
+export const orgSearchSchema = z.object({
+  q: z.string().trim().max(100).optional(),
+  cursor: z.string().min(1).optional(),
+  limit: z.coerce.number().int().min(1).max(100).optional(),
+});

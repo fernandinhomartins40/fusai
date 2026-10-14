@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { compareDecimals, isDecimalString, mulDecimalsCeil, parseDecimal } from './decimal';
-import { costBrlPerM, formatBps, type ModelPriceInput, marginBps, modelPrices } from './pricing';
+import {
+  costBrlPerM,
+  estimateHoldMicros,
+  formatBps,
+  type ModelPriceInput,
+  marginBps,
+  modelPrices,
+} from './pricing';
 
 const base: ModelPriceInput = {
   priceMode: 'AUTO',
@@ -102,5 +109,35 @@ describe('cost and margin', () => {
     expect(marginBps(1_000_000n, 2_000_000n)).toBe(-10000);
     expect(marginBps(0n, 1n)).toBe(0);
     expect(formatBps(7500)).toBe('75,0%');
+  });
+});
+
+describe('estimateHoldMicros', () => {
+  const prices = { inputPerM: 5_940_000n, outputPerM: 14_520_000n };
+
+  it('uses max_tokens when set', () => {
+    // 1000 in × 5.94 + 500 out × 14.52 (per 1M) = 5940 + 7260 micros
+    expect(
+      estimateHoldMicros({
+        promptTokens: 1000,
+        maxTokens: 500,
+        modelMaxOutputTokens: 8192,
+        ...prices,
+      }),
+    ).toBe(13_200n);
+  });
+
+  it('defaults to 4096 output tokens and caps at the model maximum', () => {
+    expect(estimateHoldMicros({ promptTokens: 0, modelMaxOutputTokens: 8192, ...prices })).toBe(
+      59_474n,
+    ); // 4096 × 14.52 = 59473.92 -> 59474
+    expect(
+      estimateHoldMicros({
+        promptTokens: 0,
+        maxTokens: 100_000,
+        modelMaxOutputTokens: 2000,
+        ...prices,
+      }),
+    ).toBe(29_040n);
   });
 });

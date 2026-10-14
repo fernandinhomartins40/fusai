@@ -39,3 +39,15 @@ Registro das decisões tomadas onde o PRD não especifica (ou onde algo divergiu
 - **D-027 — `ENCRYPTION_KEY` obrigatório.** A API não sobe sem uma chave de 32 bytes em base64. O `.env.example` traz o campo vazio com o comando para gerar. Trocar a chave invalida as chaves de provedor salvas (o admin vê "erro" e recadastra).
 - **D-028 — Formulários admin sem TanStack Query.** Páginas do admin são server components que leem a API; formulários client chamam a API e fazem `router.refresh()`. TanStack Query entra quando houver dados ao vivo/polling (Fases 5–6).
 - **D-029 — Corpo JSON vazio é aceito.** Parser JSON próprio (via `secure-json-parse`, o mesmo do Fastify) trata corpo vazio como ausente; JSON malformado ou com `__proto__`/`constructor` → 400.
+
+## Fase 3
+
+- **D-030 — Reservas em tabela (`WalletHold`), não em Redis.** O PRD aceita "tabela/chave Redis". Na tabela, a reserva e a hold entram na mesma transação, sem estado divergente entre Redis e Postgres. A limpeza é uma única instrução SQL. TTL de 15 min (acima do timeout máximo de upstream).
+- **D-031 — Worker com `setInterval` até haver Redis.** `src/worker.ts` roda a limpeza a cada 5 min. Vira job repetível do BullMQ na Fase 4. Rodar dois workers é seguro: a instrução é atômica.
+- **D-032 — Idempotência no banco.** `UNIQUE(type, referenceType, referenceId)` no ledger: um `USAGE` por request e um `PURCHASE`/`BONUS`/`REFUND` por pagamento. Lançamentos sem referência (ajustes manuais) não colidem, porque NULL é distinto no Postgres.
+- **D-033 — Cobrança real pode passar da hold.** `settle` debita o custo real mesmo se ultrapassar a estimativa (raro, a estimativa é o máximo). Em PREPAID isso pode deixar o disponível levemente negativo, e a próxima reserva é recusada até recarga.
+- **D-034 — Hold zero também checa saldo.** Carteira com disponível negativo (ex.: estorno) não faz nenhuma requisição, nem as gratuitas, até regularizar (PRD §9.1 item 8).
+- **D-035 — Datas em UTC no SQL cru.** O Prisma grava `DateTime` como UTC em colunas `timestamp` sem fuso. No SQL cru usamos `now() AT TIME ZONE 'UTC'` e convertemos parâmetros com `::timestamptz AT TIME ZONE 'UTC'`. Sem isso, um Postgres fora de UTC desloca horários (bug pego em teste).
+- **D-036 — Banco em UTF-8.** O `docker-compose` fixa `--encoding=UTF8`. Um cluster com codificação do Windows (WIN1252) rejeita parte dos caracteres Unicode.
+- **D-037 — Ajuste manual limitado a R$ 1.000.000 por lançamento** e com motivo obrigatório (5–300 caracteres). Ajuste pode deixar saldo negativo (poder do admin, fica auditado).
+- **D-038 — Extrato visível a qualquer membro da organização**, inclusive DEVELOPER. Restrições por papel para ações financeiras ficam para quando houver ações (recarga, Fase 6).

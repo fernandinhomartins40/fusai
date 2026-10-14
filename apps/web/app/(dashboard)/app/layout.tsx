@@ -12,7 +12,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
       <AppHeader home="/app" userName={me.user.name}>
         {me.user.role === 'SUPER_ADMIN' ? <NavLink href="/admin">Admin</NavLink> : null}
       </AppHeader>
-      <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">{children}</main>
+      {children}
     </div>
   );
 }
