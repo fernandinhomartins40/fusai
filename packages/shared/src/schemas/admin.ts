@@ -120,6 +120,8 @@ export const settingsSchema = z.object({
   min_topup_cents: z.coerce.number().int().min(100, 'Mínimo de R$ 1,00'),
   low_balance_threshold_micros: microsString,
   welcome_bonus_micros: microsString,
+  /** TEST keys only reach models whose output price per 1M tokens is at most this. */
+  test_key_max_output_micros: microsString.default('50000000'),
 });
 export type SettingsInput = z.input<typeof settingsSchema>;
 export type Settings = z.output<typeof settingsSchema>;
@@ -131,6 +133,7 @@ export const DEFAULT_SETTINGS: Settings = {
   min_topup_cents: 1000,
   low_balance_threshold_micros: '5000000',
   welcome_bonus_micros: '0',
+  test_key_max_output_micros: '50000000',
 };
 
 // ---- Wallet adjustments ----

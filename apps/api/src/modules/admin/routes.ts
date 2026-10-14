@@ -3,6 +3,7 @@ import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import type { Env } from '../../lib/env';
 import type { sessionGuards } from '../../lib/session';
 import type { SettingsStore } from '../../lib/settings';
+import type { CatalogStore } from '../gateway/catalog';
 import { adminModelRoutes } from './models';
 import { adminOrganizationRoutes } from './organizations';
 import { adminProviderRoutes } from './providers';
@@ -14,6 +15,7 @@ type Options = {
   guards: ReturnType<typeof sessionGuards>;
   settings: SettingsStore;
   encryptionKey: Buffer;
+  catalog: CatalogStore;
 };
 
 /** Super-admin routes. Every route here requires role SUPER_ADMIN. */

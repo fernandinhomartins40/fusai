@@ -2,12 +2,13 @@ import type { Model, Prisma, PrismaClient, Provider } from '@fuseai/db';
 import { fixedPricesMissing, modelCreateSchema, modelUpdateSchema } from '@fuseai/shared';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
+import { audit } from '../../lib/audit';
 import { conflict, HttpError, notFound } from '../../lib/errors';
 import { pricingSummary } from '../../lib/model-pricing';
 import type { SettingsStore } from '../../lib/settings';
-import { audit } from './audit';
+import type { CatalogStore } from '../gateway/catalog';
 
-type Options = { prisma: PrismaClient; settings: SettingsStore };
+type Options = { prisma: PrismaClient; settings: SettingsStore; catalog: CatalogStore };
 
 const idParams = z.object({ id: z.string().min(1) });
 const invalid = (message: string) => new HttpError(400, 'invalid_request', message);
@@ -30,7 +31,7 @@ function toData(input: ModelInput) {
 
 export const adminModelRoutes: FastifyPluginAsyncZod<Options> = async (
   app,
-  { prisma, settings },
+  { prisma, settings, catalog },
 ) => {
   const serialize = async (model: Model & { provider: Provider }) => ({
     id: model.id,
@@ -125,6 +126,7 @@ export const adminModelRoutes: FastifyPluginAsyncZod<Options> = async (
         include: { provider: true },
       });
       settings.invalidate();
+      catalog.invalidate();
       await audit(prisma, req, 'model.create', model.id, { slug: model.slug });
       return reply.status(201).send(await serialize(model));
     },
@@ -157,6 +159,7 @@ export const adminModelRoutes: FastifyPluginAsyncZod<Options> = async (
         include: { provider: true },
       });
       settings.invalidate();
+      catalog.invalidate();
       await audit(prisma, req, 'model.update', model.id, {
         slug: model.slug,
         fields: Object.keys(input),
@@ -183,6 +186,7 @@ export const adminModelRoutes: FastifyPluginAsyncZod<Options> = async (
       await tx.model.delete({ where: { id: model.id } });
     });
     settings.invalidate();
+    catalog.invalidate();
     await audit(prisma, req, 'model.delete', model.id, { slug: model.slug });
     return reply.status(204).send();
   });

@@ -15,6 +15,7 @@ const envSchema = z.object({
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
 
   DATABASE_URL: z.string().min(1),
+  REDIS_URL: z.string().default('redis://localhost:6379'),
 
   BETTER_AUTH_SECRET: z.string().min(16),
   BETTER_AUTH_URL: z.url().default('http://localhost:4000'),
@@ -27,6 +28,9 @@ const envSchema = z.object({
       (v) => Buffer.from(v, 'base64').length === 32,
       'ENCRYPTION_KEY must be 32 bytes in base64 (generate with: openssl rand -base64 32)',
     ),
+
+  /** Mixed into API key hashes: sha256(key + KEY_PEPPER). Changing it invalidates every key. */
+  KEY_PEPPER: z.string().min(8),
 
   EMAIL_FROM: z.string().default('FuseAI <nao-responda@fuseai.com.br>'),
   RESEND_API_KEY: optional,
@@ -44,6 +48,9 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
   if (env.NODE_ENV === 'production' && env.BETTER_AUTH_SECRET.startsWith('change-me')) {
     throw new Error('BETTER_AUTH_SECRET must be changed in production');
   }
+  if (env.NODE_ENV === 'production' && env.KEY_PEPPER.startsWith('change-me')) {
+    throw new Error('KEY_PEPPER must be changed in production');
+  }
   return env;
 }
 
@@ -54,6 +61,8 @@ export function testEnv(overrides: Partial<NodeJS.ProcessEnv> = {}): Env {
     DATABASE_URL: process.env.DATABASE_URL ?? 'postgresql://localhost/unused',
     BETTER_AUTH_SECRET: 'test-secret-test-secret-test-secret',
     ENCRYPTION_KEY: Buffer.alloc(32, 7).toString('base64'),
+    KEY_PEPPER: 'test-pepper-123',
+    REDIS_URL: process.env.TEST_REDIS_URL ?? 'redis://localhost:6379/1',
     ...overrides,
   });
 }

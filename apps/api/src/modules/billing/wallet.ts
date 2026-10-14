@@ -12,7 +12,7 @@
 import { type LedgerType, Prisma, type PrismaClient } from '@fuseai/db';
 import { notFound } from '../../lib/errors';
 
-type Tx = Prisma.TransactionClient;
+export type Tx = Prisma.TransactionClient;
 
 /** Holds live longer than the slowest upstream call (10 min) before cleanup releases them. */
 export const HOLD_TTL_MS = 15 * 60 * 1000;
@@ -106,6 +106,8 @@ export type SettleInput = {
   /** Real cost to charge (0 = release only, e.g. upstream failed before any token). */
   chargeMicros: bigint;
   description?: string;
+  /** Runs inside the settlement transaction (e.g. insert the UsageLog atomically). */
+  onSettled?: (tx: Tx) => Promise<unknown>;
 };
 
 export type SettleResult = { charged: bigint; released: bigint; duplicate: boolean };
@@ -151,6 +153,7 @@ export async function settle(prisma: PrismaClient, input: SettleInput): Promise<
           description: input.description ?? null,
         });
       }
+      await input.onSettled?.(tx);
       return { charged: input.chargeMicros, released, duplicate: false };
     });
   } catch (err) {

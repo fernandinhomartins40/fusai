@@ -64,4 +64,5 @@ export type AdminSettings = {
   min_topup_cents: number;
   low_balance_threshold_micros: string;
   welcome_bonus_micros: string;
+  test_key_max_output_micros: string;
 };

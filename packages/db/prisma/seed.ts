@@ -19,6 +19,7 @@ const settings: Record<string, unknown> = {
   min_topup_cents: 1000,
   low_balance_threshold_micros: '5000000',
   welcome_bonus_micros: '0',
+  test_key_max_output_micros: '50000000',
 };
 
 const providers = [

@@ -3,6 +3,7 @@ export * from './document';
 export * from './money';
 export * from './pricing';
 export * from './schemas/admin';
+export * from './schemas/api-keys';
 export * from './schemas/auth';
 export * from './schemas/onboarding';
 export * from './slug';

@@ -2,6 +2,7 @@ import type { Prisma, PrismaClient } from '@fuseai/db';
 import { ledgerQuerySchema, onlyDigits, orgSearchSchema, walletAdjustSchema } from '@fuseai/shared';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
+import { audit } from '../../lib/audit';
 import { notFound } from '../../lib/errors';
 import { currentUser } from '../../lib/session';
 import {
@@ -11,7 +12,6 @@ import {
   listLedger,
   walletSummary,
 } from '../billing/wallet';
-import { audit } from './audit';
 
 const idParams = z.object({ id: z.string().min(1) });
 

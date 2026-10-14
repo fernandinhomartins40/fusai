@@ -20,6 +20,7 @@ type Values = {
   minTopupBrl: string;
   lowBalanceBrl: string;
   welcomeBonusBrl: string;
+  testKeyMaxBrl: string;
 };
 
 const comma = (v: string) => v.replace('.', ',');
@@ -35,6 +36,7 @@ export function SettingsForm({ settings }: { settings: AdminSettings }) {
       minTopupBrl: microsToInput(BigInt(settings.min_topup_cents) * 10_000n),
       lowBalanceBrl: microsToInput(settings.low_balance_threshold_micros),
       welcomeBonusBrl: microsToInput(settings.welcome_bonus_micros),
+      testKeyMaxBrl: microsToInput(settings.test_key_max_output_micros),
     },
   });
   const { isSubmitting } = form.formState;
@@ -50,6 +52,7 @@ export function SettingsForm({ settings }: { settings: AdminSettings }) {
         min_topup_cents: Number(brlToMicros(v.minTopupBrl) / 10_000n),
         low_balance_threshold_micros: brlToMicros(v.lowBalanceBrl).toString(),
         welcome_bonus_micros: brlToMicros(v.welcomeBonusBrl).toString(),
+        test_key_max_output_micros: brlToMicros(v.testKeyMaxBrl).toString(),
       };
     } catch {
       return setError('Valor em reais inválido. Use o formato 10,00.');
@@ -127,6 +130,19 @@ export function SettingsForm({ settings }: { settings: AdminSettings }) {
             required
             className="font-mono"
             {...form.register('welcomeBonusBrl')}
+          />
+        </Field>
+        <Field
+          id="testKeyMax"
+          label="Preço máximo para chaves de teste (R$ por 1M de saída)"
+          hint="Chaves fai_test_ só acessam modelos até este preço."
+        >
+          <Input
+            id="testKeyMax"
+            inputMode="decimal"
+            required
+            className="font-mono"
+            {...form.register('testKeyMaxBrl')}
           />
         </Field>
       </div>

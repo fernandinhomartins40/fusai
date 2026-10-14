@@ -15,23 +15,36 @@ import type { Env } from './lib/env';
 import { HttpError } from './lib/errors';
 import { loggerOptions } from './lib/logger';
 import { createSmtpMailer, type Mailer } from './lib/mailer';
+import { createRedis, type RedisClient } from './lib/redis';
 import { sessionGuards } from './lib/session';
 import { createSettingsStore } from './lib/settings';
 import { adminRoutes } from './modules/admin/routes';
 import { createAuth } from './modules/auth/auth';
 import { authRoutes } from './modules/auth/routes';
 import { dashboardRoutes } from './modules/dashboard/routes';
+import { createCatalog } from './modules/gateway/catalog';
+import { createCircuitBreaker } from './modules/gateway/circuit-breaker';
+import { gatewayRoutes } from './modules/gateway/routes';
 import { healthRoutes } from './modules/health/routes';
 
-export type AppDeps = { prisma?: PrismaClient; mailer?: Mailer };
+declare module 'fastify' {
+  interface FastifyInstance {
+    caches: { invalidate(): void };
+  }
+}
+
+export type AppDeps = { prisma?: PrismaClient; mailer?: Mailer; redis?: RedisClient };
 
 export async function buildApp(env: Env, deps: AppDeps = {}) {
   const prisma = deps.prisma ?? defaultPrisma;
   const mailer = deps.mailer ?? createSmtpMailer(env);
-  const auth = createAuth(env, prisma, mailer);
+  const redis = deps.redis ?? createRedis(env.REDIS_URL);
+  const auth = createAuth(env, prisma, mailer, redis);
   const guards = sessionGuards(env, auth);
   const settings = createSettingsStore(prisma);
   const encryptionKey = parseEncryptionKey(env.ENCRYPTION_KEY);
+  const catalog = createCatalog(prisma, encryptionKey);
+  const breaker = createCircuitBreaker(redis);
 
   const app = Fastify({
     logger: loggerOptions(env),
@@ -97,8 +110,27 @@ export async function buildApp(env: Env, deps: AppDeps = {}) {
 
   await app.register(healthRoutes);
   await app.register(authRoutes, { auth });
-  await app.register(dashboardRoutes, { prisma, guards, settings });
-  await app.register(adminRoutes, { prisma, env, guards, settings, encryptionKey });
+  await app.register(dashboardRoutes, { prisma, env, guards, settings });
+  await app.register(adminRoutes, { prisma, env, guards, settings, encryptionKey, catalog });
+  await app.register(gatewayRoutes, {
+    prefix: '/v1',
+    prisma,
+    catalog,
+    settings,
+    breaker,
+    redis,
+    keyPepper: env.KEY_PEPPER,
+  });
+
+  // In-memory caches (catalog 10s, settings 60s); exposed so tests can reset them.
+  app.decorate('caches', {
+    invalidate() {
+      catalog.invalidate();
+      settings.invalidate();
+    },
+  });
+
+  if (!deps.redis) app.addHook('onClose', async () => void (await redis.quit()));
 
   return app;
 }

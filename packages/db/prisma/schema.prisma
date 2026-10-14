@@ -419,6 +419,7 @@ model UsageLog {
 
   @@index([orgId, createdAt])
   @@index([projectId, createdAt])
+  @@index([apiKeyId, createdAt]) // monthly spend limit per key
   @@index([createdAt])
 }
 

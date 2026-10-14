@@ -5,8 +5,10 @@ import { prismaAdapter } from 'better-auth/adapters/prisma';
 import { resetPasswordEmail, verificationEmail } from '../../lib/email-templates';
 import type { Env } from '../../lib/env';
 import type { Mailer } from '../../lib/mailer';
+import { betterAuthRateLimitStorage } from '../../lib/rate-limit';
+import type { RedisClient } from '../../lib/redis';
 
-export function createAuth(env: Env, prisma: PrismaClient, mailer: Mailer) {
+export function createAuth(env: Env, prisma: PrismaClient, mailer: Mailer, redis: RedisClient) {
   const isProd = env.NODE_ENV === 'production';
   const google =
     env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET
@@ -47,6 +49,8 @@ export function createAuth(env: Env, prisma: PrismaClient, mailer: Mailer) {
     socialProviders: google,
     rateLimit: {
       enabled: env.NODE_ENV !== 'test',
+      // Shared across API instances (and survives restarts) via Redis.
+      customStorage: betterAuthRateLimitStorage(redis),
       window: 60,
       max: 100,
       customRules: {

@@ -1,7 +1,9 @@
+import { randomUUID } from 'node:crypto';
 import { prisma } from '@fuseai/db';
 import { buildApp } from '../src/app';
 import { testEnv } from '../src/lib/env';
 import { createMemoryMailer } from '../src/lib/mailer';
+import { createRedis } from '../src/lib/redis';
 
 export const APP_URL = 'http://localhost:3000';
 
@@ -55,8 +57,12 @@ export async function createFundedOrg(
 
 export async function createTestApp() {
   const mailer = createMemoryMailer();
-  const app = await buildApp(testEnv({ APP_URL }), { prisma, mailer });
-  return { app, mailer, prisma };
+  const env = testEnv({ APP_URL });
+  // Unique key prefix per app: test files never see each other's rate limits or breakers.
+  const redis = createRedis(env.REDIS_URL, `test:${randomUUID()}:`);
+  const app = await buildApp(env, { prisma, mailer, redis });
+  app.addHook('onClose', async () => void (await redis.quit()));
+  return { app, mailer, prisma, redis, env };
 }
 
 type TestApp = Awaited<ReturnType<typeof createTestApp>>['app'];

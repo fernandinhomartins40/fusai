@@ -38,7 +38,7 @@ export function ProjectStep({
   onCreated,
 }: {
   orgId: string;
-  onCreated: (name: string) => void;
+  onCreated: (project: { id: string; name: string }) => void;
 }) {
   const [error, setError] = useState<string | null>(null);
   const form = useForm<Values>({
@@ -51,14 +51,14 @@ export function ProjectStep({
   const onSubmit = form.handleSubmit(async (values) => {
     setError(null);
     try {
-      const project = await apiFetch<{ name: string }>(
+      const project = await apiFetch<{ id: string; name: string }>(
         `/internal/organizations/${orgId}/projects`,
         {
           method: 'POST',
           body: JSON.stringify(values),
         },
       );
-      onCreated(project.name);
+      onCreated(project);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Não foi possível salvar. Tente novamente.');
     }

@@ -10,13 +10,13 @@ import {
 import { cn } from '@fuseai/ui/lib/utils';
 import { Check } from 'lucide-react';
 import { useState } from 'react';
-import { DoneStep } from './done-step';
+import { KeyStep } from './key-step';
 import { OrganizationStep } from './organization-step';
 import { ProjectStep } from './project-step';
 
 type Org = { id: string; name: string };
 
-const steps = ['Organização', 'Projeto', 'Pronto'] as const;
+const steps = ['Organização', 'Projeto', 'Chave de API'] as const;
 
 export function OnboardingWizard({
   userName,
@@ -26,8 +26,8 @@ export function OnboardingWizard({
   existingOrg: Org | null;
 }) {
   const [org, setOrg] = useState<Org | null>(existingOrg);
-  const [projectName, setProjectName] = useState<string | null>(null);
-  const step = !org ? 0 : !projectName ? 1 : 2;
+  const [project, setProject] = useState<{ id: string; name: string } | null>(null);
+  const step = !org ? 0 : !project ? 1 : 2;
 
   return (
     <div className="mx-auto grid max-w-xl gap-6">
@@ -85,14 +85,22 @@ export function OnboardingWizard({
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <ProjectStep orgId={org.id} onCreated={setProjectName} />
+              <ProjectStep orgId={org.id} onCreated={setProject} />
             </CardContent>
           </>
-        ) : (
-          <CardContent className="pt-6">
-            <DoneStep orgName={org?.name ?? ''} projectName={projectName ?? ''} />
-          </CardContent>
-        )}
+        ) : project ? (
+          <>
+            <CardHeader>
+              <CardTitle>Sua chave de API</CardTitle>
+              <CardDescription>
+                Use-a no servidor do seu app para chamar a FuseAI com o SDK da OpenAI.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <KeyStep projectId={project.id} projectName={project.name} />
+            </CardContent>
+          </>
+        ) : null}
       </Card>
     </div>
   );

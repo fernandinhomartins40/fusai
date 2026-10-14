@@ -2,13 +2,16 @@ import type { PrismaClient } from '@fuseai/db';
 import { createOrganizationSchema, createProjectSchema } from '@fuseai/shared';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
+import type { Env } from '../../lib/env';
 import { currentUser, type sessionGuards } from '../../lib/session';
 import type { SettingsStore } from '../../lib/settings';
+import { dashboardApiKeyRoutes } from './api-keys';
 import { createOrganization, createProject } from './organizations';
 import { dashboardWalletRoutes } from './wallet';
 
 type Options = {
   prisma: PrismaClient;
+  env: Env;
   guards: ReturnType<typeof sessionGuards>;
   settings: SettingsStore;
 };
@@ -16,10 +19,11 @@ type Options = {
 /** Cookie-authenticated routes used by the customer dashboard. */
 export const dashboardRoutes: FastifyPluginAsyncZod<Options> = async (
   app,
-  { prisma, guards, settings },
+  { prisma, env, guards, settings },
 ) => {
   app.addHook('onRequest', guards.requireUser);
   await app.register(dashboardWalletRoutes, { prisma });
+  await app.register(dashboardApiKeyRoutes, { prisma, env });
 
   app.get('/internal/me', async (req) => {
     const user = currentUser(req);

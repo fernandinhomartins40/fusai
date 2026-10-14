@@ -16,6 +16,7 @@ export default async function OrgRequiredLayout({ children }: { children: ReactN
         label="Seções do painel"
         items={[
           { href: '/app', label: 'Visão geral', exact: true },
+          { href: '/app/projetos', label: 'Projetos' },
           { href: '/app/carteira', label: 'Carteira' },
         ]}
       />

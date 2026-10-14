@@ -18,7 +18,7 @@ pnpm --filter @fuseai/api dev:worker   # worker (limpeza de reservas órfãs)
 pnpm build                  # build de tudo
 pnpm lint | pnpm lint:fix   # Biome
 pnpm typecheck              # tsc em todos os pacotes
-pnpm test                   # Vitest (API usa Postgres real: banco <DATABASE_URL>_test)
+pnpm test                   # Vitest (API usa Postgres real <DATABASE_URL>_test e Redis db 1)
 pnpm db:migrate             # prisma migrate dev
 pnpm db:seed                # seed (admin, provedores, settings, pacotes)
 pnpm db:studio              # Prisma Studio

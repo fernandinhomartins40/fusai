@@ -2,19 +2,20 @@ import type { PrismaClient, Provider } from '@fuseai/db';
 import { providerCreateSchema, providerUpdateSchema } from '@fuseai/shared';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
+import { audit } from '../../lib/audit';
 import { decryptSecret, encryptSecret, maskSecret } from '../../lib/crypto';
 import type { Env } from '../../lib/env';
 import { conflict, HttpError, notFound } from '../../lib/errors';
 import { testProviderConnection } from '../../lib/upstream';
-import { audit } from './audit';
+import type { CatalogStore } from '../gateway/catalog';
 
-type Options = { prisma: PrismaClient; env: Env; encryptionKey: Buffer };
+type Options = { prisma: PrismaClient; env: Env; encryptionKey: Buffer; catalog: CatalogStore };
 
 const idParams = z.object({ id: z.string().min(1) });
 
 export const adminProviderRoutes: FastifyPluginAsyncZod<Options> = async (
   app,
-  { prisma, env, encryptionKey },
+  { prisma, env, encryptionKey, catalog },
 ) => {
   const keyOf = (provider: Provider): string | null => {
     if (!provider.apiKeyEnc) return null;
@@ -88,6 +89,7 @@ export const adminProviderRoutes: FastifyPluginAsyncZod<Options> = async (
         data: { ...data, apiKeyEnc: apiKey ? encryptSecret(apiKey, encryptionKey) : '' },
         include: { _count: { select: { models: true } } },
       });
+      catalog.invalidate();
       await audit(prisma, req, 'provider.create', provider.id, {
         slug: provider.slug,
         keySet: !!apiKey,
@@ -112,6 +114,7 @@ export const adminProviderRoutes: FastifyPluginAsyncZod<Options> = async (
         data: { ...data, ...(apiKey ? { apiKeyEnc: encryptSecret(apiKey, encryptionKey) } : {}) },
         include: { _count: { select: { models: true } } },
       });
+      catalog.invalidate();
       await audit(prisma, req, 'provider.update', provider.id, {
         fields: Object.keys(data),
         keyChanged: !!apiKey,
@@ -129,6 +132,7 @@ export const adminProviderRoutes: FastifyPluginAsyncZod<Options> = async (
         throw conflict('Remova ou mova os modelos deste provedor antes de excluí-lo');
       }
       await prisma.provider.delete({ where: { id: provider.id } });
+      catalog.invalidate();
       await audit(prisma, req, 'provider.delete', provider.id, { slug: provider.slug });
       return reply.status(204).send();
     },

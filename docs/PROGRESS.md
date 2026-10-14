@@ -6,7 +6,7 @@
 | 1 — Banco e autenticação | ✅ concluída (ver pendências) |
 | 2 — Provedores, modelos e preços | ✅ concluída (ver pendências) |
 | 3 — Billing core | ✅ concluída (ver pendências) |
-| 4 — Chaves de API e gateway | ⏳ |
+| 4 — Chaves de API e gateway | ✅ concluída (ver pendências) |
 | 5 — Painel do cliente | ⏳ |
 | 6 — Pix (Asaas) | ⏳ |
 | 7 — Usuários finais e checkout | ⏳ |
