@@ -12,7 +12,7 @@ import {
   TableRow,
 } from '@fuseai/ui/components/table';
 import { Loader2 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { apiFetch } from '@/lib/api';
 import { dateTimeBR } from '@/lib/format';
@@ -23,6 +23,12 @@ export function LedgerTable({ endpoint, initial }: { endpoint: string; initial: 
   const [items, setItems] = useState(initial.items);
   const [cursor, setCursor] = useState(initial.nextCursor);
   const [loading, setLoading] = useState(false);
+
+  // A server refresh (new top-up, adjustment) brings a new first page: start over from it.
+  useEffect(() => {
+    setItems(initial.items);
+    setCursor(initial.nextCursor);
+  }, [initial]);
 
   async function loadMore() {
     if (!cursor) return;

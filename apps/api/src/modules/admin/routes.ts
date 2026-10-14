@@ -3,7 +3,9 @@ import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import type { Env } from '../../lib/env';
 import type { sessionGuards } from '../../lib/session';
 import type { SettingsStore } from '../../lib/settings';
+import type { PaymentProvider } from '../../payments/types';
 import type { CatalogStore } from '../gateway/catalog';
+import { adminPaymentRoutes } from '../payments/routes';
 import { adminModelRoutes } from './models';
 import { adminOrganizationRoutes } from './organizations';
 import { adminProviderRoutes } from './providers';
@@ -16,6 +18,7 @@ type Options = {
   settings: SettingsStore;
   encryptionKey: Buffer;
   catalog: CatalogStore;
+  provider: PaymentProvider;
 };
 
 /** Super-admin routes. Every route here requires role SUPER_ADMIN. */
@@ -37,4 +40,5 @@ export const adminRoutes: FastifyPluginAsyncZod<Options> = async (app, opts) => 
   await app.register(adminModelRoutes, opts);
   await app.register(adminSettingsRoutes, opts);
   await app.register(adminOrganizationRoutes, opts);
+  await app.register(adminPaymentRoutes, opts);
 };

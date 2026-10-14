@@ -2,8 +2,10 @@ import { randomUUID } from 'node:crypto';
 import { prisma } from '@fuseai/db';
 import { buildApp } from '../src/app';
 import { testEnv } from '../src/lib/env';
+import { createMemoryJobQueue } from '../src/lib/jobs';
 import { createMemoryMailer } from '../src/lib/mailer';
 import { createRedis } from '../src/lib/redis';
+import { createPaymentProvider } from '../src/payments';
 
 export const APP_URL = 'http://localhost:3000';
 
@@ -55,14 +57,16 @@ export async function createFundedOrg(
   return { org, walletId: wallet.id };
 }
 
-export async function createTestApp() {
+export async function createTestApp(opts: { env?: Partial<NodeJS.ProcessEnv> } = {}) {
   const mailer = createMemoryMailer();
-  const env = testEnv({ APP_URL });
+  const env = testEnv({ APP_URL, ...opts.env });
   // Unique key prefix per app: test files never see each other's rate limits or breakers.
   const redis = createRedis(env.REDIS_URL, `test:${randomUUID()}:`);
-  const app = await buildApp(env, { prisma, mailer, redis });
+  const jobs = createMemoryJobQueue();
+  const provider = createPaymentProvider(env);
+  const app = await buildApp(env, { prisma, mailer, redis, jobs, provider });
   app.addHook('onClose', async () => void (await redis.quit()));
-  return { app, mailer, prisma, redis, env };
+  return { app, mailer, prisma, redis, env, jobs, provider };
 }
 
 type TestApp = Awaited<ReturnType<typeof createTestApp>>['app'];

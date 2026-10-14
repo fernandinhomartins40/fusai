@@ -84,3 +84,21 @@ Registro das decisões tomadas onde o PRD não especifica (ou onde algo divergiu
 - **D-063 — Gráficos sem animação.** Barras desenhadas já no estado final: sem rótulos sumindo durante a animação, e `prefers-reduced-motion` respeitado por construção.
 - **D-064 — Cor dos gráficos validada.** Uma série por gráfico (ranking e tempo são magnitude, não identidade): `--chart-series` = `#7c3aed` (claro) e `#8b5cf6` (escuro), aprovados pelo validador de paleta nas superfícies reais dos cards. Ticks sem "R$" (a unidade vai no subtítulo) e com casas decimais suficientes para não mentir.
 - **D-065 — Filtros na URL.** Consumo e Logs guardam os filtros na query string (dá para compartilhar o link). A troca usa `useTransition`: o conteúdo anterior fica a 50% de opacidade até o novo chegar, sem skeleton.
+
+## Fase 6
+
+Documentação do Asaas consultada em out/2026 (docs.asaas.com: cobranças via Pix, sobre os webhooks, eventos de cobrança, autenticação, sandbox).
+
+- **D-066 — Autenticação da API Asaas.** Header `access_token` (não `Authorization: Bearer`) e `User-Agent` (obrigatório para contas criadas a partir de 13/06/2024). URLs: `https://api-sandbox.asaas.com/v3` e `https://api.asaas.com/v3`; `ASAAS_API_URL` sobrescreve (testes / Asaas falso).
+- **D-067 — Idempotência pelo id do evento.** O webhook traz `id` (`evt_…`) e a entrega é "pelo menos uma vez". `InboundWebhookEvent.eventKey` = esse id; sem id, usa `evento:payment.id` (como o PRD sugeria). Evento repetido → 200 e nada mais.
+- **D-068 — Pix vai de `PAYMENT_CREATED` direto a `PAYMENT_RECEIVED`.** `PAYMENT_CONFIRMED` (comum em cartão) também credita: o crédito é único de qualquer forma. `PAYMENT_OVERDUE`/`PAYMENT_DELETED` → `EXPIRED`/`CANCELED` (se não pago). `PAYMENT_REFUNDED` → débito `REFUND`.
+- **D-069 — Nunca creditar só pelo corpo do webhook.** Antes de creditar, `GET /payments/{id}` confirma status pago e valor igual ao cobrado (divergência fica registrada no evento). Por isso a interface `PaymentProvider` ganhou `getPayment` e `cancel`, além do que o PRD listava.
+- **D-070 — Expiração própria de 60 minutos.** O QR Code dinâmico do Asaas vale até 12 meses após o vencimento. Usamos 60 min (ou o prazo do Asaas, se menor). O job cancela a cobrança no Asaas (`DELETE`) para o QR deixar de ser pagável. Se ela já estiver paga, credita. Pagamento que chega com status local `EXPIRED` é creditado igualmente: o dinheiro entrou.
+- **D-071 — Sandbox sem endpoint de confirmação.** O Asaas não confirma pagamento de sandbox por API (é o botão "Confirmar pagamento" no painel). A verificação automatizada usa um Asaas falso fiel à API (`apps/api/test/fake-asaas.ts`); o roteiro manual no sandbox está em PROGRESS.md.
+- **D-072 — Webhook: persistir, responder 200 e processar na fila.** A rota só valida o token, grava o evento e enfileira. O worker processa. Um job de varredura (2 min) reprocessa eventos não processados (enfileiramento perdido, worker fora, Asaas indisponível), cobrindo o risco da fila do Asaas ser pausada após 15 falhas.
+- **D-073 — Cliente Asaas por organização.** `notificationDisabled: true` (a FuseAI manda os próprios emails) e `externalReference = org:<id>`. O id fica em `Organization.asaasCustomerId` porque a API aceita duplicados.
+- **D-074 — Taxa de recarga cobrada por cima.** Com `topup_fee_pct > 0`, o cliente paga `base + ⌈base × pct / 100⌉` e recebe `base` em créditos (+ bônus do pacote). Padrão 0%.
+- **D-075 — Bônus de pacote separado no ledger.** `PURCHASE` (valor pago em créditos) + `BONUS` (bônus do pacote), ambos com `referenceId = payment.id`. O estorno debita o total creditado.
+- **D-076 — Limites da recarga.** Máximo de R$ 10.000 por recarga (proteção contra erro de digitação), 10 recargas/min por usuário e `Idempotency-Key` por sessão do diálogo.
+- **D-077 — Fila única `jobs`.** API e worker compartilham uma fila BullMQ (`fuse:bull:jobs`) com jobs nomeados. O worker passou a usar `loadEnv` (precisa do Asaas e do SMTP).
+- **D-078 — TanStack Query só onde há dado vivo.** Entrou para o polling do status do Pix (a cada 3 s, para quando o status muda). O resto do painel segue com server components.

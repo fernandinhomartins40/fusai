@@ -14,7 +14,7 @@ Há painel do cliente (`/app`), painel super admin (`/admin`) e landing de venda
 docker compose up -d        # Postgres 16, Redis 7, Mailpit (UI http://localhost:8025)
 pnpm i                      # instala e gera o Prisma Client
 pnpm dev                    # web :3000 + api :4000 (turbo)
-pnpm --filter @fuseai/api dev:worker   # worker (limpeza de reservas órfãs)
+pnpm --filter @fuseai/api dev:worker   # worker BullMQ: webhooks Pix, expiração, emails, reservas órfãs
 pnpm build                  # build de tudo
 pnpm lint | pnpm lint:fix   # Biome
 pnpm typecheck              # tsc em todos os pacotes

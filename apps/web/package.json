@@ -13,6 +13,7 @@
     "@fuseai/shared": "workspace:*",
     "@fuseai/ui": "workspace:*",
     "@hookform/resolvers": "5.9.1",
+    "@tanstack/react-query": "^5.104.2",
     "better-auth": "1.7.7",
     "geist": "1.7.2",
     "lucide-react": "^0.546.0",

@@ -8,7 +8,7 @@
 | 3 — Billing core | ✅ concluída (ver pendências) |
 | 4 — Chaves de API e gateway | ✅ concluída (ver pendências) |
 | 5 — Painel do cliente | ✅ concluída (ver pendências) |
-| 6 — Pix (Asaas) | ⏳ |
+| 6 — Pix (Asaas) | ✅ concluída — falta validar no sandbox real (ver pendências) |
 | 7 — Usuários finais e checkout | ⏳ |
 | 8 — MCP e Kit de Integração | ⏳ |
 | 9 — Landing page | ⏳ |
@@ -249,3 +249,64 @@ docker compose up -d && pnpm db:migrate && pnpm db:seed && pnpm dev
 - Recarga via Pix ("Adicionar créditos" leva à carteira): Fase 6.
 - O roteiro de navegador está no scratchpad desta máquina; vira suíte Playwright no repositório na Fase 10.
 - Docker continua indisponível aqui (Postgres, Redis e Mailpit locais no scratchpad).
+
+## Fase 6 — Pix (Asaas)
+
+### Feito
+- **Documentação oficial do Asaas consultada** (out/2026) antes de codar; divergências do PRD registradas em D-066…D-071.
+- **`PaymentProvider` + `AsaasProvider`** (`apps/api/src/payments`): clientes, cobrança Pix, QR Code, consulta de cobrança, estorno, cancelamento e validação do webhook. Header `access_token`, `User-Agent`, URLs de sandbox/produção por `ASAAS_ENV` (ou `ASAAS_API_URL`).
+- **Recarga da organização** (`modules/payments`):
+  - pacote global ou valor livre (mínimo `min_topup_cents`, máximo R$ 10.000), com taxa opcional `topup_fee_pct` arredondada para cima;
+  - cria o cliente no Asaas uma vez por organização (guardado em `asaasCustomerId`), a cobrança com `externalReference = payment.id` e o QR Code;
+  - o Pix vale 60 minutos (ou menos, se o Asaas indicar);
+  - `Idempotency-Key` evita cobrança dupla em clique duplo; limite de 10 recargas/min por usuário; só dono, admin e financeiro recarregam.
+- **Webhook** `POST /webhooks/asaas`:
+  - valida `asaas-access-token` em tempo constante;
+  - guarda o evento com `eventKey` único (o `id` `evt_…` do Asaas), responde 200 na hora e enfileira `process-webhook`; eventos repetidos são confirmados e ignorados.
+- **Crédito único**:
+  - o worker consulta a cobrança no Asaas (status pago e valor igual) antes de creditar; só o corpo do webhook nunca basta;
+  - o crédito usa `UPDATE … WHERE creditedAt IS NULL` e a chave única do ledger: `PURCHASE` + `BONUS` uma vez só, mesmo com eventos diferentes (`CONFIRMED` e `RECEIVED`) processados em paralelo.
+- **Worker BullMQ** (fila `jobs`): `process-webhook`; `expire-payments` (1 min) cancela no Asaas e marca `EXPIRED` (se já foi pago, credita); `sweep-webhooks` (2 min) reprocessa eventos que ficaram para trás; `release-holds` (5 min). Email "Pagamento confirmado" para dono, admin e financeiro.
+- **Estorno**: o admin pede em `/admin/pagamentos` → `POST /payments/{id}/refund` no Asaas → o webhook `PAYMENT_REFUNDED` debita `REFUND` uma vez (pode deixar o saldo negativo, bloqueando o uso até regularizar).
+- **Web**:
+  - "Adicionar créditos" (visão geral e carteira) abre o diálogo: pacotes (com bônus e "popular") ou outro valor → QR Code + copia e cola + contagem regressiva → status ao vivo (TanStack Query, a cada 3 s) → tela de sucesso com confete;
+  - a carteira se atualiza sozinha e ganhou o histórico de recargas;
+  - admin: página Pagamentos com estorno.
+
+### Como testar
+```bash
+docker compose up -d && pnpm db:migrate && pnpm db:seed
+pnpm dev                                   # API + web
+pnpm --filter @fuseai/api dev:worker       # processa webhooks, expiração e emails
+```
+**No sandbox real do Asaas** (critério de aceite da fase):
+1. Crie a conta em https://sandbox.asaas.com, cadastre uma chave Pix (Minha conta → Pix) e gere a chave de API (Integrações). Coloque em `.env`: `ASAAS_ENV=sandbox`, `ASAAS_API_KEY=$aact_hmlg_...`, `ASAAS_WEBHOOK_TOKEN=<um token longo>`.
+2. Exponha a API (ex.: `cloudflared tunnel --url http://localhost:4000` ou `ngrok http 4000`) e, no Asaas (Integrações → Webhooks), crie um webhook para `https://<túnel>/webhooks/asaas`. Use o mesmo token e marque os eventos `PAYMENT_RECEIVED`, `PAYMENT_CONFIRMED`, `PAYMENT_REFUNDED`, `PAYMENT_OVERDUE` e `PAYMENT_DELETED`.
+3. No painel: Carteira → Adicionar créditos → R$ 50 → Gerar Pix.
+4. No sandbox do Asaas: Cobranças → abra a cobrança → **Confirmar pagamento**. O diálogo vira "Pagamento confirmado" e o saldo sobe R$ 52,50.
+5. Reenvie o mesmo evento 3× (Integrações → Webhooks → logs → reenviar) e confira que o saldo não muda.
+
+### Verificado
+- `pnpm lint`, `pnpm typecheck`, `pnpm test` (128 testes: 35 shared, 93 API) e `pnpm build` passando.
+- **11 testes de pagamento** contra um Asaas falso fiel à API documentada:
+  - criação do cliente, da cobrança e do QR Code (headers `access_token`/`User-Agent`, `externalReference`);
+  - webhook entregue 3× → 1 evento, 1 crédito;
+  - eventos diferentes processados em paralelo → 1 crédito;
+  - token errado → 401 sem gravar nada;
+  - evento sem pagamento real, ou com valor divergente → não credita;
+  - varredura de eventos pendentes;
+  - expiração com cancelamento no Asaas (e crédito se já estava pago);
+  - estorno idempotente;
+  - validação de valor, taxa, `Idempotency-Key`, falha do Asaas → 502, e permissões.
+- **Aceite no navegador** (375px, servidores reais + **worker BullMQ** + Mailpit + Asaas falso na porta 4998), 14/14:
+  - cadastro e onboarding pela UI → "Adicionar créditos" → pacote R$ 50 → QR Code e copia e cola;
+  - "Confirmar pagamento" simulado com o webhook entregue **3×** (200/200/200) → a tela vira "Pagamento confirmado" sozinha;
+  - carteira com R$ 52,50, recarga "Paga" e extrato com compra + bônus; email de confirmação recebido; sem estouro horizontal nem erros no console.
+- No banco, após esse fluxo: 1 `InboundWebhookEvent` processado sem erro e exatamente `PURCHASE 50000000` + `BONUS 2500000`.
+- **Bugs achados no navegador e corrigidos**: o extrato não se atualizava após um refresh do servidor (estado preso no `LedgerTable`); a carteira atrás do diálogo ficava desatualizada (agora atualiza ao gerar e ao confirmar o Pix).
+
+### Pendências
+- **Não validado no sandbox real do Asaas** (sem chave neste ambiente): seguir o roteiro acima. A integração segue a documentação oficial, mas o primeiro teste real pode revelar detalhes (ex.: exigência de chave Pix cadastrada na conta).
+- Pagamentos de usuários finais, checkout hospedado e webhooks de saída (`payment.received`): Fase 7.
+- Reprocessar webhook recebido pelo admin e notas fiscais: Fase 10 / fase 2 do produto.
+- Docker continua indisponível nesta máquina.

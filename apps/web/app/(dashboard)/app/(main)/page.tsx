@@ -45,7 +45,7 @@ export default async function OverviewPage() {
         </div>
         {o.billingType !== 'INTERNAL' ? (
           <Button asChild variant="brand">
-            <Link href="/app/carteira">
+            <Link href="/app/carteira?recarga=1">
               <Plus /> Adicionar créditos
             </Link>
           </Button>
@@ -64,7 +64,7 @@ export default async function OverviewPage() {
             recebem 402.
           </p>
           <Button asChild size="sm" variant="outline">
-            <Link href="/app/carteira">Recarregar</Link>
+            <Link href="/app/carteira?recarga=1">Recarregar</Link>
           </Button>
         </div>
       ) : null}

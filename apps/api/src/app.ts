@@ -13,6 +13,7 @@ import secureJson from 'secure-json-parse';
 import { parseEncryptionKey } from './lib/crypto';
 import type { Env } from './lib/env';
 import { HttpError } from './lib/errors';
+import { createJobQueue, type JobQueue } from './lib/jobs';
 import { loggerOptions } from './lib/logger';
 import { createSmtpMailer, type Mailer } from './lib/mailer';
 import { createRedis, type RedisClient } from './lib/redis';
@@ -26,6 +27,8 @@ import { createCatalog } from './modules/gateway/catalog';
 import { createCircuitBreaker } from './modules/gateway/circuit-breaker';
 import { gatewayRoutes } from './modules/gateway/routes';
 import { healthRoutes } from './modules/health/routes';
+import { paymentWebhookRoutes } from './modules/payments/routes';
+import { createPaymentProvider, type PaymentProvider } from './payments';
 
 declare module 'fastify' {
   interface FastifyInstance {
@@ -33,7 +36,13 @@ declare module 'fastify' {
   }
 }
 
-export type AppDeps = { prisma?: PrismaClient; mailer?: Mailer; redis?: RedisClient };
+export type AppDeps = {
+  prisma?: PrismaClient;
+  mailer?: Mailer;
+  redis?: RedisClient;
+  provider?: PaymentProvider;
+  jobs?: JobQueue;
+};
 
 export async function buildApp(env: Env, deps: AppDeps = {}) {
   const prisma = deps.prisma ?? defaultPrisma;
@@ -44,6 +53,8 @@ export async function buildApp(env: Env, deps: AppDeps = {}) {
   const settings = createSettingsStore(prisma);
   const encryptionKey = parseEncryptionKey(env.ENCRYPTION_KEY);
   const catalog = createCatalog(prisma, encryptionKey);
+  const provider = deps.provider ?? createPaymentProvider(env);
+  const jobs = deps.jobs ?? createJobQueue(env.REDIS_URL);
   const breaker = createCircuitBreaker(redis);
 
   const app = Fastify({
@@ -123,8 +134,19 @@ export async function buildApp(env: Env, deps: AppDeps = {}) {
     catalog,
     encryptionKey,
     mailer,
+    provider,
+    redis,
   });
-  await app.register(adminRoutes, { prisma, env, guards, settings, encryptionKey, catalog });
+  await app.register(adminRoutes, {
+    prisma,
+    env,
+    guards,
+    settings,
+    encryptionKey,
+    catalog,
+    provider,
+  });
+  await app.register(paymentWebhookRoutes, { prisma, provider, jobs });
   await app.register(gatewayRoutes, {
     prefix: '/v1',
     prisma,
@@ -144,6 +166,7 @@ export async function buildApp(env: Env, deps: AppDeps = {}) {
   });
 
   if (!deps.redis) app.addHook('onClose', async () => void (await redis.quit()));
+  if (!deps.jobs) app.addHook('onClose', async () => jobs.close());
 
   return app;
 }

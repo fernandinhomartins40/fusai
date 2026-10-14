@@ -32,6 +32,12 @@ const envSchema = z.object({
   /** Mixed into API key hashes: sha256(key + KEY_PEPPER). Changing it invalidates every key. */
   KEY_PEPPER: z.string().min(8),
 
+  ASAAS_ENV: z.enum(['sandbox', 'production']).default('sandbox'),
+  ASAAS_API_KEY: optional,
+  /** Overrides the base URL derived from ASAAS_ENV (tests and local fakes). */
+  ASAAS_API_URL: optional,
+  ASAAS_WEBHOOK_TOKEN: z.string().min(8),
+
   EMAIL_FROM: z.string().default('FuseAI <nao-responda@fuseai.com.br>'),
   RESEND_API_KEY: optional,
   SMTP_URL: z.string().default('smtp://localhost:1025'),
@@ -48,6 +54,9 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
   if (env.NODE_ENV === 'production' && env.BETTER_AUTH_SECRET.startsWith('change-me')) {
     throw new Error('BETTER_AUTH_SECRET must be changed in production');
   }
+  if (env.NODE_ENV === 'production' && env.ASAAS_WEBHOOK_TOKEN.startsWith('change-me')) {
+    throw new Error('ASAAS_WEBHOOK_TOKEN must be changed in production');
+  }
   if (env.NODE_ENV === 'production' && env.KEY_PEPPER.startsWith('change-me')) {
     throw new Error('KEY_PEPPER must be changed in production');
   }
@@ -62,6 +71,8 @@ export function testEnv(overrides: Partial<NodeJS.ProcessEnv> = {}): Env {
     BETTER_AUTH_SECRET: 'test-secret-test-secret-test-secret',
     ENCRYPTION_KEY: Buffer.alloc(32, 7).toString('base64'),
     KEY_PEPPER: 'test-pepper-123',
+    ASAAS_WEBHOOK_TOKEN: 'test-webhook-token-123',
+    ASAAS_API_KEY: '$aact_hmlg_test',
     REDIS_URL: process.env.TEST_REDIS_URL ?? 'redis://localhost:6379/1',
     ...overrides,
   });

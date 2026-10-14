@@ -106,3 +106,15 @@ Membros da organização; 404 para quem não é membro.
 | DELETE | `/internal/organizations/:orgId/members/:userId` | Remove (ou sai, se for o próprio usuário). |
 | GET | `/internal/invitations/:token` | Dados do convite para a pessoa logada. |
 | POST | `/internal/invitations/:token/accept` | Aceita (o email da conta precisa ser o do convite). |
+
+## Pagamentos Pix (Fase 6)
+
+| Método | Rota | Auth | Descrição |
+|---|---|---|---|
+| POST | `/webhooks/asaas` | header `asaas-access-token` | Webhook do Asaas. 200 imediato (repetidos também); 401 com token inválido. Processado pelo worker. |
+| GET | `/internal/organizations/:orgId/topup-options` | sessão (membro) | Pacotes globais, mínimo/máximo, taxa, recarga sugerida, `canTopup`, `hasDocument`. |
+| POST | `/internal/organizations/:orgId/topups` | sessão (dono/admin/financeiro) | `{ packageId }` ou `{ amountCents }`; header opcional `Idempotency-Key`. 201 com `{ id, status, amountCents, creditMicros, pixCopyPaste, pixQrBase64, expiresAt }`. 502 se o Asaas falhar. |
+| GET | `/internal/payments/:id` | sessão (membro) | Status (para o polling). QR e copia e cola só enquanto `PENDING`. |
+| GET | `/internal/organizations/:orgId/payments?cursor&limit` | sessão (membro) | Histórico de recargas. |
+| GET | `/internal/admin/payments?status&cursor` | super admin | Todos os pagamentos. |
+| POST | `/internal/admin/payments/:id/refund` | super admin | Pede o estorno ao Asaas (o débito entra com o webhook `PAYMENT_REFUNDED`). 409 se não for estornável. |

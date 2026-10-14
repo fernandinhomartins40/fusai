@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { AppHeader, NavLink } from '@/components/app-header';
 import { OrgSwitcher } from '@/components/org-switcher';
+import { QueryProvider } from '@/components/query-provider';
 import { getCurrentOrg } from '@/lib/current-org';
 import { getMe } from '@/lib/session';
 
@@ -26,7 +27,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
       >
         {me.user.role === 'SUPER_ADMIN' ? <NavLink href="/admin">Admin</NavLink> : null}
       </AppHeader>
-      {children}
+      <QueryProvider>{children}</QueryProvider>
     </div>
   );
 }

@@ -4,9 +4,12 @@ import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import type { Env } from '../../lib/env';
 import type { Mailer } from '../../lib/mailer';
+import type { RedisClient } from '../../lib/redis';
 import { currentUser, type sessionGuards } from '../../lib/session';
 import type { SettingsStore } from '../../lib/settings';
+import type { PaymentProvider } from '../../payments/types';
 import type { CatalogStore } from '../gateway/catalog';
+import { dashboardPaymentRoutes } from '../payments/routes';
 import { dashboardAnalyticsRoutes } from './analytics';
 import { dashboardApiKeyRoutes } from './api-keys';
 import { createOrganization, createProject } from './organizations';
@@ -22,12 +25,14 @@ type Options = {
   catalog: CatalogStore;
   encryptionKey: Buffer;
   mailer: Mailer;
+  provider: PaymentProvider;
+  redis: RedisClient;
 };
 
 /** Cookie-authenticated routes used by the customer dashboard. */
 export const dashboardRoutes: FastifyPluginAsyncZod<Options> = async (
   app,
-  { prisma, env, guards, settings, catalog, encryptionKey, mailer },
+  { prisma, env, guards, settings, catalog, encryptionKey, mailer, provider, redis },
 ) => {
   app.addHook('onRequest', guards.requireUser);
   await app.register(dashboardWalletRoutes, { prisma });
@@ -35,6 +40,7 @@ export const dashboardRoutes: FastifyPluginAsyncZod<Options> = async (
   await app.register(dashboardAnalyticsRoutes, { prisma, settings });
   await app.register(dashboardProjectRoutes, { prisma, env, settings, catalog, encryptionKey });
   await app.register(dashboardTeamRoutes, { prisma, env, mailer });
+  await app.register(dashboardPaymentRoutes, { prisma, provider, settings, redis });
 
   app.get('/internal/me', async (req) => {
     const user = currentUser(req);

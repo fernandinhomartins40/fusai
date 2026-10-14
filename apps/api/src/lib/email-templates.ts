@@ -55,3 +55,22 @@ export function invitationEmail(to: string, inviter: string, orgName: string, ur
     ),
   };
 }
+
+export function paymentConfirmedEmail(
+  to: string,
+  orgName: string,
+  amount: string,
+  credits: string,
+  url: string,
+): Email {
+  return {
+    to,
+    subject: `Pagamento confirmado: ${credits} em créditos`,
+    text: `Recebemos o Pix de ${amount} de ${orgName}. ${credits} em créditos já estão disponíveis.\n\nCarteira: ${url}\n`,
+    html: layout(
+      'Pagamento confirmado',
+      `Recebemos o Pix de <strong>${escapeHtml(amount)}</strong> de ${escapeHtml(orgName)}. <strong>${escapeHtml(credits)}</strong> em créditos já estão disponíveis na sua carteira.`,
+      { label: 'Ver carteira', url },
+    ),
+  };
+}

@@ -7,6 +7,7 @@ export function AdminNav() {
       items={[
         { href: '/admin', label: 'Visão geral', exact: true },
         { href: '/admin/clientes', label: 'Clientes' },
+        { href: '/admin/pagamentos', label: 'Pagamentos' },
         { href: '/admin/provedores', label: 'Provedores' },
         { href: '/admin/modelos', label: 'Modelos' },
         { href: '/admin/precos', label: 'Preços' },
