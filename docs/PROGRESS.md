@@ -152,3 +152,53 @@ pnpm test   # inclui o teste de 50 reservas concorrentes
 - Limpeza via BullMQ (job repetível) entra com o Redis na Fase 4; por enquanto `setInterval` no worker.
 - Export CSV do extrato e gráficos ficam na Fase 5. Suspender/billingType/limite pós-pago/impersonate na Fase 10 (o modelo já suporta).
 - Docker indisponível nesta máquina; verificação feita com Postgres 16 embutido.
+
+## Fase 4 — Chaves de API e gateway
+
+### Feito
+- **Chaves de API** (`modules/api-keys`, `modules/dashboard/api-keys.ts`): `fai_live_`/`fai_test_` + 40 base62 (`crypto.randomInt`). No banco ficam só `sha256(key + KEY_PEPPER)` e um prefixo de 12 caracteres; a chave completa aparece uma única vez. Escopos, limite de rpm, limite de gasto mensal, expiração e revogação, com auditoria de criação, edição e revogação.
+- **Gateway `/v1`** (`modules/gateway`), com erros no formato OpenAI:
+  - `GET /v1/models` (modelos servíveis e permitidos, com preço em R$), `POST /v1/chat/completions` (com e sem stream), `GET /v1/balance`, `GET /v1/usage`.
+  - Fluxo do chat: autenticação por Bearer (antes do parse do corpo) → modelo + allow-list do projeto + regra de chave de teste → rate limit por chave (janela deslizante no Redis, padrão 120 rpm) → candidatos (modelo + fallbacks servíveis) → reserva = pior caso entre os candidatos → limite mensal da chave → chamada com fallback em erro retentável antes do 1º token → liquidação + `UsageLog` na mesma transação.
+  - Um único `OpenAICompatibleProvider`, parser SSE próprio, timeout por provedor; `stream_options.include_usage` é sempre pedido ao upstream. Sem usage do provedor, estima com `js-tiktoken` (`cl100k_base`) e marca `errorCode usage_estimated`.
+  - Stream: repassa chunk a chunk reescrevendo `id`/`model` e removendo campos do provedor; o chunk de usage só aparece se o cliente pediu. Se o cliente desconecta, o upstream é abortado e o que foi gerado é cobrado. A liquidação acontece antes do `[DONE]`.
+  - Circuit breaker no Redis (≥ 5 falhas em 60 s → provedor pulado por 30 s).
+  - Org `INTERNAL`: sem reserva nem débito, `UsageLog` com cobrança virtual.
+- **Redis**: rate limit do Better Auth migrado para o Redis (`customStorage.consume`); worker em **BullMQ** (job `release-holds` a cada 5 min + execução ao iniciar).
+- **Configuração** `test_key_max_output_micros` (padrão R$ 50/1M), editável em Admin → Preços.
+- **Web**: aba Projetos; página do projeto com tabela de chaves (criar em diálogo, chave exibida uma vez com `.env` e exemplo do SDK OpenAI, revogar); o onboarding termina gerando a primeira chave. Novo `Dialog` em `@fuseai/ui` (sobre `<dialog>` nativo).
+
+### Como testar
+```bash
+docker compose up -d && pnpm db:migrate && pnpm db:seed && pnpm dev
+pnpm --filter @fuseai/api dev:worker
+# Admin: Provedores -> DeepSeek -> cole a chave real e ative; Modelos -> ative fuse/deepseek-chat
+# Cliente: Projetos -> projeto -> Nova chave (copie)
+```
+```ts
+import OpenAI from 'openai';
+const client = new OpenAI({ apiKey: 'fai_live_...', baseURL: 'http://localhost:4000/v1' });
+await client.chat.completions.create({ model: 'fuse/deepseek-chat', messages: [{ role: 'user', content: 'Olá' }] });
+```
+
+### Verificado
+- `pnpm lint`, `pnpm typecheck`, `pnpm test` (98 testes: 33 shared, 65 API) e `pnpm build` passando.
+- **Testes do gateway com o SDK oficial `openai`**, contra a API escutando numa porta real e um upstream falso:
+  - com e sem stream, com débito exato (tokens × preço = 242 micros) e chunk de usage só quando pedido;
+  - 402 sem saldo (com `UsageLog INSUFFICIENT_FUNDS`) e 401 para chave revogada, expirada ou malformada;
+  - fallback em 5xx, e circuit breaker pulando o provedor após 5 falhas;
+  - 400 do upstream repassado sem fallback e sem cobrança, e usage estimado quando o provedor não informa;
+  - desconexão no meio do stream: upstream abortado, cobrança parcial, reserva liberada;
+  - 429 por rpm, org INTERNAL sem débito, allow-list (403), modelo inexistente (404), chave de teste sem modelo caro, limite mensal (402 `spend_limit_reached`);
+  - `/v1/balance`, `/v1/usage`, escopos e validação de corpo.
+- **Aceite com servidores reais** (Postgres + Redis locais, “DeepSeek” falso):
+  - o admin configura o provedor e ativa `fuse/deepseek-chat`; a cliente cria a chave pelo painel;
+  - script com o SDK oficial `openai`: resposta com e sem stream, débito de 18.040 micros por chamada (1000 × R$ 5,94 + 500 × R$ 24,20 por 1M), conferido no `/v1/balance`;
+  - cliente sem saldo → 402 `insufficient_funds`; chave revogada pelo painel → 401.
+- O worker BullMQ liberou uma hold órfã.
+
+### Pendências
+- Sem chave real de provedor neste ambiente: falta validar com a DeepSeek de verdade. O campo de cache `prompt_cache_hit_tokens` dela já é tratado.
+- Projetos `END_USER_WALLET` respondem 400 `app_user_required` até a Fase 7 (X-Fuse-User / session token). `HYBRID` usa a carteira da org por enquanto.
+- Medição do overhead p95 < 50 ms e saúde dos provedores no admin ficam para a Fase 10.
+- O Redis do ambiente de verificação é 5.0 (port para Windows) e o BullMQ recomenda ≥ 6.2; o `docker-compose` usa Redis 7.

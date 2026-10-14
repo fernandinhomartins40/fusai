@@ -51,3 +51,21 @@ Registro das decisões tomadas onde o PRD não especifica (ou onde algo divergiu
 - **D-036 — Banco em UTF-8.** O `docker-compose` fixa `--encoding=UTF8`. Um cluster com codificação do Windows (WIN1252) rejeita parte dos caracteres Unicode.
 - **D-037 — Ajuste manual limitado a R$ 1.000.000 por lançamento** e com motivo obrigatório (5–300 caracteres). Ajuste pode deixar saldo negativo (poder do admin, fica auditado).
 - **D-038 — Extrato visível a qualquer membro da organização**, inclusive DEVELOPER. Restrições por papel para ações financeiras ficam para quando houver ações (recarga, Fase 6).
+
+## Fase 4
+
+- **D-039 — ID de cobrança próprio.** Cada chamada do gateway usa um UUID gerado no servidor (`x-fuse-request-id`) para hold, ledger e `UsageLog`. O `X-Request-Id` do cliente fica só para correlação de logs: se fosse a chave de cobrança, repetir o header causaria colisão.
+- **D-040 — Chaves de teste limitadas por preço.** O schema não tem uma flag de "modelo barato". A regra é: preço de saída ≤ `test_key_max_output_micros` (configurável, padrão R$ 50/1M), aplicada em `/v1/models` e no chat. A chave de teste usa a mesma carteira (PRD §8).
+- **D-041 — Reserva = pior caso entre os candidatos.** Com fallback, um modelo mais caro pode atender; então a hold é o máximo entre o modelo pedido e os fallbacks. A cobrança usa o preço do modelo que realmente atendeu, e o `model` da resposta é o slug dele.
+- **D-042 — Estimativa de prompt para a reserva sem tokenizer.** `tamanho do JSON / 3 + 16` superestima e é barato no caminho quente. O tokenizer (`js-tiktoken cl100k_base`) só roda quando o provedor não informa usage.
+- **D-043 — O que é "retentável".** Só 400/413/422 do upstream são erro do pedido do cliente (repassados como 400, sem fallback). 401/402/403/404 indicam problema da nossa configuração no provedor; esses, mais 408/409/429/5xx/timeout/rede, disparam fallback e contam para o circuit breaker.
+- **D-044 — Circuit breaker e rate limit "fail-open".** Se o Redis cair, deixam passar (com log) em vez de derrubar o gateway. Se todos os provedores estiverem abertos, o primário é tentado mesmo assim, como sonda.
+- **D-045 — Desconexão do cliente.** Com stream, cobra prompt + tokens gerados (usage do provedor quando houver, senão estimativa). Sem stream, cobra o prompt estimado (o provedor já o processou). Fica `UsageLog.status = CLIENT_ERROR` e `errorCode = client_disconnected`.
+- **D-046 — Liquidação antes do `[DONE]`.** O débito é gravado antes de encerrar o stream, para quem lê o saldo logo depois ver o valor certo. Custa alguns ms no fim da resposta.
+- **D-047 — Respostas sem rastro do provedor.** O `id` vira `chatcmpl-<uuid>`, o `model` vira o slug público, campos extras (ex.: `provider`) são removidos e o `usage` sai sempre no formato padrão da OpenAI (sem `prompt_cache_hit_tokens` & cia).
+- **D-048 — RATE_LIMITED não gera `UsageLog`.** Sob abuso, cada rejeição viraria uma escrita no banco. Saldo insuficiente e erros continuam gerando log.
+- **D-049 — Só `n = 1`.** Simplifica reserva e cobrança.
+- **D-050 — Limite de gasto mensal pelo `UsageLog`.** Soma de `chargedMicros` da chave desde o dia 1 do mês (UTC), com índice `(apiKeyId, createdAt)`. O banco é a fonte da verdade, não um contador no Redis.
+- **D-051 — Catálogo em cache por 10 s.** Modelos, provedores e chaves decifradas ficam em memória por instância e são invalidados nas escritas do admin; outras instâncias convergem em até 10 s.
+- **D-052 — BullMQ 5.** O BullMQ 6 adiciona peers opcionais (`pg`, `redis`). Fixado no 5.81 com ioredis 5.11, a mesma versão que ele usa.
+- **D-053 — `END_USER_WALLET` aguarda a Fase 7.** Responde 400 `app_user_required` até existir identificação do usuário final. `HYBRID` cai na carteira da org, que é o comportamento do modo quando não há AppUser.

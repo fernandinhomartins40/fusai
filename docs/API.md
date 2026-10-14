@@ -50,3 +50,34 @@ Requisições não-GET precisam vir do `APP_URL` (`Origin`), senão 403.
 | POST | `/internal/admin/organizations/:id/wallet/adjust` | `{ amountMicros (string com sinal), reason }` → 201 com o lançamento `ADJUSTMENT`. |
 
 Todas as alterações do admin geram `AuditLog`.
+
+## Painel — projetos e chaves
+
+| Método | Rota | Descrição |
+|---|---|---|
+| GET | `/internal/projects/:projectId` | Dados do projeto (para membros). |
+| GET | `/internal/projects/:projectId/api-keys` | Chaves do projeto: prefixo, ambiente, escopos, limites, último uso, status. Nunca a chave nem o hash. |
+| POST | `/internal/projects/:projectId/api-keys` | `{ name, env?, scopes?, rpmLimit?, spendLimitMicros?, expiresAt? }` → 201 com `key` (única vez). OWNER/ADMIN/DEVELOPER. |
+| PATCH | `/internal/api-keys/:id` | `{ name?, scopes?, rpmLimit?, spendLimitMicros? }`. |
+| POST | `/internal/api-keys/:id/revoke` | Revoga (vale na hora no gateway). |
+
+## Gateway público (`Authorization: Bearer fai_live_...`)
+
+Erros: `{ "error": { "message", "type", "code" } }`. Códigos:
+- 400 `invalid_request`
+- 401 `invalid_api_key`
+- 402 `insufficient_funds`, `spend_limit_reached`
+- 403 `model_not_allowed`, `insufficient_scope`, `account_suspended`
+- 404 `model_not_found`
+- 429 `rate_limited` (com `retry-after`)
+- 502 `upstream_error`
+- 503 `model_unavailable`
+
+As respostas trazem `x-fuse-request-id` e, no chat, `x-ratelimit-limit`/`x-ratelimit-remaining`.
+
+| Método | Rota | Escopo | Descrição |
+|---|---|---|---|
+| GET | `/v1/models` | chat | Lista no formato OpenAI + `context_window`, `max_output_tokens`, `capabilities`, `pricing { currency: "BRL", unit: "1M tokens", input, cached_input, output }`. |
+| POST | `/v1/chat/completions` | chat | Compatível com OpenAI (messages, tools, stream, stream_options, temperature, max_tokens, response_format…). `n` só 1. |
+| GET | `/v1/balance` | billing:read | `{ balance, reserved, available, *_micros, billing_type }`. |
+| GET | `/v1/usage?from&to` | billing:read | Consumo do projeto por modelo (padrão: últimos 30 dias; máximo de 366). |
