@@ -1,0 +1,16 @@
+// FuseAI database schema. The full model (PRD section 6) lands in Phase 1.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Setting {
+  key       String   @id // usd_brl_rate, default_markup, topup_fee_pct, min_topup_cents, low_balance_threshold_micros
+  value     Json
+  updatedAt DateTime @updatedAt
+}

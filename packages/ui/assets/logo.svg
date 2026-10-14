@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 148 32" fill="none" role="img" aria-label="FuseAI">
+  <defs>
+    <linearGradient id="fuse-mark" x1="3" y1="4" x2="29" y2="28" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F59E0B"/>
+      <stop offset="0.5" stop-color="#EC4899"/>
+      <stop offset="1" stop-color="#8B5CF6"/>
+    </linearGradient>
+    <linearGradient id="fuse-text" x1="104" y1="0" x2="140" y2="0" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F59E0B"/>
+      <stop offset="0.5" stop-color="#EC4899"/>
+      <stop offset="1" stop-color="#8B5CF6"/>
+    </linearGradient>
+  </defs>
+  <g stroke="url(#fuse-mark)" stroke-width="3.5" stroke-linecap="round">
+    <path d="M4 7c8 0 9 9 16 9"/>
+    <path d="M4 25c8 0 9-9 16-9"/>
+    <path d="M20 16h8"/>
+  </g>
+  <text x="38" y="23" font-family="Geist, ui-sans-serif, system-ui, sans-serif" font-size="22" font-weight="600" letter-spacing="-0.5" fill="currentColor">fuse<tspan fill="url(#fuse-text)">ai</tspan></text>
+</svg>
