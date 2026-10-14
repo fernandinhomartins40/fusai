@@ -5,7 +5,7 @@ import { Button } from '@fuseai/ui/components/button';
 import { Input } from '@fuseai/ui/components/input';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Loader2 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import type { z } from 'zod';
@@ -16,6 +16,8 @@ type Values = z.input<typeof signUpSchema>;
 
 export function SignUpForm() {
   const router = useRouter();
+  const next = useSearchParams().get('next');
+  const confirmed = `/verificar-email?confirmado=1${next ? `&next=${encodeURIComponent(next)}` : ''}`;
   const [error, setError] = useState<string | null>(null);
   const form = useForm<Values>({ resolver: zodResolver(signUpSchema) });
   const { errors, isSubmitting } = form.formState;
@@ -24,7 +26,7 @@ export function SignUpForm() {
     setError(null);
     const { error } = await authClient.signUp.email({
       ...values,
-      callbackURL: `${window.location.origin}/verificar-email?confirmado=1`,
+      callbackURL: `${window.location.origin}${confirmed}`,
     });
     if (error) return setError(authErrorMessage(error));
     router.push(`/verificar-email?email=${encodeURIComponent(values.email)}`);

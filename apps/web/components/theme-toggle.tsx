@@ -11,7 +11,9 @@ export function ThemeToggle() {
     <Button
       variant="ghost"
       size="icon"
-      aria-label={isDark ? 'Ativar modo claro' : 'Ativar modo escuro'}
+      // Static label: the theme is only known on the client, so a theme-dependent label would
+      // differ from the server render (hydration mismatch). The icons switch via CSS.
+      aria-label="Alternar entre tema claro e escuro"
       onClick={() => setTheme(isDark ? 'light' : 'dark')}
     >
       <Sun className="hidden dark:block" />

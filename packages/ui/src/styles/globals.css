@@ -45,6 +45,10 @@
   --chart-3: var(--fuse-violet);
   --chart-4: oklch(0.65 0.12 200);
   --chart-5: oklch(0.6 0.02 286);
+  /* Single-series data color, validated (dataviz validator) against the card surface. */
+  --chart-series: #7c3aed;
+  --chart-grid: #ececf0;
+  --chart-axis: #8b8a93;
 }
 
 .dark {
@@ -69,6 +73,9 @@
   --border: oklch(1 0 0 / 0.09);
   --input: oklch(1 0 0 / 0.13);
   --ring: oklch(0.7 0.18 330);
+  --chart-series: #8b5cf6;
+  --chart-grid: #26252b;
+  --chart-axis: #8b8a93;
 }
 
 @theme inline {
@@ -101,6 +108,9 @@
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
+  --color-chart-series: var(--chart-series);
+  --color-chart-grid: var(--chart-grid);
+  --color-chart-axis: var(--chart-axis);
   --color-fuse-amber: var(--fuse-amber);
   --color-fuse-pink: var(--fuse-pink);
   --color-fuse-violet: var(--fuse-violet);
@@ -151,6 +161,15 @@
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+  }
+
+  /*
+   * We use `grid` as the vertical stack everywhere. An implicit `auto` track grows to the
+   * min-content of its children, so one long line of code would widen the whole page on mobile.
+   * Single-column stacks get a shrinkable track; `grid-cols-*` utilities (later layer) still win.
+   */
+  .grid {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   :focus-visible {

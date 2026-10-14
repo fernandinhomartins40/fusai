@@ -42,3 +42,16 @@ export function resetPasswordEmail(to: string, name: string, url: string): Email
     ),
   };
 }
+
+export function invitationEmail(to: string, inviter: string, orgName: string, url: string): Email {
+  return {
+    to,
+    subject: `Convite para ${orgName} na FuseAI`,
+    text: `${inviter} convidou você para a organização ${orgName} na FuseAI. O convite vale por 7 dias:\n\n${url}\n`,
+    html: layout(
+      `Convite para ${orgName}`,
+      `${escapeHtml(inviter)} convidou você para fazer parte de <strong>${escapeHtml(orgName)}</strong> na FuseAI. O convite vale por 7 dias.`,
+      { label: 'Aceitar convite', url },
+    ),
+  };
+}

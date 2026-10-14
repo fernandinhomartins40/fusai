@@ -1,26 +1,26 @@
 import { redirect } from 'next/navigation';
 import type { ReactNode } from 'react';
-import { SectionNav } from '@/components/section-nav';
+import { AppMobileNav, AppSidebar } from '@/components/app-nav';
+import { getCurrentOrg } from '@/lib/current-org';
 import { getMe } from '@/lib/session';
 
-/** Pages that need an organization: send new users to onboarding first. */
-export default async function OrgRequiredLayout({ children }: { children: ReactNode }) {
+/** Dashboard shell: sidebar on desktop, tab bar on mobile. Users without an organization go to onboarding. */
+export default async function DashboardShell({ children }: { children: ReactNode }) {
   const me = await getMe();
   if (!me) redirect('/entrar?next=/app');
-  const org = me.organizations[0];
-  if (!org || org.projects.length === 0) redirect('/app/onboarding');
+  if (!(await getCurrentOrg(me))) redirect('/app/onboarding');
 
   return (
-    <>
-      <SectionNav
-        label="Seções do painel"
-        items={[
-          { href: '/app', label: 'Visão geral', exact: true },
-          { href: '/app/projetos', label: 'Projetos' },
-          { href: '/app/carteira', label: 'Carteira' },
-        ]}
-      />
-      <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">{children}</main>
-    </>
+    <div className="mx-auto flex max-w-7xl">
+      <aside className="sticky top-14 hidden h-[calc(100dvh-3.5rem)] w-56 shrink-0 overflow-y-auto border-r p-3 md:block">
+        <AppSidebar />
+      </aside>
+      <div className="min-w-0 flex-1">
+        <div className="md:hidden">
+          <AppMobileNav />
+        </div>
+        <main className="px-4 py-8 sm:px-6 lg:px-8">{children}</main>
+      </div>
+    </div>
   );
 }

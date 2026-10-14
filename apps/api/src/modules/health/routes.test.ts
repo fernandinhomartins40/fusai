@@ -46,3 +46,32 @@ describe('GET /health', () => {
     expect(res.headers['x-request-id']).toBe('req-123');
   });
 });
+
+describe('CORS for the dashboard', () => {
+  it('lets the web app preflight every method it uses', async () => {
+    const app = await buildApp(testEnv({ APP_URL: 'http://localhost:3000' }), {
+      mailer: createMemoryMailer(),
+    });
+    for (const method of ['PUT', 'PATCH', 'DELETE']) {
+      const res = await app.inject({
+        method: 'OPTIONS',
+        url: '/internal/projects/x',
+        headers: {
+          origin: 'http://localhost:3000',
+          'access-control-request-method': method,
+          'access-control-request-headers': 'content-type',
+        },
+      });
+      expect(res.statusCode).toBe(204);
+      expect(String(res.headers['access-control-allow-methods'])).toContain(method);
+      expect(res.headers['access-control-allow-credentials']).toBe('true');
+    }
+    const foreign = await app.inject({
+      method: 'OPTIONS',
+      url: '/internal/projects/x',
+      headers: { origin: 'https://evil.example', 'access-control-request-method': 'PATCH' },
+    });
+    expect(foreign.headers['access-control-allow-origin']).toBeUndefined();
+    await app.close();
+  });
+});

@@ -13,7 +13,7 @@ export function KeyStep({ projectId, projectName }: { projectId: string; project
   const router = useRouter();
   const [created, setCreated] = useState<CreatedApiKey | null>(null);
   const goToDashboard = () => {
-    router.replace(`/app/projetos/${projectId}`);
+    router.replace(`/app/projetos/${projectId}/chaves`);
     router.refresh();
   };
 

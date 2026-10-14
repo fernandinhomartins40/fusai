@@ -158,22 +158,25 @@ model Verification {
 // ---- Domain ----
 
 model Organization {
-  id                String       @id @default(cuid())
-  name              String
-  slug              String       @unique
-  document          String? // CPF/CNPJ, digits only (required by Asaas for Pix)
-  phone             String?
-  status            OrgStatus    @default(ACTIVE)
-  billingType       BillingType  @default(PREPAID)
-  creditLimitMicros BigInt       @default(0)
-  markupOverride    Decimal?     @db.Decimal(6, 3) // special markup for this customer
-  asaasCustomerId   String?
-  asaasWalletId     String? // phase 2: split
-  createdAt         DateTime     @default(now())
-  members           Membership[]
-  projects          Project[]
-  wallet            Wallet?
-  payments          Payment[]
+  id                    String       @id @default(cuid())
+  name                  String
+  slug                  String       @unique
+  document              String? // CPF/CNPJ, digits only (required by Asaas for Pix)
+  phone                 String?
+  status                OrgStatus    @default(ACTIVE)
+  billingType           BillingType  @default(PREPAID)
+  creditLimitMicros     BigInt       @default(0)
+  markupOverride        Decimal?     @db.Decimal(6, 3) // special markup for this customer
+  asaasCustomerId       String?
+  asaasWalletId         String? // phase 2: split
+  lowBalanceAlertMicros BigInt? // null = global low_balance_threshold_micros
+  suggestedTopupCents   Int? // suggested top-up shown in the wallet
+  createdAt             DateTime     @default(now())
+  members               Membership[]
+  invitations           Invitation[]
+  projects              Project[]
+  wallet                Wallet?
+  payments              Payment[]
 }
 
 model Membership {
@@ -188,6 +191,24 @@ model Membership {
   @@index([orgId])
 }
 
+/// Team invitation (PRD §11.4 Equipe). Only the sha256 of the token is stored.
+model Invitation {
+  id          String       @id @default(cuid())
+  orgId       String
+  email       String
+  role        OrgRole      @default(DEVELOPER)
+  tokenHash   String       @unique
+  invitedById String
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  revokedAt   DateTime?
+  createdAt   DateTime     @default(now())
+  org         Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, createdAt])
+  @@index([email])
+}
+
 model Project {
   id               String          @id @default(cuid())
   orgId            String
@@ -198,7 +219,7 @@ model Project {
   allowedModelIds  String[] // empty = all active models
   allowedOrigins   String[] // CORS for session-token calls from browsers
   webhookUrl       String?
-  webhookSecret    String? // HMAC SHA-256
+  webhookSecret    String? // HMAC SHA-256 key, stored AES-256-GCM encrypted
   freeCreditMicros BigInt          @default(0) // bonus when an AppUser is created (HYBRID/END_USER)
   createdAt        DateTime        @default(now())
   org              Organization    @relation(fields: [orgId], references: [id], onDelete: Cascade)
@@ -284,9 +305,9 @@ model LedgerEntry {
   createdAt     DateTime   @default(now())
   wallet        Wallet     @relation(fields: [walletId], references: [id])
 
-  @@index([walletId, createdAt])
   // One USAGE per request, one PURCHASE/BONUS/REFUND per payment (NULL references stay free).
   @@unique([type, referenceType, referenceId])
+  @@index([walletId, createdAt])
 }
 
 model CreditPackage {

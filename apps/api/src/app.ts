@@ -106,11 +106,24 @@ export async function buildApp(env: Env, deps: AppDeps = {}) {
   });
 
   await app.register(helmet, { contentSecurityPolicy: false });
-  await app.register(cors, { origin: [env.APP_URL], credentials: true });
+  // @fastify/cors only allows GET/HEAD/POST by default: the dashboard also uses PUT/PATCH/DELETE.
+  await app.register(cors, {
+    origin: [env.APP_URL],
+    credentials: true,
+    methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE'],
+  });
 
   await app.register(healthRoutes);
   await app.register(authRoutes, { auth });
-  await app.register(dashboardRoutes, { prisma, env, guards, settings });
+  await app.register(dashboardRoutes, {
+    prisma,
+    env,
+    guards,
+    settings,
+    catalog,
+    encryptionKey,
+    mailer,
+  });
   await app.register(adminRoutes, { prisma, env, guards, settings, encryptionKey, catalog });
   await app.register(gatewayRoutes, {
     prefix: '/v1',

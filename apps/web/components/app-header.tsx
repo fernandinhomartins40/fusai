@@ -10,10 +10,12 @@ type AppHeaderProps = {
   userName: string;
   badge?: string;
   children?: ReactNode;
+  /** Extra controls on the right, visible on every screen size (e.g. org switcher). */
+  actions?: ReactNode;
 };
 
 /** Top bar shared by the customer dashboard and the admin panel. */
-export function AppHeader({ home, userName, badge, children }: AppHeaderProps) {
+export function AppHeader({ home, userName, badge, children, actions }: AppHeaderProps) {
   return (
     <header className="sticky top-0 z-30 border-b bg-background/80 backdrop-blur">
       <div className="mx-auto flex h-14 max-w-6xl items-center gap-3 px-4 sm:px-6">
@@ -23,6 +25,7 @@ export function AppHeader({ home, userName, badge, children }: AppHeaderProps) {
         {badge ? <Badge variant="outline">{badge}</Badge> : null}
         <nav className="ml-2 hidden items-center gap-1 text-sm sm:flex">{children}</nav>
         <div className="ml-auto flex items-center gap-1">
+          {actions}
           <span className="hidden max-w-40 truncate text-muted-foreground text-sm md:inline">
             {userName}
           </span>

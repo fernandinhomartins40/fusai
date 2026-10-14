@@ -69,3 +69,18 @@ Registro das decisões tomadas onde o PRD não especifica (ou onde algo divergiu
 - **D-051 — Catálogo em cache por 10 s.** Modelos, provedores e chaves decifradas ficam em memória por instância e são invalidados nas escritas do admin; outras instâncias convergem em até 10 s.
 - **D-052 — BullMQ 5.** O BullMQ 6 adiciona peers opcionais (`pg`, `redis`). Fixado no 5.81 com ioredis 5.11, a mesma versão que ele usa.
 - **D-053 — `END_USER_WALLET` aguarda a Fase 7.** Responde 400 `app_user_required` até existir identificação do usuário final. `HYBRID` cai na carteira da org, que é o comportamento do modo quando não há AppUser.
+
+## Fase 5
+
+- **D-054 — Organização atual por cookie.** Com convites, uma pessoa pode estar em várias organizações. O cookie `fuse_org` (preferência, não autenticação) guarda a escolhida. Se a pessoa não pertence mais a ela, cai na primeira. Toda permissão continua sendo checada na API por membership.
+- **D-055 — Dias no fuso de São Paulo com offset fixo −03:00.** O Brasil não tem horário de verão desde 2019. Agregações por dia usam `(createdAt AT TIME ZONE 'UTC') AT TIME ZONE 'America/Sao_Paulo'`, e os dias sem uso entram como zero na série.
+- **D-056 — CSV seguro.** RFC 4180 com BOM (Excel abre os acentos) e proteção contra injeção de fórmula: células iniciadas por `= + - @` ganham `'`, exceto números negativos.
+- **D-057 — Segredo do webhook cifrado.** O segredo HMAC precisa ser lido para assinar, então não pode ser hash: fica em AES-256-GCM, como as chaves de provedor. "Revelar" decifra sob demanda e "Rotacionar" gera `whsec_` + 32 bytes.
+- **D-058 — Convites.** Token de 32 bytes aleatórios; no banco só o sha256. Validade de 7 dias, um convite pendente por email (o novo revoga o anterior). Só a conta com o mesmo email aceita. Admin não convida, edita nem remove donos; a organização nunca fica sem dono (409 `last_owner`).
+- **D-059 — Papéis.** Dono: tudo. Admin: equipe (exceto donos), projetos e cobrança. Dev: projetos, chaves e modelos, mas não o modo de cobrança. Financeiro: leitura de carteira e consumo, sem editar projetos. Todos os membros leem análises e extrato.
+- **D-060 — Trocar o CPF/CNPJ descarta `asaasCustomerId`.** O cliente no Asaas é atrelado ao documento; a próxima cobrança cria um novo.
+- **D-061 — Pilhas `grid` com trilha encolhível.** O tema define `.grid { grid-template-columns: minmax(0, 1fr) }` na camada base. Sem isso, a trilha `auto` cresce até o min-content (uma linha longa de código alargava a página no celular). Os utilitários `grid-cols-*` continuam valendo.
+- **D-062 — CORS com todos os métodos do painel.** O `@fastify/cors` libera só GET/HEAD/POST por padrão; o painel usa também PUT/PATCH/DELETE. Há teste de preflight.
+- **D-063 — Gráficos sem animação.** Barras desenhadas já no estado final: sem rótulos sumindo durante a animação, e `prefers-reduced-motion` respeitado por construção.
+- **D-064 — Cor dos gráficos validada.** Uma série por gráfico (ranking e tempo são magnitude, não identidade): `--chart-series` = `#7c3aed` (claro) e `#8b5cf6` (escuro), aprovados pelo validador de paleta nas superfícies reais dos cards. Ticks sem "R$" (a unidade vai no subtítulo) e com casas decimais suficientes para não mentir.
+- **D-065 — Filtros na URL.** Consumo e Logs guardam os filtros na query string (dá para compartilhar o link). A troca usa `useTransition`: o conteúdo anterior fica a 50% de opacidade até o novo chegar, sem skeleton.

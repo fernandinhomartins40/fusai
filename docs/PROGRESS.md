@@ -7,7 +7,7 @@
 | 2 — Provedores, modelos e preços | ✅ concluída (ver pendências) |
 | 3 — Billing core | ✅ concluída (ver pendências) |
 | 4 — Chaves de API e gateway | ✅ concluída (ver pendências) |
-| 5 — Painel do cliente | ⏳ |
+| 5 — Painel do cliente | ✅ concluída (ver pendências) |
 | 6 — Pix (Asaas) | ⏳ |
 | 7 — Usuários finais e checkout | ⏳ |
 | 8 — MCP e Kit de Integração | ⏳ |
@@ -202,3 +202,50 @@ await client.chat.completions.create({ model: 'fuse/deepseek-chat', messages: [{
 - Projetos `END_USER_WALLET` respondem 400 `app_user_required` até a Fase 7 (X-Fuse-User / session token). `HYBRID` usa a carteira da org por enquanto.
 - Medição do overhead p95 < 50 ms e saúde dos provedores no admin ficam para a Fase 10.
 - O Redis do ambiente de verificação é 5.0 (port para Windows) e o BullMQ recomenda ≥ 6.2; o `docker-compose` usa Redis 7.
+
+## Fase 5 — Painel do cliente
+
+### Feito
+- **Shell do painel**: sidebar no desktop (Visão geral · Projetos · Carteira · Consumo · Logs · Webhooks · Equipe · Configurações · Docs) e barra rolável no celular, com a aba ativa sempre visível; seletor de organização no cabeçalho quando a pessoa participa de mais de uma (cookie `fuse_org`).
+- **Visão geral**: alerta de saldo baixo (limite da org ou o global), KPIs (disponível, gasto hoje/7d/30d com requisições) e gráficos de gasto por dia e por modelo (30 dias, horário de Brasília), cada um com tabela gêmea ("Ver tabela"); bloco "Comece por aqui" enquanto não há uso.
+- **Projetos** com abas: Visão geral (KPIs + gráfico do projeto + curl), Chaves de API, Modelos permitidos (restrição opcional + modelo padrão, preços da org) e Configurações (nome, modo de cobrança só para dono/admin, origens CORS, crédito grátis para usuários finais, URL do webhook, segredo do webhook cifrado com revelar/rotacionar).
+- **Carteira**: exportação do extrato em CSV.
+- **Consumo**: uma linha de filtros (período 1/7/30/90 dias, projeto, modelo) que atualiza a URL; o conteúdo anterior fica esmaecido durante a recarga; KPIs, gráficos, tabela por projeto e CSV (dia × projeto × modelo).
+- **Logs**: últimas requisições (modelo, projeto/chave, tokens, custo, latência e 1º token, status), filtros por projeto/status, paginação por cursor, botão atualizar. Sem conteúdo das mensagens.
+- **Webhooks**: estado por projeto e lista de eventos. O histórico de entregas fica vazio até a Fase 7, que dispara os eventos.
+- **Equipe**: convites por email (token de 32 bytes, só o hash no banco, 7 dias, um convite pendente por email), aceite apenas pelo email convidado, papéis (Dono/Admin/Dev/Financeiro), remover e sair. Admin não mexe em donos e a organização nunca fica sem dono. A página pública `/convite/[token]` leva ao cadastro/login e volta ao convite após confirmar o email.
+- **Configurações**: nome, CPF/CNPJ (trocar o documento descarta o cliente Asaas), telefone, alerta de saldo baixo e recarga sugerida.
+- **`/docs`**: início rápido (as docs completas são da Fase 8).
+- **API** (`modules/dashboard`): `analytics.ts` (overview, usage, usage.csv, logs, ledger.csv), `projects.ts` (PATCH do projeto, segredo de webhook, modelos da org, configurações da org), `team.ts` (membros, convites, papéis). Migração `team_and_org_settings` (`Invitation`, `Organization.lowBalanceAlertMicros`, `suggestedTopupCents`).
+- **Gráficos** seguindo a skill de dataviz: uma série, uma cor validada nos dois temas (`#7c3aed` claro / `#8b5cf6` escuro contra as superfícies dos cards), barras ≤ 24px com cantos de 4px na ponta, grid em linha fina sólida, tooltip com o valor em destaque e tabela gêmea.
+
+### Como testar
+```bash
+docker compose up -d && pnpm db:migrate && pnpm db:seed && pnpm dev
+# crie uma conta, confirme no Mailpit, faça o onboarding e chame a API com a chave gerada
+# abra /app, /app/consumo, /app/logs, /app/equipe (convide outro email e aceite pelo link no Mailpit)
+# teste em 375px (DevTools → dispositivo móvel)
+```
+
+### Verificado
+- `pnpm lint`, `pnpm typecheck`, `pnpm test` (117 testes: 35 shared, 82 API) e `pnpm build` passando.
+- **No navegador** (Chromium headless via Playwright, viewport 375px, servidores reais + Mailpit + "DeepSeek" falso), 27/27 verificações:
+  - cadastro pela UI → email no Mailpit → onboarding → primeira chave;
+  - crédito pelo admin → 3 chamadas ao gateway → visão geral com o gasto do dia;
+  - as 15 páginas do painel sem rolagem horizontal em 375px;
+  - filtro de consumo, logs, configurações do projeto e segredo do webhook;
+  - convite pela UI → segunda pessoa cria a conta pelo link, confirma o email, volta ao convite, aceita e vê a organização;
+  - sem erros no console.
+- Capturas conferidas a olho em 375px e 1440px, nos temas escuro e claro.
+- **Bugs encontrados no navegador e corrigidos**:
+  - CORS bloqueava PATCH/DELETE (afetava também o admin) — corrigido, agora com teste de preflight;
+  - o painel ficava com 540px num celular de 375px por causa de blocos de código dentro de `grid` — corrigido no tema;
+  - mismatch de hydration no botão de tema para quem usa o tema claro;
+  - ticks do eixo Y arredondados de forma enganosa;
+  - animação do Recharts escondia os rótulos.
+
+### Pendências
+- Histórico de entregas de webhooks e reenvio: Fase 7 (entrega com HMAC e retry).
+- Recarga via Pix ("Adicionar créditos" leva à carteira): Fase 6.
+- O roteiro de navegador está no scratchpad desta máquina; vira suíte Playwright no repositório na Fase 10.
+- Docker continua indisponível aqui (Postgres, Redis e Mailpit locais no scratchpad).

@@ -5,13 +5,13 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { NewProjectButton } from '@/components/projects/new-project-button';
 import { billingModeLabel } from '@/lib/admin-labels';
+import { getCurrentOrg } from '@/lib/current-org';
 import { getMe } from '@/lib/session';
 
 export const metadata: Metadata = { title: 'Projetos' };
 
 export default async function ProjectsPage() {
-  const me = await getMe();
-  const org = me?.organizations[0];
+  const org = await getCurrentOrg(await getMe());
   if (!org) return null;
 
   return (

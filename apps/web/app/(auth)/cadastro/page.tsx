@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
+import { Suspense } from 'react';
 import { AuthShell } from '@/components/auth/auth-shell';
 import { SignUpForm } from '@/components/auth/sign-up-form';
 import { getMe } from '@/lib/session';
@@ -25,7 +26,9 @@ export default async function SignUpPage() {
         </>
       }
     >
-      <SignUpForm />
+      <Suspense>
+        <SignUpForm />
+      </Suspense>
     </AuthShell>
   );
 }

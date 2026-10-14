@@ -81,3 +81,28 @@ As respostas trazem `x-fuse-request-id` e, no chat, `x-ratelimit-limit`/`x-ratel
 | POST | `/v1/chat/completions` | chat | Compatível com OpenAI (messages, tools, stream, stream_options, temperature, max_tokens, response_format…). `n` só 1. |
 | GET | `/v1/balance` | billing:read | `{ balance, reserved, available, *_micros, billing_type }`. |
 | GET | `/v1/usage?from&to` | billing:read | Consumo do projeto por modelo (padrão: últimos 30 dias; máximo de 366). |
+
+## Painel — análises, projetos, equipe e organização (Fase 5)
+
+Membros da organização; 404 para quem não é membro.
+
+| Método | Rota | Descrição |
+|---|---|---|
+| GET | `/internal/organizations/:orgId/overview` | Carteira, alerta de saldo baixo, gasto e requisições hoje/7d/30d, série diária (30 dias, fuso de São Paulo) e gasto por modelo. |
+| GET | `/internal/organizations/:orgId/usage?from&to&projectId&modelId` | Totais, série diária, por modelo e por projeto (padrão 30 dias; máximo de 366). |
+| GET | `/internal/organizations/:orgId/usage.csv?…` | CSV dia × projeto × modelo. |
+| GET | `/internal/organizations/:orgId/logs?projectId&modelId&status&from&to&cursor&limit` | Últimas requisições (sem conteúdo), paginadas por cursor. |
+| GET | `/internal/organizations/:orgId/wallet/ledger.csv` | Extrato completo em CSV. |
+| GET | `/internal/organizations/:orgId/models` | Modelos servíveis com o preço da organização. |
+| GET | `/internal/organizations/:orgId` | Configurações da organização + papel do usuário. |
+| PATCH | `/internal/organizations/:orgId` | `{ name?, document?, phone?, lowBalanceAlertMicros?, suggestedTopupCents? }` (dono/admin). |
+| PATCH | `/internal/projects/:projectId` | `{ name?, billingMode?, allowedOrigins?, allowedModelIds?, defaultModelId?, webhookUrl?, freeCreditMicros? }`. |
+| GET | `/internal/projects/:projectId/webhook-secret` | Revela o segredo (decifra). |
+| POST | `/internal/projects/:projectId/webhook-secret/rotate` | Gera um novo `whsec_…`. |
+| GET | `/internal/organizations/:orgId/members` | Membros, convites pendentes e `myRole`. |
+| POST | `/internal/organizations/:orgId/invitations` | `{ email, role }` → envia o email (dono/admin). |
+| DELETE | `/internal/invitations/:id` | Cancela um convite. |
+| PATCH | `/internal/organizations/:orgId/members/:userId` | `{ role }`. |
+| DELETE | `/internal/organizations/:orgId/members/:userId` | Remove (ou sai, se for o próprio usuário). |
+| GET | `/internal/invitations/:token` | Dados do convite para a pessoa logada. |
+| POST | `/internal/invitations/:token/accept` | Aceita (o email da conta precisa ser o do convite). |

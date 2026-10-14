@@ -36,3 +36,20 @@ describe('slugify', () => {
     expect(slugify('  --Meu App--  ')).toBe('meu-app');
   });
 });
+
+describe('dashboard schemas', async () => {
+  const { originSchema, projectUpdateSchema } = await import('./schemas/dashboard');
+
+  it('accepts bare origins only', () => {
+    expect(originSchema.safeParse('https://app.exemplo.com').success).toBe(true);
+    expect(originSchema.safeParse('http://localhost:5173').success).toBe(true);
+    expect(originSchema.safeParse('https://app.exemplo.com/').success).toBe(false);
+    expect(originSchema.safeParse('https://app.exemplo.com/path').success).toBe(false);
+    expect(originSchema.safeParse('ftp://x.com').success).toBe(false);
+    expect(originSchema.safeParse('*').success).toBe(false);
+  });
+
+  it('PATCH schema keeps omitted fields undefined', () => {
+    expect(projectUpdateSchema.parse({ name: 'App' })).toEqual({ name: 'App' });
+  });
+});

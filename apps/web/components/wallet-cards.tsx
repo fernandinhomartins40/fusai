@@ -17,7 +17,7 @@ export function WalletCards({ wallet }: { wallet: WalletInfo }) {
           <CardHeader>
             <CardDescription>{c.label}</CardDescription>
             <CardTitle
-              className={`tabular-nums ${c.strong ? 'text-3xl' : 'text-2xl'} ${c.value < 0n ? 'text-destructive' : ''}`}
+              className={`${c.strong ? 'text-3xl' : 'text-2xl'} ${c.value < 0n ? 'text-destructive' : ''}`}
             >
               {formatBRL(c.value)}
             </CardTitle>

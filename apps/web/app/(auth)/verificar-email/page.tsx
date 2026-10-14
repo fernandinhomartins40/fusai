@@ -5,17 +5,20 @@ import { redirect } from 'next/navigation';
 import { AuthShell } from '@/components/auth/auth-shell';
 import { ResendVerification } from '@/components/auth/resend-verification';
 import { FormAlert } from '@/components/form-field';
+import { safeNext } from '@/lib/safe-redirect';
 import { getMe } from '@/lib/session';
 
 export const metadata: Metadata = { title: 'Confirme seu email' };
 
-type Props = { searchParams: Promise<{ email?: string; error?: string; confirmado?: string }> };
+type Props = {
+  searchParams: Promise<{ email?: string; error?: string; confirmado?: string; next?: string }>;
+};
 
 export default async function VerifyEmailPage({ searchParams }: Props) {
-  const { email, error, confirmado } = await searchParams;
+  const { email, error, confirmado, next } = await searchParams;
 
   // Better Auth redirects here after a successful confirmation, already signed in.
-  if (confirmado && !error && (await getMe())) redirect('/app');
+  if (confirmado && !error && (await getMe())) redirect(safeNext(next));
 
   return (
     <AuthShell
