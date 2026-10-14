@@ -17,7 +17,7 @@ pnpm dev                    # web :3000 + api :4000 (turbo)
 pnpm build                  # build de tudo
 pnpm lint | pnpm lint:fix   # Biome
 pnpm typecheck              # tsc em todos os pacotes
-pnpm test                   # Vitest
+pnpm test                   # Vitest (API usa Postgres real: banco <DATABASE_URL>_test)
 pnpm db:migrate             # prisma migrate dev
 pnpm db:seed                # seed (admin, provedores, settings, pacotes)
 pnpm db:studio              # Prisma Studio

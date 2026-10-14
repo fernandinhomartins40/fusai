@@ -1,12 +1,29 @@
 import { z } from 'zod';
 
+const optional = z
+  .string()
+  .optional()
+  .transform((v) => (v ? v : undefined));
+
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   HOST: z.string().default('0.0.0.0'),
   PORT: z.coerce.number().int().positive().default(4000),
   APP_URL: z.url().default('http://localhost:3000'),
   API_URL: z.url().default('http://localhost:4000'),
+  COOKIE_DOMAIN: z.string().default('localhost'),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
+
+  DATABASE_URL: z.string().min(1),
+
+  BETTER_AUTH_SECRET: z.string().min(16),
+  BETTER_AUTH_URL: z.url().default('http://localhost:4000'),
+  GOOGLE_CLIENT_ID: optional,
+  GOOGLE_CLIENT_SECRET: optional,
+
+  EMAIL_FROM: z.string().default('FuseAI <nao-responda@fuseai.com.br>'),
+  RESEND_API_KEY: optional,
+  SMTP_URL: z.string().default('smtp://localhost:1025'),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -16,5 +33,19 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
   if (!parsed.success) {
     throw new Error(`Invalid environment variables:\n${z.prettifyError(parsed.error)}`);
   }
-  return parsed.data;
+  const env = parsed.data;
+  if (env.NODE_ENV === 'production' && env.BETTER_AUTH_SECRET.startsWith('change-me')) {
+    throw new Error('BETTER_AUTH_SECRET must be changed in production');
+  }
+  return env;
+}
+
+/** Minimal env for unit tests that do not touch the database or auth. */
+export function testEnv(overrides: Partial<NodeJS.ProcessEnv> = {}): Env {
+  return loadEnv({
+    NODE_ENV: 'test',
+    DATABASE_URL: process.env.DATABASE_URL ?? 'postgresql://localhost/unused',
+    BETTER_AUTH_SECRET: 'test-secret-test-secret-test-secret',
+    ...overrides,
+  });
 }

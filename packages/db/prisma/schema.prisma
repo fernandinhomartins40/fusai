@@ -1,4 +1,5 @@
-// FuseAI database schema. The full model (PRD section 6) lands in Phase 1.
+// FuseAI database schema (PRD section 6).
+// Money: integer micro-reais (BigInt). Pix amounts: integer cents. Provider costs: USD per 1M tokens.
 
 generator client {
   provider = "prisma-client-js"
@@ -9,8 +10,415 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum PlatformRole {
+  USER
+  SUPER_ADMIN
+}
+
+enum OrgRole {
+  OWNER
+  ADMIN
+  DEVELOPER
+  BILLING
+}
+
+enum OrgStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+enum BillingType {
+  PREPAID
+  POSTPAID
+  INTERNAL
+}
+
+enum BillingMode {
+  ORG_WALLET
+  END_USER_WALLET
+  HYBRID
+}
+
+enum KeyEnv {
+  LIVE
+  TEST
+}
+
+enum WalletOwner {
+  ORGANIZATION
+  APP_USER
+}
+
+enum LedgerType {
+  PURCHASE
+  USAGE
+  REFUND
+  ADJUSTMENT
+  BONUS
+  EXPIRATION
+}
+
+enum PaymentStatus {
+  PENDING
+  CONFIRMED
+  RECEIVED
+  EXPIRED
+  REFUNDED
+  FAILED
+  CANCELED
+}
+
+enum PaymentProviderKind {
+  ASAAS
+}
+
+enum ProviderStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum PriceMode {
+  AUTO
+  FIXED
+}
+
+enum UsageStatus {
+  SUCCESS
+  UPSTREAM_ERROR
+  CLIENT_ERROR
+  INSUFFICIENT_FUNDS
+  RATE_LIMITED
+}
+
+// ---- Better Auth core tables (schema of better-auth 1.7) + role extension ----
+
+model User {
+  id            String       @id
+  name          String
+  email         String       @unique
+  emailVerified Boolean      @default(false)
+  image         String?
+  role          PlatformRole @default(USER)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  memberships   Membership[]
+  sessions      Session[]
+  accounts      Account[]
+
+  @@map("user")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+// ---- Domain ----
+
+model Organization {
+  id                String       @id @default(cuid())
+  name              String
+  slug              String       @unique
+  document          String? // CPF/CNPJ, digits only (required by Asaas for Pix)
+  phone             String?
+  status            OrgStatus    @default(ACTIVE)
+  billingType       BillingType  @default(PREPAID)
+  creditLimitMicros BigInt       @default(0)
+  markupOverride    Decimal?     @db.Decimal(6, 3) // special markup for this customer
+  asaasCustomerId   String?
+  asaasWalletId     String? // phase 2: split
+  createdAt         DateTime     @default(now())
+  members           Membership[]
+  projects          Project[]
+  wallet            Wallet?
+  payments          Payment[]
+}
+
+model Membership {
+  id     String       @id @default(cuid())
+  userId String
+  orgId  String
+  role   OrgRole      @default(OWNER)
+  user   User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  org    Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, orgId])
+  @@index([orgId])
+}
+
+model Project {
+  id               String          @id @default(cuid())
+  orgId            String
+  name             String
+  slug             String
+  billingMode      BillingMode     @default(ORG_WALLET)
+  defaultModelId   String?
+  allowedModelIds  String[] // empty = all active models
+  allowedOrigins   String[] // CORS for session-token calls from browsers
+  webhookUrl       String?
+  webhookSecret    String? // HMAC SHA-256
+  freeCreditMicros BigInt          @default(0) // bonus when an AppUser is created (HYBRID/END_USER)
+  createdAt        DateTime        @default(now())
+  org              Organization    @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  apiKeys          ApiKey[]
+  appUsers         AppUser[]
+  packages         CreditPackage[]
+
+  @@unique([orgId, slug])
+}
+
+model ApiKey {
+  id               String    @id @default(cuid())
+  projectId        String
+  name             String
+  env              KeyEnv    @default(LIVE)
+  prefix           String // e.g. "fai_live_ab12" (shown in the dashboard)
+  hash             String    @unique // sha256(key + KEY_PEPPER)
+  scopes           String[] // "chat","billing:read","checkout","app_users","mcp"
+  spendLimitMicros BigInt? // optional monthly limit
+  rpmLimit         Int? // optional requests/minute
+  lastUsedAt       DateTime?
+  expiresAt        DateTime?
+  revokedAt        DateTime?
+  createdById      String
+  createdAt        DateTime  @default(now())
+  project          Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+}
+
+model AppUser {
+  id         String   @id @default(cuid())
+  projectId  String
+  externalId String // user id in the customer's system
+  email      String?
+  name       String?
+  document   String? // CPF (optional, may be required by the PSP)
+  createdAt  DateTime @default(now())
+  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  wallet     Wallet?
+
+  @@unique([projectId, externalId])
+}
+
+model Wallet {
+  id             String        @id @default(cuid())
+  ownerType      WalletOwner
+  orgId          String?       @unique
+  appUserId      String?       @unique
+  balanceMicros  BigInt        @default(0)
+  reservedMicros BigInt        @default(0)
+  updatedAt      DateTime      @updatedAt
+  org            Organization? @relation(fields: [orgId], references: [id])
+  appUser        AppUser?      @relation(fields: [appUserId], references: [id])
+  entries        LedgerEntry[]
+}
+
+model LedgerEntry {
+  id            String     @id @default(cuid())
+  walletId      String
+  type          LedgerType
+  amountMicros  BigInt // positive = credit, negative = debit
+  balanceAfter  BigInt
+  referenceType String? // "payment" | "usage" | "admin"
+  referenceId   String?
+  description   String?
+  actorId       String? // admin who made an adjustment
+  createdAt     DateTime   @default(now())
+  wallet        Wallet     @relation(fields: [walletId], references: [id])
+
+  @@index([walletId, createdAt])
+}
+
+model CreditPackage {
+  id           String   @id @default(cuid())
+  projectId    String? // null = global package (organization top-up)
+  name         String
+  priceCents   Int
+  creditMicros BigInt
+  bonusMicros  BigInt   @default(0)
+  highlight    Boolean  @default(false)
+  active       Boolean  @default(true)
+  sortOrder    Int      @default(0)
+  project      Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model Payment {
+  id                 String              @id @default(cuid())
+  walletId           String
+  orgId              String
+  projectId          String?
+  appUserId          String?
+  packageId          String?
+  provider           PaymentProviderKind @default(ASAAS)
+  providerPaymentId  String?             @unique
+  providerCustomerId String?
+  status             PaymentStatus       @default(PENDING)
+  amountCents        Int
+  creditMicros       BigInt // credits + bonus to release
+  pixCopyPaste       String?
+  pixQrBase64        String?
+  expiresAt          DateTime?
+  paidAt             DateTime?
+  creditedAt         DateTime? // guarantees a single credit
+  idempotencyKey     String              @unique
+  metadata           Json?
+  createdAt          DateTime            @default(now())
+  org                Organization        @relation(fields: [orgId], references: [id])
+
+  @@index([status, createdAt])
+  @@index([orgId, createdAt])
+}
+
+model InboundWebhookEvent {
+  id          String    @id @default(cuid())
+  provider    String
+  eventKey    String    @unique // e.g. `${event}:${payment.id}` or the event id
+  type        String
+  payload     Json
+  processedAt DateTime?
+  error       String?
+  createdAt   DateTime  @default(now())
+}
+
+model OutboundWebhook {
+  id            String   @id @default(cuid())
+  projectId     String
+  event         String // "payment.received","balance.low","app_user.credited"
+  payload       Json
+  status        String   @default("pending") // pending|delivered|failed
+  attempts      Int      @default(0)
+  lastError     String?
+  nextAttemptAt DateTime @default(now())
+  createdAt     DateTime @default(now())
+
+  @@index([status, nextAttemptAt])
+  @@index([projectId, createdAt])
+}
+
+model Provider {
+  id        String         @id @default(cuid())
+  slug      String         @unique // deepseek | moonshot | zhipu | qwen | minimax | openrouter
+  name      String
+  baseUrl   String // OpenAI-compatible endpoint
+  apiKeyEnc String // AES-256-GCM with ENCRYPTION_KEY ("" until the admin sets a key)
+  status    ProviderStatus @default(ACTIVE)
+  priority  Int            @default(100)
+  timeoutMs Int            @default(120000)
+  models    Model[]
+}
+
+model Model {
+  id                     String    @id @default(cuid())
+  slug                   String    @unique // public name: "fuse/deepseek-chat"
+  displayName            String
+  description            String?
+  providerId             String
+  upstreamModel          String // model name at the provider
+  contextWindow          Int
+  maxOutputTokens        Int       @default(8192)
+  inputCostUsdPerM       Decimal   @db.Decimal(18, 8)
+  cachedInputCostUsdPerM Decimal?  @db.Decimal(18, 8)
+  outputCostUsdPerM      Decimal   @db.Decimal(18, 8)
+  priceMode              PriceMode @default(AUTO)
+  markupMultiplier       Decimal?  @db.Decimal(6, 3) // null = global default
+  inputPriceMicrosPerM   BigInt? // used when FIXED (BRL micros per 1M)
+  outputPriceMicrosPerM  BigInt?
+  supportsTools          Boolean   @default(false)
+  supportsVision         Boolean   @default(false)
+  supportsReasoning      Boolean   @default(false)
+  fallbackModelIds       String[]
+  active                 Boolean   @default(true)
+  public                 Boolean   @default(true) // shown on the landing page
+  sortOrder              Int       @default(0)
+  provider               Provider  @relation(fields: [providerId], references: [id])
+}
+
+model UsageLog {
+  id               String      @id @default(cuid())
+  requestId        String      @unique
+  orgId            String
+  projectId        String
+  apiKeyId         String?
+  appUserId        String?
+  walletId         String?
+  modelId          String
+  providerId       String
+  promptTokens     Int         @default(0)
+  cachedTokens     Int         @default(0)
+  completionTokens Int         @default(0)
+  reasoningTokens  Int         @default(0)
+  costUsdMicros    BigInt      @default(0) // real cost in micro-dollars
+  costBrlMicros    BigInt      @default(0) // cost converted at the current rate
+  chargedMicros    BigInt      @default(0) // amount charged
+  latencyMs        Int?
+  ttftMs           Int?
+  stream           Boolean     @default(false)
+  status           UsageStatus
+  errorCode        String?
+  createdAt        DateTime    @default(now())
+
+  @@index([orgId, createdAt])
+  @@index([projectId, createdAt])
+  @@index([createdAt])
+}
+
 model Setting {
-  key       String   @id // usd_brl_rate, default_markup, topup_fee_pct, min_topup_cents, low_balance_threshold_micros
+  key       String   @id // usd_brl_rate, default_markup, topup_fee_pct, min_topup_cents, low_balance_threshold_micros, welcome_bonus_micros
   value     Json
   updatedAt DateTime @updatedAt
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  actorId   String?
+  action    String // "wallet.adjust","provider.update","org.suspend","impersonate.start"...
+  target    String?
+  metadata  Json?
+  ip        String?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
 }

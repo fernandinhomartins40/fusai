@@ -9,6 +9,7 @@ import {
 } from '@fuseai/ui/components/card';
 import { Logo } from '@fuseai/ui/logo';
 import { ArrowRight, Code2, QrCode, Zap } from 'lucide-react';
+import Link from 'next/link';
 import { ThemeToggle } from '@/components/theme-toggle';
 
 // Placeholder home for Phase 0 — the full landing page is built in Phase 9.
@@ -44,13 +45,18 @@ export default function HomePage() {
 
       <header className="mx-auto flex max-w-6xl items-center justify-between px-4 py-5 sm:px-6">
         <Logo />
-        <ThemeToggle />
+        <div className="flex items-center gap-1">
+          <ThemeToggle />
+          <Button asChild variant="ghost" size="sm">
+            <Link href="/entrar">Entrar</Link>
+          </Button>
+        </div>
       </header>
 
       <main className="mx-auto max-w-6xl px-4 pt-16 pb-24 sm:px-6 sm:pt-24">
         <section className="mx-auto max-w-3xl text-center">
           <Badge variant="outline" className="mb-6">
-            Em construção · Fase 0
+            Em construção
           </Badge>
           <h1 className="text-balance font-semibold text-4xl tracking-tight sm:text-6xl">
             Uma API. Os melhores modelos de IA.{' '}
@@ -61,8 +67,10 @@ export default function HomePage() {
             pré-pagos em reais.
           </p>
           <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <Button variant="brand" size="lg" className="w-full sm:w-auto">
-              Criar conta <ArrowRight />
+            <Button asChild variant="brand" size="lg" className="w-full sm:w-auto">
+              <Link href="/cadastro">
+                Criar conta <ArrowRight />
+              </Link>
             </Button>
             <Button variant="outline" size="lg" className="w-full sm:w-auto">
               Ver docs
