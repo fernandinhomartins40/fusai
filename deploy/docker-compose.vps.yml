@@ -110,8 +110,10 @@ services:
     restart: unless-stopped
     ports:
       - "127.0.0.1:3500:80"
+    # A PASTA inteira, não um arquivo: o rsync troca o arquivo (inode novo) e uma montagem de
+    # arquivo único continuaria mostrando a versão antiga ao contêiner.
     volumes:
-      - ./nginx/fuseai.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx:/etc/nginx/conf.d:ro
     depends_on:
       api: { condition: service_healthy }
       web: { condition: service_healthy }

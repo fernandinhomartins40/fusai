@@ -127,8 +127,20 @@ log "Subindo api, worker, web e nginx"
 # Com depends_on (service_healthy), uma API que não sobe faz o `up` falhar. Não aborta aqui:
 # quem decide é a verificação de saúde abaixo, que faz a volta automática.
 compose images.env.new up -d --remove-orphans api worker web nginx || echo "AVISO: up retornou erro; verificando saúde" >&2
-# O nginx interno lê o arquivo montado; um rsync novo não recria o contêiner.
-compose images.env.new exec -T nginx nginx -s reload >/dev/null 2>&1 || true
+# O nginx interno lê a pasta deploy/nginx montada. Confere que o contêiner vê exatamente o
+# arquivo do disco, valida e recarrega (um rsync não recria o contêiner).
+sync_nginx() {
+  local disk ctr
+  disk="$(sha256sum nginx/fuseai.conf | cut -d' ' -f1)"
+  ctr="$(compose "$1" exec -T nginx sha256sum /etc/nginx/conf.d/fuseai.conf 2>/dev/null | cut -d' ' -f1 || true)"
+  if [ "$disk" != "$ctr" ]; then
+    echo "nginx interno com configuração diferente do disco: recriando o contêiner" >&2
+    compose "$1" up -d --force-recreate --no-deps nginx || true
+  fi
+  compose "$1" exec -T nginx nginx -t
+  compose "$1" exec -T nginx nginx -s reload
+}
+sync_nginx images.env.new || echo "AVISO: falha ao validar/recarregar o nginx interno" >&2
 
 # ---------------------------------------------------------------------------- 6. saúde
 healthy() {
@@ -153,6 +165,7 @@ compose images.env.new logs --tail 60 api worker web nginx >&2 || true
 if [ -n "$PREVIOUS" ]; then
   log "Voltando às imagens anteriores"
   compose "$PREVIOUS" up -d --remove-orphans api worker web nginx || true
+  sync_nginx "$PREVIOUS" || true
   for attempt in $(seq 1 30); do
     if healthy; then
       cp "$PREVIOUS" images.env
