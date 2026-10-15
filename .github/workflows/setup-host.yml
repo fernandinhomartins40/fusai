@@ -1,0 +1,87 @@
+name: Configurar nginx do host e HTTPS (manual)
+
+# Só pelo botão "Run workflow". Configura UMA vez o site fuseai.com.br no nginx do host da
+# VPS compartilhada e emite o certificado (certbot). Pré-requisito: DNS de fuseai.com.br,
+# www e api apontando para 72.60.10.112. Pode ser rodado de novo com segurança.
+on:
+  workflow_dispatch:
+    inputs:
+      certbot_email:
+        description: E-mail para avisos do certificado (Let's Encrypt)
+        required: true
+        default: fuseagencia1515@gmail.com
+
+concurrency:
+  group: deploy-fuseai-main
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  VPS_HOST: 72.60.10.112
+  VPS_APP_DIR: /root/fuseai/deploy
+  VPS_HOST_FINGERPRINT: SHA256:6ZU1oyYcSKKrodyE2uYKme3ciSkCWFxfniTKCGn7NW8
+
+jobs:
+  setup-host:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Chave de host fixada (impressão SHA256)
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          install -m 600 .github/vps_known_hosts ~/.ssh/known_hosts
+          ssh-keygen -lf ~/.ssh/known_hosts -E sha256 | awk -v fp="$VPS_HOST_FINGERPRINT" '$2 == fp { found=1 } END { exit !found }' \
+            || { echo "ERRO: impressão da chave de host diferente da esperada"; exit 1; }
+
+      - name: Chave SSH de deploy
+        env:
+          DEPLOY_KEY: ${{ secrets.FUSEAI_DEPLOY_SSH_KEY }}
+        run: |
+          set -euo pipefail
+          [ -n "$DEPLOY_KEY" ] || { echo "Secret FUSEAI_DEPLOY_SSH_KEY ausente"; exit 1; }
+          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/fuseai_deploy
+          chmod 600 ~/.ssh/fuseai_deploy
+          cat > ~/.ssh/config <<EOF
+          Host vps
+            HostName $VPS_HOST
+            User root
+            IdentityFile ~/.ssh/fuseai_deploy
+            IdentitiesOnly yes
+            StrictHostKeyChecking yes
+            UserKnownHostsFile ~/.ssh/known_hosts
+            PasswordAuthentication no
+            BatchMode yes
+            ConnectTimeout 30
+            ServerAliveInterval 30
+          EOF
+          chmod 600 ~/.ssh/config
+
+      - name: Enviar scripts (só deploy/nginx-host e setup-host.sh)
+        run: |
+          set -euo pipefail
+          ssh vps "mkdir -p '$VPS_APP_DIR/nginx-host'"
+          scp -q deploy/setup-host.sh "vps:$VPS_APP_DIR/setup-host.sh"
+          scp -q deploy/nginx-host/fuseai.com.br "vps:$VPS_APP_DIR/nginx-host/fuseai.com.br"
+
+      - name: Configurar nginx do host e certificado
+        env:
+          CERTBOT_EMAIL: ${{ inputs.certbot_email }}
+        run: |
+          set -euo pipefail
+          ssh vps "CERTBOT_EMAIL='$CERTBOT_EMAIL' bash '$VPS_APP_DIR/setup-host.sh'"
+
+      - name: Testar os domínios públicos
+        run: |
+          set -uo pipefail
+          ok=0
+          curl -fsS --max-time 15 https://api.fuseai.com.br/health | grep -q '"fuseai-api"' && echo "OK  https://api.fuseai.com.br/health" || { echo "ERRO api"; ok=1; }
+          curl -fsS --max-time 15 https://www.fuseai.com.br/docs | grep -q 'Documentação' && echo "OK  https://www.fuseai.com.br/docs" || { echo "ERRO www"; ok=1; }
+          code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 https://fuseai.com.br/)
+          [ "$code" = "301" ] && echo "OK  https://fuseai.com.br -> www (301)" || { echo "ERRO apex: $code"; ok=1; }
+          exit $ok
