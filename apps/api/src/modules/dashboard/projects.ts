@@ -1,5 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import type { PrismaClient, Project } from '@fuseai/db';
+import { fuseaiMd } from '@fuseai/docs';
 import { microsToBrl, orgUpdateSchema, projectUpdateSchema } from '@fuseai/shared';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
@@ -11,6 +12,7 @@ import { priceModel } from '../../lib/model-pricing';
 import { currentUser } from '../../lib/session';
 import type { SettingsStore } from '../../lib/settings';
 import { type CatalogStore, isServable } from '../gateway/catalog';
+import { projectSnapshot } from '../integration/snapshot';
 import { requireMembership } from './membership';
 
 type Options = {
@@ -169,6 +171,22 @@ export const dashboardProjectRoutes: FastifyPluginAsyncZod<Options> = async (app
       });
       await audit(prisma, req, 'webhook.secret_rotate', project.id);
       return { secret };
+    },
+  );
+
+  // Kit de Integração: FUSEAI.md for the customer's coding AI (PRD §10.2). No secrets inside.
+  app.get(
+    '/internal/projects/:projectId/fuseai-md',
+    { schema: { params: projectParams } },
+    async (req, reply) => {
+      const { project } = await projectFor(currentUser(req).id, req.params.projectId);
+      const org = await prisma.organization.findUniqueOrThrow({ where: { id: project.orgId } });
+      const snap = await projectSnapshot(prisma, catalog, settings, project, org);
+      return reply
+        .header('content-type', 'text/markdown; charset=utf-8')
+        .header('content-disposition', 'attachment; filename="FUSEAI.md"')
+        .header('cache-control', 'no-store')
+        .send(fuseaiMd(snap, { api: env.API_URL, app: env.APP_URL }));
     },
   );
 

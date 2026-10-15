@@ -3,16 +3,16 @@ import { microsToBrl } from '@fuseai/shared';
 import type { FastifyError, FastifyPluginAsync } from 'fastify';
 import { hasZodFastifySchemaValidationErrors } from 'fastify-type-provider-zod';
 import { z } from 'zod';
-import { priceModel } from '../../lib/model-pricing';
 import type { RedisClient } from '../../lib/redis';
 import type { SettingsStore } from '../../lib/settings';
 import type { PaymentProvider } from '../../payments/types';
 import { createGatewayAuth, type GatewayContext, requireScope, requireSecretKey } from './auth';
-import { type CatalogStore, isServable } from './catalog';
+import type { CatalogStore } from './catalog';
 import { chatBodySchema, createChatHandler } from './chat';
 import type { CircuitBreaker } from './circuit-breaker';
 import { endUserRoutes } from './end-users';
 import { GatewayError } from './errors';
+import { listModelsFor, usageSummary } from './queries';
 
 type Options = {
   prisma: PrismaClient;
@@ -86,46 +86,7 @@ export const gatewayRoutes: FastifyPluginAsync<Options> = async (app, opts) => {
   app.get('/models', async (req) => {
     const ctx = ctxOf(req);
     requireScope(ctx, 'chat');
-    const [{ bySlug }, s] = await Promise.all([catalog.get(), settings.get()]);
-    const markup = ctx.org.markupOverride?.toFixed() ?? null;
-    const data = [...bySlug.values()]
-      .filter(isServable)
-      .filter(
-        (e) =>
-          ctx.project.allowedModelIds.length === 0 ||
-          ctx.project.allowedModelIds.includes(e.model.id),
-      )
-      .map((e) => ({ e, prices: priceModel(e.model, s, markup) }))
-      .filter(
-        ({ prices }) =>
-          ctx.env === 'LIVE' || prices.outputPerM <= BigInt(s.test_key_max_output_micros),
-      )
-      .sort(
-        (a, b) =>
-          a.e.model.sortOrder - b.e.model.sortOrder || a.e.model.slug.localeCompare(b.e.model.slug),
-      )
-      .map(({ e, prices }) => ({
-        id: e.model.slug,
-        object: 'model',
-        created: 0,
-        owned_by: 'fuseai',
-        name: e.model.displayName,
-        description: e.model.description,
-        context_window: e.model.contextWindow,
-        max_output_tokens: e.model.maxOutputTokens,
-        capabilities: {
-          tools: e.model.supportsTools,
-          vision: e.model.supportsVision,
-          reasoning: e.model.supportsReasoning,
-        },
-        pricing: {
-          currency: 'BRL',
-          unit: '1M tokens',
-          input: microsToBrl(prices.inputPerM),
-          cached_input: microsToBrl(prices.cachedInputPerM),
-          output: microsToBrl(prices.outputPerM),
-        },
-      }));
+    const data = await listModelsFor(ctx, catalog, settings);
     return { object: 'list', data };
   });
 
@@ -179,48 +140,6 @@ export const gatewayRoutes: FastifyPluginAsync<Options> = async (app, opts) => {
     if (from > to || to.getTime() - from.getTime() > 366 * 86_400_000) {
       throw new GatewayError(400, 'invalid_range', 'Período inválido (máximo de 366 dias).');
     }
-    const [rows, { byId }] = await Promise.all([
-      prisma.usageLog.groupBy({
-        by: ['modelId'],
-        where: { projectId: ctx.project.id, createdAt: { gte: from, lt: to } },
-        _count: { _all: true },
-        _sum: {
-          promptTokens: true,
-          cachedTokens: true,
-          completionTokens: true,
-          chargedMicros: true,
-        },
-      }),
-      catalog.get(),
-    ]);
-    const byModel = rows.map((r) => ({
-      model: byId.get(r.modelId)?.model.slug ?? r.modelId,
-      requests: r._count._all,
-      prompt_tokens: r._sum.promptTokens ?? 0,
-      cached_tokens: r._sum.cachedTokens ?? 0,
-      completion_tokens: r._sum.completionTokens ?? 0,
-      charged_micros: (r._sum.chargedMicros ?? 0n).toString(),
-    }));
-    const total = byModel.reduce(
-      (acc, m) => ({
-        requests: acc.requests + m.requests,
-        prompt_tokens: acc.prompt_tokens + m.prompt_tokens,
-        completion_tokens: acc.completion_tokens + m.completion_tokens,
-        charged_micros: acc.charged_micros + BigInt(m.charged_micros),
-      }),
-      { requests: 0, prompt_tokens: 0, completion_tokens: 0, charged_micros: 0n },
-    );
-    return {
-      object: 'usage',
-      currency: 'BRL',
-      from: from.toISOString(),
-      to: to.toISOString(),
-      total: {
-        ...total,
-        charged: microsToBrl(total.charged_micros),
-        charged_micros: total.charged_micros.toString(),
-      },
-      by_model: byModel,
-    };
+    return usageSummary(prisma, catalog, ctx.project.id, from, to);
   });
 };

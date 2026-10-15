@@ -12,7 +12,8 @@
       "!**/dist",
       "!**/.turbo",
       "!**/next-env.d.ts",
-      "!**/prisma/migrations"
+      "!**/prisma/migrations",
+      "!**/*.generated.ts"
     ]
   },
   "formatter": {

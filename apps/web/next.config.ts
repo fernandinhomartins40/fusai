@@ -11,12 +11,16 @@ const nextConfig: NextConfig = {
   // Production images are built on Linux (Docker), where it is always enabled.
   output: process.platform === 'win32' ? undefined : 'standalone',
   outputFileTracingRoot: path.join(import.meta.dirname, '../../'),
-  transpilePackages: ['@fuseai/ui', '@fuseai/shared'],
+  transpilePackages: ['@fuseai/ui', '@fuseai/shared', '@fuseai/docs'],
   poweredByHeader: false,
   reactStrictMode: true,
   env: {
     NEXT_PUBLIC_API_URL: process.env.API_URL ?? 'http://localhost:4000',
     NEXT_PUBLIC_APP_URL: process.env.APP_URL ?? 'http://localhost:3000',
+  },
+  // Docs pages as Markdown for AIs: /docs/chat.md -> app/docs-md/[slug].
+  async rewrites() {
+    return [{ source: '/docs/:slug.md', destination: '/docs-md/:slug' }];
   },
   experimental: {
     authInterrupts: true,

@@ -29,14 +29,25 @@ export function CopyButton({ value, label = 'Copiar' }: { value: string; label?:
 }
 
 /** Monospace block with a copy button. */
-export function CodeBlock({ code, label }: { code: string; label?: string }) {
+export function CodeBlock({
+  code,
+  label,
+  wrap = false,
+}: {
+  code: string;
+  label?: string;
+  /** Wrap long lines (prose such as a prompt) instead of scrolling. */
+  wrap?: boolean;
+}) {
   return (
     <div className="relative overflow-hidden rounded-xl border bg-muted/40">
       <div className="flex items-center justify-between gap-2 border-b px-3 py-1.5">
         <span className="text-muted-foreground text-xs">{label ?? 'Código'}</span>
         <CopyButton value={code} />
       </div>
-      <pre className="overflow-x-auto p-3 font-mono text-xs leading-relaxed">
+      <pre
+        className={`overflow-x-auto p-3 font-mono text-xs leading-relaxed ${wrap ? 'whitespace-pre-wrap break-words' : ''}`}
+      >
         <code>{code}</code>
       </pre>
     </div>

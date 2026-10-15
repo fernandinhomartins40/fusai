@@ -27,6 +27,7 @@ import { createCatalog } from './modules/gateway/catalog';
 import { createCircuitBreaker } from './modules/gateway/circuit-breaker';
 import { gatewayRoutes } from './modules/gateway/routes';
 import { healthRoutes } from './modules/health/routes';
+import { mcpRoutes } from './modules/mcp/routes';
 import { paymentWebhookRoutes, publicCheckoutRoutes } from './modules/payments/routes';
 import { createPaymentProvider, type PaymentProvider } from './payments';
 
@@ -179,6 +180,15 @@ export async function buildApp(env: Env, deps: AppDeps = {}) {
     appUrl: env.APP_URL,
   });
   await app.register(publicCheckoutRoutes, { prefix: '/public', prisma, redis });
+  await app.register(mcpRoutes, {
+    prisma,
+    catalog,
+    settings,
+    provider,
+    redis,
+    env,
+    encryptionKey,
+  });
 
   // In-memory caches (catalog 10s, settings 60s); exposed so tests can reset them.
   app.decorate('caches', {

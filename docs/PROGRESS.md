@@ -10,7 +10,7 @@
 | 5 — Painel do cliente | ✅ concluída (ver pendências) |
 | 6 — Pix (Asaas) | ✅ concluída — falta validar no sandbox real (ver pendências) |
 | 7 — Usuários finais e checkout | ✅ concluída — falta validar no sandbox real (ver pendências) |
-| 8 — MCP e Kit de Integração | ⏳ |
+| 8 — MCP e Kit de Integração | ✅ concluída (ver pendências) |
 | 9 — Landing page | ⏳ |
 | 10 — Admin completo e hardening | ⏳ |
 
@@ -405,3 +405,78 @@ pnpm dev && pnpm --filter @fuseai/api dev:worker
 - SSE `GET /v1/checkout/:id/events` (o PRD dá como alternativa ao polling): ficou só o polling de 3 s.
 - `@fuseai/sdk` e `@fuseai/react` exportam TypeScript (padrão do monorepo); o build para publicar no npm fica para a Fase 10.
 - Sem nota fiscal nem split: o valor das vendas aos usuários finais entra na conta Asaas da FuseAI (ver D-085).
+
+## Fase 8 — MCP e Kit de Integração
+
+### Feito
+- **Servidor MCP remoto** em `POST /mcp` (`modules/mcp`), com `@modelcontextprotocol/sdk` 1.31:
+  - Streamable HTTP stateless: um servidor e um transport por requisição, respostas JSON; `GET`/`DELETE` dão 405;
+  - autenticação com a chave do projeto e escopo `mcp`; session token e chave sem o escopo são recusados; 401 traz `WWW-Authenticate`;
+  - limite de 120 chamadas/min por chave;
+  - as `instructions` dizem a qual projeto a conexão está ligada.
+- **11 tools** do PRD §10.1:
+  - `get_integration_guide` (guia personalizado; `stack` = `nextjs`, `react-native`, `flutter`, `node`, `python` ou `laravel`);
+  - `get_project_config`, `list_models`, `get_balance` (organização ou `externalId`), `get_usage`;
+  - `test_chat` (passa pelo gateway de verdade, com cobrança e log);
+  - `list_packages` e `create_package` (valores em reais como texto, validados como no painel);
+  - `update_project_settings` (só prévia sem `confirm: true`; gera o segredo do webhook);
+  - `create_test_checkout` (só com chave `fai_test_` e Asaas em sandbox);
+  - `send_test_webhook`.
+  - Todas têm anotações MCP (`readOnlyHint`, `destructiveHint`…).
+- **Recursos**: `fuseai://docs/api`, `fuseai://docs/sdk`, `fuseai://docs/checkout` e `fuseai://project` (o FUSEAI.md). **Prompts**: `integrar_chat`, `integrar_compra_pix` e `migrar_de_openai`.
+- **Auditoria**: toda chamada de tool ou leitura de recurso gera um `AuditLog` `mcp.<tool>` com a chave e a organização.
+- **`@fuseai/docs`** (pacote novo), fonte única das docs em Markdown (`content/NN-slug.md`):
+  - um script gera `src/content.generated.ts`; um teste falha se ele estiver desatualizado;
+  - as URLs da instalação são trocadas na renderização (`{{V1}}`, `{{MCP}}`…);
+  - também gera o guia de integração, o `FUSEAI.md`, o `llms.txt` e os snippets de MCP.
+- **Docs públicas** em `/docs` com as 11 páginas do PRD §10.3:
+  - Markdown renderizado no servidor com `marked`, headings com âncora, navegação lateral (menu recolhível no celular) e anterior/próxima;
+  - cada página também em Markdown em `/docs/<slug>.md`;
+  - `/llms.txt` (formato llmstxt.org) e `/llms-full.txt`.
+- **Kit de Integração** (aba nova do projeto, `/app/projetos/[id]/integracao`):
+  - comandos MCP para Claude Code, Cursor/Claude Desktop e VS Code;
+  - `.env` pronto, botão **Baixar FUSEAI.md** (gerado pela API com os dados atuais do projeto, sem a chave), prompt sugerido e exemplo de migração da OpenAI.
+  - Ao **criar uma chave** (no painel e no onboarding), os comandos MCP já aparecem com a chave real.
+- Refatoração: a lista de modelos e o resumo de consumo saíram de `gateway/routes.ts` para `gateway/queries.ts`, e são usados por `/v1` e pelo MCP.
+
+### Como testar
+```bash
+pnpm dev && pnpm --filter @fuseai/api dev:worker
+# Painel → Projetos → (projeto) → Chaves de API → Nova chave: copie o comando MCP mostrado
+claude mcp add --transport http fuseai http://localhost:4000/mcp --header "Authorization: Bearer fai_live_..."
+claude mcp list                                   # fuseai ... ✔ Connected
+npx @modelcontextprotocol/inspector --cli http://localhost:4000/mcp --transport http \
+  --header "Authorization: Bearer fai_live_..." --method tools/list
+# Docs: http://localhost:3000/docs · /llms.txt · /llms-full.txt · /docs/chat.md
+pnpm --filter @fuseai/docs generate               # depois de editar packages/docs/content/*.md
+```
+
+### Verificado
+- `pnpm lint`, `pnpm typecheck` (9 pacotes), `pnpm test` e `pnpm build` passando: 166 testes (115 API, 38 shared, 7 SDK, 6 docs).
+- 6 testes novos de MCP com o cliente oficial do SDK cobrem:
+  - lista de tools, recursos e prompts;
+  - 401, session token, chave sem escopo e 405;
+  - guia personalizado por stack;
+  - `test_chat` cobrado, `get_balance`, `get_usage` e auditoria;
+  - `update_project_settings` (prévia → confirmação → webhook de teste entregue);
+  - `create_package` e `create_test_checkout` (recusado com chave live, ok com chave de teste).
+  - Também há teste do download do FUSEAI.md, que não contém a chave.
+- **Critérios de aceite do PRD**, contra a API real em dev:
+  - `claude mcp add --transport http fuseai http://localhost:4000/mcp --header "Authorization: Bearer …"` seguido de `claude mcp list` → **`fuseai: http://localhost:4000/mcp (HTTP) - ✔ Connected`** (entrada de teste removida depois);
+  - **MCP Inspector** (CLI 2.7.0) `tools/list` → as **11 tools**; `--strict` sem avisos de portabilidade de schema;
+  - `get_integration_guide` (stack `nextjs`) pelo Inspector → guia personalizado do projeto "App PWA": modo `END_USER_WALLET`, origem `http://localhost:3001`, webhook do app de exemplo, modelo com preço real e o pacote "100 mensagens".
+- **Aceite no navegador**: 23/23 a 375px.
+  - Kit: aba, os 3 clientes MCP, `.env`, prompt, migração da OpenAI e download do FUSEAI.md (8 KB, com os dados do projeto e sem chave).
+  - Criar chave mostra o comando MCP com a chave real, e essa chave conecta no MCP.
+  - Docs: índice com 11 páginas, âncoras, código e tabelas sem estouro horizontal, navegação móvel e anterior/próxima.
+  - `.md`, `llms.txt` e `llms-full.txt` sem placeholders; sem erros de JS.
+- **Problemas achados e corrigidos**:
+  - `webhookUrl` anulável virava `type: ["string","null"]` no JSON Schema, que vários clientes MCP rejeitam; agora é texto, e `""` remove;
+  - o preço por milhão no guia usava `toFixed` (float) e escondia frações de centavo; agora é formatação exata;
+  - um botão estourava a largura de 375px no Kit;
+  - código inline em tabelas das docs quebrava no meio da palavra.
+
+### Pendências
+- OAuth 2.1 do MCP (descoberta padrão para clientes que exigem): fase 2 do produto, como o PRD prevê.
+- A descrição de uma tool não substitui a confirmação do usuário: `update_project_settings` exige `confirm: true`, mas quem pede a confirmação é a IA cliente.
+- `create_test_checkout` usa um CPF de sandbox fixo quando o usuário de teste não tem documento.

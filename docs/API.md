@@ -155,3 +155,31 @@ Sucesso = qualquer 2xx em até 10 s. Novas tentativas: 1 min, 5 min, 30 min, 2 h
 | GET | `/internal/projects/:id/webhooks?status&cursor` | Histórico de entregas. |
 | POST | `/internal/projects/:id/webhooks/:hookId/resend` | Reenvia agora. |
 | POST | `/internal/projects/:id/webhooks/test` | Envia `test.ping` e devolve o resultado. |
+
+## MCP (Fase 8)
+
+`POST /mcp`: Streamable HTTP stateless (JSON-RPC, respostas `application/json`). Header `Authorization: Bearer fai_live_…` de uma chave com escopo `mcp`. `GET`/`DELETE` → 405. Limite: 120 chamadas/min por chave. Erros de autenticação vêm no formato do gateway (401 com `WWW-Authenticate: Bearer`, 403 `insufficient_scope`/`secret_key_required`).
+
+| Tool | Argumentos | Efeito |
+|---|---|---|
+| `get_integration_guide` | `stack?` (`nextjs`, `react-native`, `flutter`, `node`, `python`, `laravel`) | Markdown personalizado |
+| `get_project_config` | — | leitura |
+| `list_models` | — | leitura |
+| `get_balance` | `externalId?` | leitura |
+| `get_usage` | `from?`, `to?` (ISO 8601) | leitura |
+| `test_chat` | `model?`, `message?`, `externalId?` | **cobrada** (máx. 64 tokens de saída) |
+| `list_packages` | — | leitura |
+| `create_package` | `name`, `price_brl`, `credits_brl`, `bonus_brl?`, `highlight?` | cria pacote |
+| `update_project_settings` | `allowedOrigins?`, `webhookUrl?` (`""` remove), `billingMode?`, `confirm?` | prévia; aplica com `confirm: true` |
+| `create_test_checkout` | `packageId?`, `externalId?` | só chave `fai_test_` + Asaas sandbox |
+| `send_test_webhook` | — | envia `test.ping` |
+
+Recursos: `fuseai://docs/api`, `fuseai://docs/sdk`, `fuseai://docs/checkout`, `fuseai://project` (FUSEAI.md). Prompts: `integrar_chat`, `integrar_compra_pix` (arg `stack?`), `migrar_de_openai`. Toda chamada gera `AuditLog` `mcp.<tool>`.
+
+### Painel
+| Método | Rota | Descrição |
+|---|---|---|
+| GET | `/internal/projects/:id/fuseai-md` | `FUSEAI.md` (text/markdown, anexo) com os dados atuais do projeto, sem chave. |
+
+### Web (público)
+`/docs`, `/docs/<slug>` (HTML), `/docs/<slug>.md` (Markdown), `/llms.txt`, `/llms-full.txt`.

@@ -1,5 +1,7 @@
+import { SUGGESTED_PROMPT } from '@fuseai/docs/kit';
 import { AlertTriangle } from 'lucide-react';
 import { CodeBlock, CopyButton } from '@/components/copy-button';
+import { McpCommands } from '@/components/integration/mcp-commands';
 import type { CreatedApiKey } from '@/lib/api-key-types';
 import { API_URL } from '@/lib/config';
 
@@ -25,6 +27,13 @@ export function KeyReveal({ created }: { created: CreatedApiKey }) {
         </div>
       </div>
       <CodeBlock label=".env" code={`FUSEAI_API_KEY=${created.key}\nFUSEAI_BASE_URL=${baseUrl}`} />
+      <div className="grid gap-2">
+        <span className="font-medium text-sm">Conecte sua IA de programação (MCP)</span>
+        <McpCommands apiKey={created.key} />
+        <p className="text-muted-foreground text-xs">
+          Depois peça: “{SUGGESTED_PROMPT}” O FUSEAI.md fica no Kit de Integração do projeto.
+        </p>
+      </div>
       <CodeBlock
         label="SDK oficial da OpenAI (Node)"
         code={`import OpenAI from 'openai';

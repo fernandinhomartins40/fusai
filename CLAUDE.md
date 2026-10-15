@@ -22,6 +22,7 @@ pnpm test                   # Vitest (API usa Postgres real <DATABASE_URL>_test 
 pnpm db:migrate             # prisma migrate dev
 pnpm db:seed                # seed (admin, provedores, settings, pacotes)
 pnpm db:studio              # Prisma Studio
+pnpm --filter @fuseai/docs generate   # após editar packages/docs/content/*.md
 ```
 Filtrar um pacote: `pnpm --filter @fuseai/api <script>`.
 
@@ -44,6 +45,7 @@ packages/ui     tema (tokens CSS Tailwind v4), logo, componentes base shadcn-sty
 packages/db     Prisma schema, client, seed, migrations
 packages/sdk    @fuseai/sdk: cliente TS (chat, saldo, checkout Pix, verifyWebhook)
 packages/react  @fuseai/react: <FuseCheckout/>, <FuseBalance/>
+packages/docs   docs em Markdown (content/*.md → content.generated.ts), guia de integração, FUSEAI.md, llms.txt
 examples/next-pwa  app de exemplo (porta 3001) com session token, checkout e webhooks
 docs/           DECISIONS.md, PROGRESS.md, API.md
 ```
