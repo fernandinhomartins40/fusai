@@ -212,6 +212,9 @@ describe('Pix top-ups (Asaas)', () => {
     asaas.pay(providerId);
     await webhook(asaas.webhookBody('PAYMENT_RECEIVED', providerId));
     ctx.jobs.jobs.length = 0; // pretend the enqueue was lost
+    // Postgres ROUNDS createdAt to milliseconds: in the same millisecond the event can look
+    // ~0.5 ms "in the future" for `createdAt <= now`. Production uses a 60 s age, never 0.
+    await new Promise((r) => setTimeout(r, 5));
     expect(await processPendingWebhookEvents(prisma, ctx.provider)).toBe(1);
     expect((await wallet()).balanceMicros).toBe(52_500_000n);
   });

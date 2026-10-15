@@ -20,7 +20,7 @@ export function AppHeader({ home, userName, badge, children, actions }: AppHeade
     <header className="sticky top-0 z-30 border-b bg-background/80 backdrop-blur">
       <div className="mx-auto flex h-14 max-w-6xl items-center gap-3 px-4 sm:px-6">
         <Link href={home} aria-label="Início do painel" className="rounded-lg">
-          <Logo markClassName="size-6" className="[&>span:last-child]:text-lg" />
+          <Logo className="h-6" />
         </Link>
         {badge ? <Badge variant="outline">{badge}</Badge> : null}
         <nav className="ml-2 hidden items-center gap-1 text-sm sm:flex">{children}</nav>

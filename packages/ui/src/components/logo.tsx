@@ -1,45 +1,50 @@
-import { useId } from 'react';
 import { cn } from '../lib/utils';
 
-/** FuseAI mark (decorative): two strokes fusing into one, painted with the brand gradient. */
+/**
+ * Logo oficial (PNG em apps/web/public/brand, servido em /brand):
+ * - logo-fusai.png        texto escuro, para fundo claro
+ * - logo-fusai-branco.png texto branco, para fundo escuro
+ * - simbolo-fusai.png     só o símbolo
+ * A troca entre claro e escuro é por CSS (classe `dark`), sem JavaScript.
+ */
+const BRAND = '/brand';
+
+/** Só o símbolo (decorativo). Defina a altura pela classe, ex.: `h-6`. */
 export function LogoMark({ className }: { className?: string }) {
-  const gradientId = useId();
   return (
-    <svg viewBox="0 0 32 32" fill="none" className={cn('size-8', className)} aria-hidden="true">
-      <defs>
-        <linearGradient
-          id={gradientId}
-          x1="3"
-          y1="4"
-          x2="29"
-          y2="28"
-          gradientUnits="userSpaceOnUse"
-        >
-          <stop stopColor="#F59E0B" />
-          <stop offset="0.5" stopColor="#EC4899" />
-          <stop offset="1" stopColor="#8B5CF6" />
-        </linearGradient>
-      </defs>
-      <g stroke={`url(#${gradientId})`} strokeWidth="3.5" strokeLinecap="round">
-        <path d="M4 7c8 0 9 9 16 9" />
-        <path d="M4 25c8 0 9-9 16-9" />
-        <path d="M20 16h8" />
-      </g>
-    </svg>
+    <img
+      src={`${BRAND}/simbolo-fusai.png`}
+      alt=""
+      aria-hidden="true"
+      width={240}
+      height={160}
+      className={cn('h-6 w-auto select-none', className)}
+      draggable={false}
+    />
   );
 }
 
-type LogoProps = { className?: string; markClassName?: string; showMark?: boolean };
-
-/** Wordmark "fuseai" with "ai" in the brand gradient. */
-export function Logo({ className, markClassName, showMark = true }: LogoProps) {
+/** Logo completo "fusai". Defina a altura pela classe (padrão h-7). */
+export function Logo({ className }: { className?: string }) {
+  const img = 'h-full w-auto select-none';
   return (
-    <span className={cn('inline-flex items-center gap-2 font-semibold tracking-tight', className)}>
-      {showMark ? <LogoMark className={cn('size-7', markClassName)} /> : null}
-      <span className="sr-only">FuseAI</span>
-      <span aria-hidden="true" className="text-xl leading-none">
-        fuse<span className="text-fuse-gradient">ai</span>
-      </span>
+    <span className={cn('inline-flex h-7 items-center', className)}>
+      <img
+        src={`${BRAND}/logo-fusai.png`}
+        alt="fusai"
+        width={681}
+        height={160}
+        className={cn(img, 'dark:hidden')}
+        draggable={false}
+      />
+      <img
+        src={`${BRAND}/logo-fusai-branco.png`}
+        alt="fusai"
+        width={681}
+        height={160}
+        className={cn(img, 'hidden dark:block')}
+        draggable={false}
+      />
     </span>
   );
 }

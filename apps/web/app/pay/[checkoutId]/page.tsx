@@ -27,7 +27,7 @@ export default async function PayPage({ params, searchParams }: Props) {
     <main className="mx-auto grid min-h-dvh w-full max-w-md content-start gap-6 px-4 py-8 sm:py-12">
       <HostedCheckout checkoutId={checkoutId} returnUrlOverride={returnUrl} />
       <footer className="flex items-center justify-center gap-2 text-muted-foreground text-xs">
-        Pagamento processado com segurança por <Logo className="scale-75" markClassName="size-5" />
+        Pagamento processado com segurança por <Logo className="h-5" />
       </footer>
     </main>
   );

@@ -6,10 +6,12 @@ function escapeHtml(value: string): string {
 
 function layout(title: string, body: string, cta: { label: string; url: string }): string {
   const url = escapeHtml(cta.url);
+  // E-mail exige URL absoluta: o logo vem do mesmo site do link (ex.: https://www.fusai.com.br).
+  const logo = escapeHtml(`${new URL(cta.url).origin}/brand/logo-fusai.png`);
   return `<!doctype html><html lang="pt-BR"><body style="margin:0;background:#f6f6f8;font-family:Geist,Arial,sans-serif;color:#18181b">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:32px 16px">
 <table role="presentation" width="100%" style="max-width:480px;background:#fff;border-radius:16px;padding:32px">
-<tr><td style="font-size:22px;font-weight:600;padding-bottom:16px">fuse<span style="color:#ec4899">ai</span></td></tr>
+<tr><td style="padding-bottom:20px"><img src="${logo}" alt="fusai" width="119" height="28" style="display:block;border:0;height:28px;width:auto"></td></tr>
 <tr><td style="font-size:18px;font-weight:600;padding-bottom:8px">${escapeHtml(title)}</td></tr>
 <tr><td style="font-size:15px;line-height:1.6;color:#52525b;padding-bottom:24px">${body}</td></tr>
 <tr><td><a href="${url}" style="display:inline-block;background:linear-gradient(90deg,#f59e0b,#ec4899,#8b5cf6);color:#fff;text-decoration:none;font-weight:600;padding:12px 20px;border-radius:12px">${escapeHtml(cta.label)}</a></td></tr>
