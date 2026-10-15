@@ -251,7 +251,8 @@ jobs:
         run: |
           set -euo pipefail
           sudo apt-get install -y -qq rsync >/dev/null
-          rsync -az --delete \
+          # Sem -o/-g: o uid do runner (1001) não deve virar dono dos arquivos na VPS.
+          rsync -rlptz --delete --no-owner --no-group \
             --exclude='.env' --exclude='.env.*' \
             --exclude='images.env' --exclude='images.env.*' \
             -e ssh deploy/ "vps:$VPS_APP_DIR/"
