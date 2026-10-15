@@ -1,0 +1,131 @@
+# Produção na VPS compartilhada (72.60.10.112). Só o fuseai-nginx publica porta, e só em
+# 127.0.0.1:3500. O nginx do HOST termina o TLS de fuseai.com.br, www e api e repassa tudo
+# para essa porta. Dentro do compose, o fuseai-nginx roteia pelo Host: api.* vai para a API, o resto para a web.
+#
+# Uso (só pelo deploy.sh, chamado pelo GitHub Actions):
+#   docker compose -f docker-compose.vps.yml --env-file .env --env-file images.env up -d
+# `.env` (segredos, gerado na 1ª vez na própria VPS) e `images.env` (imagens por digest)
+# nunca vão para o repositório.
+name: fuseai
+
+x-app-env: &app-env
+  NODE_ENV: production
+  DATABASE_URL: postgresql://fuseai:${POSTGRES_PASSWORD:?defina no .env}@postgres:5432/fuseai
+  REDIS_URL: redis://redis:6379
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: fuseai-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: fuseai
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina no .env}
+      POSTGRES_DB: fuseai
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fuseai -d fuseai"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    mem_limit: 512m
+    networks: [internal]
+
+  redis:
+    image: redis:7-alpine
+    container_name: fuseai-redis
+    restart: unless-stopped
+    # BullMQ exige noeviction: uma chave de job removida por falta de memória perde o job.
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "128mb", "--maxmemory-policy", "noeviction"]
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    mem_limit: 192m
+    networks: [internal]
+
+  api:
+    image: ${FUSEAI_API_IMAGE:?defina no images.env}
+    container_name: fuseai-api
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      <<: *app-env
+      HOST: 0.0.0.0
+      PORT: "4000"
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+    mem_limit: 512m
+    networks: [internal]
+
+  worker:
+    image: ${FUSEAI_API_IMAGE:?defina no images.env}
+    container_name: fuseai-worker
+    restart: unless-stopped
+    command: ["node", "apps/api/dist/worker.js"]
+    env_file: .env
+    environment:
+      <<: *app-env
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    mem_limit: 384m
+    networks: [internal]
+
+  web:
+    image: ${FUSEAI_WEB_IMAGE:?defina no images.env}
+    container_name: fuseai-web
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      APP_URL: https://www.fuseai.com.br
+      # Chamadas do servidor Next à API pela rede interna (sem sair pela internet).
+      INTERNAL_API_URL: http://api:4000
+    depends_on:
+      api: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+    mem_limit: 384m
+    networks: [internal]
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: fuseai-nginx
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3500:80"
+    volumes:
+      - ./nginx/fuseai.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      api: { condition: service_healthy }
+      web: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/nginx-health"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+    mem_limit: 64m
+    networks: [internal]
+
+volumes:
+  pgdata:
+  redisdata:
+
+networks:
+  internal:

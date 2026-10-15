@@ -1,0 +1,301 @@
+name: Deploy FuseAI to VPS
+
+# Push na main = testes -> imagens no GHCR (por digest) -> deploy na VPS -> verificação pública.
+# O deploy acontece SÓ por aqui; nada é feito direto na VPS. Pull requests rodam só os testes.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# Deploys em fila, nunca cancelados no meio (um cancelamento durante migração ou backup
+# deixaria a VPS num estado intermediário). PRs antigos são cancelados.
+concurrency:
+  group: deploy-fuseai-${{ github.event_name == 'pull_request' && github.ref || 'main' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  VPS_HOST: 72.60.10.112
+  VPS_APP_DIR: /root/fuseai/deploy
+  # Impressão SHA256 da chave de host ed25519 da VPS (conferida também de dentro da VPS).
+  VPS_HOST_FINGERPRINT: SHA256:6ZU1oyYcSKKrodyE2uYKme3ciSkCWFxfniTKCGn7NW8
+  PUBLIC_WEB_URL: https://www.fuseai.com.br
+  PUBLIC_API_URL: https://api.fuseai.com.br
+
+jobs:
+  validate-migrations:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Migração já aplicada não pode mudar: o Prisma guarda o checksum em _prisma_migrations e
+      # o `migrate deploy` falha quando ele diverge, derrubando o deploy. Aqui a esteira para
+      # antes de tocar na VPS.
+      - name: Verificar migrações já versionadas
+        env:
+          BEFORE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          set -euo pipefail
+          DIR=packages/db/prisma/migrations
+          base="${BEFORE:-}"
+          if [ -z "$base" ] || [ "$base" = "0000000000000000000000000000000000000000" ] || ! git cat-file -e "$base^{commit}" 2>/dev/null; then
+            if git rev-parse HEAD~1 >/dev/null 2>&1; then base=HEAD~1; else echo "Sem commit anterior."; exit 0; fi
+          fi
+
+          alteradas=$(git diff --name-only --diff-filter=MDR "$base" HEAD -- "$DIR" | grep -v 'migration_lock.toml' || true)
+          if [ -z "$alteradas" ]; then
+            echo "Nenhuma migração existente foi alterada."
+            exit 0
+          fi
+
+          # Válvula para restaurar uma migração ao conteúdo já aplicado (conserto de checksum).
+          if git log -1 --pretty=%B | grep -qiE '\[migracao-revertida\]'; then
+            echo "AVISO: migração alterada, liberada por [migracao-revertida]:"
+            echo "$alteradas" | sed 's/^/  - /'
+            exit 0
+          fi
+
+          echo "ERRO: migração já versionada foi alterada ou removida:"
+          echo "$alteradas" | sed 's/^/  - /'
+          echo
+          echo "Crie uma migração nova (pnpm db:migrate) em vez de editar a antiga."
+          echo "Se o commit RESTAURA o conteúdo aplicado, inclua [migracao-revertida] na mensagem."
+          exit 1
+
+  test:
+    needs: validate-migrations
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: fuseai
+          POSTGRES_PASSWORD: fuseai
+          POSTGRES_DB: fuseai
+          POSTGRES_INITDB_ARGS: --encoding=UTF8
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U fuseai -d fuseai"
+          --health-interval 5s --health-timeout 3s --health-retries 20
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 3s --health-retries 20
+    env:
+      # A API testa contra <DATABASE_URL>_test (criado pelo global setup) e Redis real.
+      DATABASE_URL: postgresql://fuseai:fuseai@localhost:5432/fuseai
+      REDIS_URL: redis://localhost:6379
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+
+  build-api:
+    needs: test
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.out.outputs.image }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - id: image
+        name: Nome da imagem no GHCR
+        run: echo "name=ghcr.io/$(printf '%s' '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')/fuseai-api" >> "$GITHUB_OUTPUT"
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: api
+          push: true
+          provenance: false
+          cache-from: type=gha,scope=fuseai-api
+          cache-to: type=gha,mode=max,scope=fuseai-api
+          tags: ${{ steps.image.outputs.name }}:sha-${{ github.sha }}
+      - id: out
+        name: Referência imutável (repositório@digest)
+        run: echo "image=${{ steps.image.outputs.name }}@${{ steps.build.outputs.digest }}" >> "$GITHUB_OUTPUT"
+
+  build-web:
+    needs: test
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.out.outputs.image }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - id: image
+        name: Nome da imagem no GHCR
+        run: echo "name=ghcr.io/$(printf '%s' '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')/fuseai-web" >> "$GITHUB_OUTPUT"
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: web
+          push: true
+          provenance: false
+          build-args: |
+            API_URL=${{ env.PUBLIC_API_URL }}
+            APP_URL=${{ env.PUBLIC_WEB_URL }}
+          cache-from: type=gha,scope=fuseai-web
+          cache-to: type=gha,mode=max,scope=fuseai-web
+          tags: ${{ steps.image.outputs.name }}:sha-${{ github.sha }}
+      - id: out
+        name: Referência imutável (repositório@digest)
+        run: echo "image=${{ steps.image.outputs.name }}@${{ steps.build.outputs.digest }}" >> "$GITHUB_OUTPUT"
+
+  deploy:
+    needs: [build-api, build-web]
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      contents: read
+      packages: read
+    env:
+      FUSEAI_API_IMAGE: ${{ needs.build-api.outputs.image }}
+      FUSEAI_WEB_IMAGE: ${{ needs.build-web.outputs.image }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Conferir imagens por digest
+        run: |
+          set -euo pipefail
+          for ref in "$FUSEAI_API_IMAGE" "$FUSEAI_WEB_IMAGE"; do
+            case "$ref" in *@sha256:*) echo "ok: $ref" ;; *) echo "ERRO: imagem sem digest: '$ref'"; exit 1 ;; esac
+          done
+
+      - name: Chave de host fixada (impressão SHA256)
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          install -m 600 .github/vps_known_hosts ~/.ssh/known_hosts
+          ssh-keygen -lf ~/.ssh/known_hosts -E sha256 | awk -v fp="$VPS_HOST_FINGERPRINT" '$2 == fp { found=1 } END { exit !found }' \
+            || { echo "ERRO: .github/vps_known_hosts não tem a impressão esperada $VPS_HOST_FINGERPRINT"; exit 1; }
+
+      - name: Chave SSH de deploy
+        env:
+          DEPLOY_KEY: ${{ secrets.FUSEAI_DEPLOY_SSH_KEY }}
+        run: |
+          set -euo pipefail
+          [ -n "$DEPLOY_KEY" ] || { echo "Secret FUSEAI_DEPLOY_SSH_KEY ausente"; exit 1; }
+          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/fuseai_deploy
+          chmod 600 ~/.ssh/fuseai_deploy
+          cat > ~/.ssh/config <<EOF
+          Host vps
+            HostName $VPS_HOST
+            User root
+            IdentityFile ~/.ssh/fuseai_deploy
+            IdentitiesOnly yes
+            StrictHostKeyChecking yes
+            UserKnownHostsFile ~/.ssh/known_hosts
+            PasswordAuthentication no
+            BatchMode yes
+            ConnectTimeout 30
+            ServerAliveInterval 30
+            ServerAliveCountMax 120
+          EOF
+          chmod 600 ~/.ssh/config
+
+      # Uma tentativa só. A Hostinger filtra por reputação algumas faixas de IP dos runners;
+      # insistir do mesmo runner repete o IP rejeitado. Se falhar, "Re-run all jobs" pega
+      # outro runner (outro IP). Nada foi alterado na VPS até aqui.
+      - name: Primeiro contato com a VPS
+        timeout-minutes: 3
+        run: |
+          set -euo pipefail
+          if ! ssh vps "mkdir -p '$VPS_APP_DIR' /root/fuseai/backups && chmod 700 /root/fuseai/backups"; then
+            echo
+            echo "Este runner não alcança a porta 22 da VPS."
+            echo "IP de saída: $(curl -s --max-time 10 ifconfig.me || echo indisponível)"
+            echo "Solução: 'Re-run all jobs' (novo runner, novo IP). A versão no ar não foi afetada."
+            exit 1
+          fi
+
+      - name: Enviar a pasta deploy/
+        run: |
+          set -euo pipefail
+          sudo apt-get install -y -qq rsync >/dev/null
+          rsync -az --delete \
+            --exclude='.env' --exclude='.env.*' \
+            --exclude='images.env' --exclude='images.env.*' \
+            -e ssh deploy/ "vps:$VPS_APP_DIR/"
+
+      - name: Executar o deploy na VPS
+        env:
+          GHCR_USERNAME: ${{ github.actor }}
+          GHCR_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          # Delimitador sem aspas: as variáveis abaixo são expandidas AQUI, no runner.
+          # O token do GHCR é mascarado no log e vale só durante este job.
+          ssh vps bash -s <<EOF
+          set -euo pipefail
+          printf '%s' '${GHCR_TOKEN}' | docker login ghcr.io --username '${GHCR_USERNAME}' --password-stdin >/dev/null
+          trap 'docker logout ghcr.io >/dev/null 2>&1 || true' EXIT
+          chmod +x '${VPS_APP_DIR}/deploy.sh'
+          APP_DIR='${VPS_APP_DIR}' \
+          FUSEAI_API_IMAGE='${FUSEAI_API_IMAGE}' \
+          FUSEAI_WEB_IMAGE='${FUSEAI_WEB_IMAGE}' \
+            '${VPS_APP_DIR}/deploy.sh'
+          EOF
+
+  verify-public:
+    needs: deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # Confere pelo domínio público (DNS + nginx do host + TLS + fuseai-nginx).
+      - name: Testar os domínios públicos
+        run: |
+          set -uo pipefail
+          check() {
+            local url="$1" expect="$2"
+            for i in $(seq 1 12); do
+              body=$(curl -fsS --max-time 10 "$url" 2>/dev/null) && echo "$body" | grep -q "$expect" && { echo "OK  $url"; return 0; }
+              sleep 5
+            done
+            echo "ERRO $url (esperado: $expect)"; return 1
+          }
+          ok=0
+          check "$PUBLIC_API_URL/health" '"fuseai-api"' || ok=1
+          check "$PUBLIC_WEB_URL/docs" 'Documentação' || ok=1
+          check "$PUBLIC_WEB_URL/llms.txt" '# FuseAI' || ok=1
+          code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "https://fuseai.com.br/")
+          [ "$code" = "301" ] && echo "OK  apex -> www (301)" || { echo "ERRO apex respondeu $code"; ok=1; }
+          exit $ok
