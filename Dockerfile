@@ -44,6 +44,8 @@ FROM base AS web
 ENV NODE_ENV=production HOSTNAME=0.0.0.0 PORT=3000
 COPY --from=build-web --chown=node:node /app/apps/web/.next/standalone /app
 COPY --from=build-web --chown=node:node /app/apps/web/.next/static /app/apps/web/.next/static
+# O standalone NÃO inclui public/ (logo em /brand, etc.): copiar à parte.
+COPY --from=build-web --chown=node:node /app/apps/web/public /app/apps/web/public
 USER node
 EXPOSE 3000
 CMD ["node", "apps/web/server.js"]

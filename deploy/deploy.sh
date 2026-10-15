@@ -145,7 +145,8 @@ sync_nginx images.env.new || echo "AVISO: falha ao validar/recarregar o nginx in
 # ---------------------------------------------------------------------------- 6. saúde
 healthy() {
   curl -fsS -m 5 -H 'Host: api.fusai.com.br' "http://127.0.0.1:$PORT/health" | grep -q '"fuseai-api"' &&
-    curl -fsS -m 10 -o /dev/null -H 'Host: www.fusai.com.br' "http://127.0.0.1:$PORT/docs"
+    curl -fsS -m 10 -o /dev/null -H 'Host: www.fusai.com.br' "http://127.0.0.1:$PORT/docs" &&
+    curl -fsS -m 10 -o /dev/null -H 'Host: www.fusai.com.br' "http://127.0.0.1:$PORT/brand/logo-fusai.png"
 }
 
 log "Verificando saúde em 127.0.0.1:$PORT"

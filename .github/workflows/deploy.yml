@@ -326,6 +326,9 @@ jobs:
           check "$PUBLIC_API_URL/health" '"fuseai-api"' || ok=1
           check "$PUBLIC_WEB_URL/docs" 'Documentação' || ok=1
           check "$PUBLIC_WEB_URL/llms.txt" '# FuseAI' || ok=1
+          # Arquivos de public/ (o standalone do Next não os copia sozinho).
+          ctype=$(curl -fsS -o /dev/null -w '%{content_type}' --max-time 10 "$PUBLIC_WEB_URL/brand/logo-fusai.png" || true)
+          [ "$ctype" = "image/png" ] && echo "OK  $PUBLIC_WEB_URL/brand/logo-fusai.png" || { echo "::error::logo em /brand não servido (content-type: ${ctype:-erro})"; ok=1; }
           code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "https://fusai.com.br/")
           [ "$code" = "301" ] && echo "OK  https://fusai.com.br -> www (301)" || { echo "::error::https://fusai.com.br respondeu $code (esperado 301)"; ok=1; }
           [ "$ok" = 0 ] && echo "### Domínio público OK" >> "$GITHUB_STEP_SUMMARY"
