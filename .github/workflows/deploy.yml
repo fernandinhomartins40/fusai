@@ -30,7 +30,7 @@ jobs:
   validate-migrations:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -95,9 +95,9 @@ jobs:
       DATABASE_URL: postgresql://fuseai:fuseai@localhost:5432/fuseai
       REDIS_URL: redis://localhost:6379
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: pnpm
@@ -117,7 +117,7 @@ jobs:
     outputs:
       image: ${{ steps.out.outputs.image }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: docker/setup-buildx-action@v3
       - id: image
         name: Nome da imagem no GHCR
@@ -152,7 +152,7 @@ jobs:
     outputs:
       image: ${{ steps.out.outputs.image }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: docker/setup-buildx-action@v3
       - id: image
         name: Nome da imagem no GHCR
@@ -191,7 +191,7 @@ jobs:
       FUSEAI_API_IMAGE: ${{ needs.build-api.outputs.image }}
       FUSEAI_WEB_IMAGE: ${{ needs.build-web.outputs.image }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Conferir imagens por digest
         run: |
@@ -279,24 +279,54 @@ jobs:
   verify-public:
     needs: deploy
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 8
     steps:
       # Confere pelo domínio público (DNS + nginx do host + TLS + fuseai-nginx).
+      # A saúde da aplicação já foi exigida dentro da VPS pelo deploy.sh (porta 3500).
+      # Aqui, enquanto o domínio não estiver pronto (DNS em outro servidor ou HTTPS ainda não
+      # configurado pelo workflow "Configurar nginx do host e HTTPS"), o job só AVISA. Quando
+      # DNS e HTTPS estiverem prontos, qualquer falha reprova o deploy.
       - name: Testar os domínios públicos
+        env:
+          VPS_IP: ${{ env.VPS_HOST }}
         run: |
           set -uo pipefail
+          pendente() {
+            echo "::warning title=Domínio ainda não pronto::$1"
+            echo "### Deploy OK na VPS; domínio público pendente" >> "$GITHUB_STEP_SUMMARY"
+            echo "$1" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          }
+
+          # 1. DNS: os três nomes precisam apontar para a VPS.
+          faltando=""
+          for host in fuseai.com.br www.fuseai.com.br api.fuseai.com.br; do
+            ip=$(getent ahostsv4 "$host" | awk '{print $1}' | head -1 || true)
+            echo "DNS $host -> ${ip:-sem registro}"
+            [ "$ip" = "$VPS_IP" ] || faltando="$faltando $host(${ip:-sem registro})"
+          done
+          [ -z "$faltando" ] || pendente "DNS ainda não aponta para $VPS_IP:$faltando. Crie/ajuste os registros A no painel do domínio."
+
+          # 2. HTTPS: sem certificado válido o nginx do host ainda não foi configurado.
+          if ! curl -sS -o /dev/null --max-time 15 "$PUBLIC_WEB_URL/" 2>/tmp/tls.err; then
+            cat /tmp/tls.err
+            pendente "DNS OK, mas HTTPS ainda não responde em $PUBLIC_WEB_URL. Rode o workflow 'Configurar nginx do host e HTTPS (manual)' na aba Actions."
+          fi
+
+          # 3. Domínio pronto: agora é verificação rigorosa.
           check() {
             local url="$1" expect="$2"
             for i in $(seq 1 12); do
               body=$(curl -fsS --max-time 10 "$url" 2>/dev/null) && echo "$body" | grep -q "$expect" && { echo "OK  $url"; return 0; }
               sleep 5
             done
-            echo "ERRO $url (esperado: $expect)"; return 1
+            echo "::error::$url não respondeu como esperado ($expect)"; return 1
           }
           ok=0
           check "$PUBLIC_API_URL/health" '"fuseai-api"' || ok=1
           check "$PUBLIC_WEB_URL/docs" 'Documentação' || ok=1
           check "$PUBLIC_WEB_URL/llms.txt" '# FuseAI' || ok=1
           code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "https://fuseai.com.br/")
-          [ "$code" = "301" ] && echo "OK  apex -> www (301)" || { echo "ERRO apex respondeu $code"; ok=1; }
+          [ "$code" = "301" ] && echo "OK  https://fuseai.com.br -> www (301)" || { echo "::error::https://fuseai.com.br respondeu $code (esperado 301)"; ok=1; }
+          [ "$ok" = 0 ] && echo "### Domínio público OK" >> "$GITHUB_STEP_SUMMARY"
           exit $ok
