@@ -4,7 +4,7 @@ import { createContext, type ReactNode, useContext, useMemo } from 'react';
 export type FuseClientProps = {
   /** End-user session token `fai_st_…`, or a function that fetches a fresh one from your backend. */
   sessionToken?: string | (() => Promise<string>);
-  /** Default: https://api.fuseai.com.br/v1 */
+  /** Default: https://api.fusai.com.br/v1 */
   baseUrl?: string;
 };
 

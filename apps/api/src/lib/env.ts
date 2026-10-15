@@ -40,7 +40,7 @@ const envSchema = z.object({
   ASAAS_API_URL: optional,
   ASAAS_WEBHOOK_TOKEN: z.string().min(8),
 
-  EMAIL_FROM: z.string().default('FuseAI <nao-responda@fuseai.com.br>'),
+  EMAIL_FROM: z.string().default('FuseAI <nao-responda@fusai.com.br>'),
   RESEND_API_KEY: optional,
   SMTP_URL: z.string().default('smtp://localhost:1025'),
 });

@@ -36,8 +36,8 @@ CMD ["node", "apps/api/dist/server.js"]
 # ---- Web ----
 FROM deps AS build-web
 # Public URLs are baked into the client bundle (NEXT_PUBLIC_*) at build time.
-ARG API_URL=https://api.fuseai.com.br
-ARG APP_URL=https://www.fuseai.com.br
+ARG API_URL=https://api.fusai.com.br
+ARG APP_URL=https://www.fusai.com.br
 RUN API_URL=$API_URL APP_URL=$APP_URL pnpm --filter @fuseai/web build
 
 FROM base AS web

@@ -3,7 +3,7 @@
 **Consulte sempre o [PRD.md](PRD.md): ele é a fonte da verdade.** O que não estiver no PRD: escolha a opção mais simples e registre em [docs/DECISIONS.md](docs/DECISIONS.md). Trabalhamos por fases (PRD §15); progresso em [docs/PROGRESS.md](docs/PROGRESS.md).
 
 ## Visão
-FuseAI (www.fuseai.com.br) é um gateway de IA multi-provedor, compatível com OpenAI, voltado ao Brasil.
+FuseAI (www.fusai.com.br) é um gateway de IA multi-provedor, compatível com OpenAI, voltado ao Brasil.
 O dono cadastra chaves de provedores baratos (DeepSeek, Kimi, GLM, Qwen, MiniMax, OpenRouter) e revende por token com margem.
 Clientes compram créditos pré-pagos via Pix (Asaas), geram chaves de API e conectam a IA deles via MCP.
 Usuários finais dos apps dos clientes também compram créditos via Pix (session token, checkout hospedado, SDK/React).

@@ -1,4 +1,4 @@
-# nginx do HOST (VPS 72.60.10.112) para fuseai.com.br, www.fuseai.com.br e api.fuseai.com.br.
+# nginx do HOST (VPS 72.60.10.112) para fusai.com.br, www.fusai.com.br e api.fusai.com.br.
 # Instalado UMA vez pelo deploy/setup-host.sh (com aprovação). Depois, o certbot (--nginx)
 # acrescenta os blocos HTTPS e o redirecionamento HTTP -> HTTPS, como nos outros sites.
 # O compose da FuseAI escuta só em 127.0.0.1:3500; o fuseai-nginx roteia pelo Host.
@@ -7,14 +7,14 @@
 server {
   listen 80;
   listen [::]:80;
-  server_name fuseai.com.br;
-  return 301 https://www.fuseai.com.br$request_uri;
+  server_name fusai.com.br;
+  return 301 https://www.fusai.com.br$request_uri;
 }
 
 server {
   listen 80;
   listen [::]:80;
-  server_name www.fuseai.com.br;
+  server_name www.fusai.com.br;
 
   client_max_body_size 2m;
 
@@ -32,7 +32,7 @@ server {
 server {
   listen 80;
   listen [::]:80;
-  server_name api.fuseai.com.br;
+  server_name api.fusai.com.br;
 
   client_max_body_size 21m;
 

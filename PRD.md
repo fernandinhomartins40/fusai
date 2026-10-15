@@ -1,7 +1,7 @@
 # FuseAI — PRD e Instruções de Implementação
 
 > **Produto:** FuseAI — Hub de IA multi-provedor com cobrança pré-paga por tokens
-> **Domínio:** https://www.fuseai.com.br (web) · https://api.fuseai.com.br (API/gateway/MCP)
+> **Domínio:** https://www.fusai.com.br (web) · https://api.fusai.com.br (API/gateway/MCP)
 > **Versão do documento:** 1.0 — outubro/2026
 > **Público deste documento:** a IA (Claude Code) que vai implementar o sistema, e o dono do produto.
 
@@ -494,7 +494,7 @@ model AuditLog {
 
 ## 7. Gateway de IA
 
-### 7.1 Endpoints públicos (`api.fuseai.com.br`)
+### 7.1 Endpoints públicos (`api.fusai.com.br`)
 
 Todos autenticados com `Authorization: Bearer fai_live_...` (ou session token de usuário final, ver 9.3).
 
@@ -633,7 +633,7 @@ Implementar `AsaasProvider`. Deixar pasta pronta para `MercadoPagoProvider`/`Efi
 
 **Três formas de integrar, do mais simples ao mais customizado:**
 
-1. **Checkout hospedado** — `https://www.fuseai.com.br/pay/{checkoutId}`: página mobile-first com QR, copia-e-cola, status ao vivo e tela de sucesso; aceita `?return_url=` (deep link ou URL). Funciona em **PWA, WebView e app nativo** (abrir no navegador/in-app browser).
+1. **Checkout hospedado** — `https://www.fusai.com.br/pay/{checkoutId}`: página mobile-first com QR, copia-e-cola, status ao vivo e tela de sucesso; aceita `?return_url=` (deep link ou URL). Funciona em **PWA, WebView e app nativo** (abrir no navegador/in-app browser).
 2. **Componente React** — `@fuseai/react`: `<FuseCheckout sessionToken={...} packageId="..." onPaid={...} />` e `<FuseBalance />`. Funciona em Next/React e PWA.
 3. **SDK/REST** — `@fuseai/sdk` (TS, roda em browser e React Native) ou REST puro para Flutter/Swift/Kotlin; o app desenha a própria UI de QR.
 
@@ -653,7 +653,7 @@ Objetivo: o cliente gera uma chave, cola um comando na IA de programação dele 
 
 ### 10.1 Servidor MCP remoto
 
-- Endpoint: `POST https://api.fuseai.com.br/mcp` — transporte **Streamable HTTP**, stateless (novo transport por requisição), usando `@modelcontextprotocol/sdk`.
+- Endpoint: `POST https://api.fusai.com.br/mcp` — transporte **Streamable HTTP**, stateless (novo transport por requisição), usando `@modelcontextprotocol/sdk`.
 - Auth: `Authorization: Bearer fai_live_...` com escopo `mcp`. (Fase 2: OAuth 2.1 conforme a especificação MCP, para clientes que exigem descoberta padrão.)
 - **Tools:**
 
@@ -679,9 +679,9 @@ Objetivo: o cliente gera uma chave, cola um comando na IA de programação dele 
 Ao gerar uma chave, a tela mostra, prontos para copiar:
 
 1. **Comandos MCP**:
-   - Claude Code: `claude mcp add --transport http fuseai https://api.fuseai.com.br/mcp --header "Authorization: Bearer <CHAVE>"`
+   - Claude Code: `claude mcp add --transport http fuseai https://api.fusai.com.br/mcp --header "Authorization: Bearer <CHAVE>"`
    - JSON para Cursor / VS Code / Claude Desktop (bloco `mcpServers` com `type: "http"`/`streamable-http`, url e header).
-2. **`.env` pronto**: `FUSEAI_API_KEY=...`, `FUSEAI_BASE_URL=https://api.fuseai.com.br/v1`.
+2. **`.env` pronto**: `FUSEAI_API_KEY=...`, `FUSEAI_BASE_URL=https://api.fusai.com.br/v1`.
 3. **Botão “Baixar FUSEAI.md”**: arquivo de instruções para a IA do cliente colocar na raiz do projeto, gerado dinamicamente com os dados do projeto (sem a chave), contendo: regras (não expor secret key no front; usar session token), endpoints, exemplos, fluxo Pix, webhooks e checklist de testes.
 4. **Prompt sugerido** para colar na IA: “Leia o FUSEAI.md e use o MCP fuseai para integrar chat com IA e compra de créditos via Pix neste projeto.”
 5. Exemplo “migrar do OpenAI”: só trocar `baseURL` e `apiKey` no SDK oficial da OpenAI.
@@ -757,7 +757,7 @@ Sidebar: Visão geral · Projetos · Carteira · Consumo · Logs · Webhooks · 
 
 ## 12. Segurança, privacidade e compliance
 
-- Senhas e sessões via Better Auth; cookies `httpOnly`, `secure`, `sameSite=lax`, domínio `.fuseai.com.br` em prod.
+- Senhas e sessões via Better Auth; cookies `httpOnly`, `secure`, `sameSite=lax`, domínio `.fusai.com.br` em prod.
 - Chaves de provedor criptografadas com **AES-256-GCM** (`ENCRYPTION_KEY` 32 bytes base64). Nunca retornadas ao front (só mascaradas).
 - Chaves de cliente: só hash com pepper. Comparação em tempo constante.
 - Validação zod em todas as entradas. Helmet/headers de segurança. CORS restrito.
@@ -775,9 +775,9 @@ Sidebar: Visão geral · Projetos · Carteira · Consumo · Logs · Webhooks · 
 ```env
 # Geral
 NODE_ENV=development
-APP_URL=http://localhost:3000            # prod: https://www.fuseai.com.br
-API_URL=http://localhost:4000            # prod: https://api.fuseai.com.br
-COOKIE_DOMAIN=localhost                  # prod: .fuseai.com.br
+APP_URL=http://localhost:3000            # prod: https://www.fusai.com.br
+API_URL=http://localhost:4000            # prod: https://api.fusai.com.br
+COOKIE_DOMAIN=localhost                  # prod: .fusai.com.br
 
 # Banco / Redis
 DATABASE_URL=postgresql://fuseai:fuseai@localhost:5432/fuseai
@@ -800,12 +800,12 @@ ASAAS_API_KEY=
 ASAAS_WEBHOOK_TOKEN=change-me
 
 # Email
-EMAIL_FROM="FuseAI <nao-responda@fuseai.com.br>"
+EMAIL_FROM="FuseAI <nao-responda@fusai.com.br>"
 RESEND_API_KEY=
 SMTP_URL=smtp://localhost:1025           # Mailpit em dev
 
 # Seed
-SEED_ADMIN_EMAIL=admin@fuseai.com.br
+SEED_ADMIN_EMAIL=admin@fusai.com.br
 SEED_ADMIN_PASSWORD=change-me-now
 ```
 
@@ -819,7 +819,7 @@ Serviços: `postgres:16-alpine` (volume nomeado, healthcheck), `redis:7-alpine`,
 
 ### 14.2 Prod (`docker-compose.prod.yml`)
 
-- `caddy` (80/443, HTTPS automático): `www.fuseai.com.br` → web:3000; `fuseai.com.br` → redirect para www; `api.fuseai.com.br` → api:4000 (desabilitar buffering para SSE: `flush_interval -1`).
+- `caddy` (80/443, HTTPS automático): `www.fusai.com.br` → web:3000; `fusai.com.br` → redirect para www; `api.fusai.com.br` → api:4000 (desabilitar buffering para SSE: `flush_interval -1`).
 - `web` (Next standalone), `api`, `worker` (mesma imagem da api, comando `node dist/worker.js`), `migrate` (roda `prisma migrate deploy` e sai; `api` depende dele), `postgres`, `redis`.
 - Dockerfiles multi-stage com `turbo prune --docker`, imagem final `node:22-alpine`, usuário não-root, `HEALTHCHECK` (`/health` na api, `/api/health` no web).
 - Rede interna; só o Caddy expõe portas. Backup diário do Postgres (`pg_dump` em container cron, retenção 7 dias) documentado.

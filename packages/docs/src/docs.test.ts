@@ -11,7 +11,7 @@ import {
   renderDoc,
 } from './index';
 
-const urls = { api: 'https://api.fuseai.com.br', app: 'https://www.fuseai.com.br' };
+const urls = { api: 'https://api.fusai.com.br', app: 'https://www.fusai.com.br' };
 const project: ProjectSnapshot = {
   name: 'Meu App',
   billingMode: 'END_USER_WALLET',
@@ -56,14 +56,14 @@ describe('docs content', () => {
     ]);
     for (const p of DOC_PAGES) expect(renderDoc(p.body, urls)).not.toMatch(/\{\{[A-Z0-9]+\}\}/);
     expect(renderDoc('{{V1}} {{MCP}}', urls)).toBe(
-      'https://api.fuseai.com.br/v1 https://api.fuseai.com.br/mcp',
+      'https://api.fusai.com.br/v1 https://api.fusai.com.br/mcp',
     );
   });
 
   it('llms.txt follows the llmstxt.org shape', () => {
     const txt = llmsTxt(urls);
     expect(txt.startsWith('# FuseAI\n\n> ')).toBe(true);
-    expect(txt).toContain('- [Checkout Pix](https://www.fuseai.com.br/docs/checkout-pix.md):');
+    expect(txt).toContain('- [Checkout Pix](https://www.fusai.com.br/docs/checkout-pix.md):');
   });
 });
 
@@ -71,7 +71,7 @@ describe('integration guide', () => {
   it('is personalized for the project and never contains a key', () => {
     const guide = integrationGuide(project, urls, 'flutter');
     expect(guide).toContain('# Integração FuseAI — Meu App');
-    expect(guide).toContain('`https://api.fuseai.com.br/v1`');
+    expect(guide).toContain('`https://api.fusai.com.br/v1`');
     expect(guide).toContain('| `fuse/deepseek-chat` | DeepSeek Chat | R$ 1,54 | R$ 6,16 |');
     expect(guide).toContain('| `fuse/mini` | Mini | R$ 0,154 | R$ 12,00 |');
     expect(guide).toContain('**100 mensagens**, R$ 9,90 → R$ 10,00 em créditos');

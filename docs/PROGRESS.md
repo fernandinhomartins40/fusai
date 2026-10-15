@@ -68,7 +68,7 @@ pnpm dev
 # 2. http://localhost:8025 (Mailpit) -> abra "Confirme seu email" e clique no botão
 # 3. onboarding: organização (CPF/CNPJ válido, ex. 529.982.247-25) -> projeto -> painel
 # 4. http://localhost:3000/admin com esse usuário -> 403
-# 5. saia e entre como admin@fuseai.com.br / change-me-now -> /admin mostra os contadores
+# 5. saia e entre como admin@fusai.com.br / change-me-now -> /admin mostra os contadores
 pnpm lint && pnpm typecheck && pnpm test   # testes da API usam o banco fuseai_test (criado automaticamente)
 ```
 
@@ -101,7 +101,7 @@ pnpm lint && pnpm typecheck && pnpm test   # testes da API usam o banco fuseai_t
 ```bash
 # .env precisa de ENCRYPTION_KEY válido: openssl rand -base64 32
 docker compose up -d && pnpm db:migrate && pnpm db:seed && pnpm dev
-# entre como admin@fuseai.com.br em http://localhost:3000/admin
+# entre como admin@fusai.com.br em http://localhost:3000/admin
 # Provedores -> DeepSeek -> Editar: cole a chave, marque "ativo", salve -> "Testar conexão"
 # Modelos -> DeepSeek Chat: confira os custos no site oficial -> ative -> veja o preço em R$
 # Preços: altere o câmbio e veja os preços dos modelos mudarem

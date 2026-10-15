@@ -1,7 +1,7 @@
 name: Configurar nginx do host e HTTPS (manual)
 
-# Só pelo botão "Run workflow". Configura UMA vez o site fuseai.com.br no nginx do host da
-# VPS compartilhada e emite o certificado (certbot). Pré-requisito: DNS de fuseai.com.br,
+# Só pelo botão "Run workflow". Configura UMA vez o site fusai.com.br no nginx do host da
+# VPS compartilhada e emite o certificado (certbot). Pré-requisito: DNS de fusai.com.br,
 # www e api apontando para 72.60.10.112. Pode ser rodado de novo com segurança.
 on:
   workflow_dispatch:
@@ -67,7 +67,7 @@ jobs:
           set -euo pipefail
           ssh vps "mkdir -p '$VPS_APP_DIR/nginx-host'"
           scp -q deploy/setup-host.sh "vps:$VPS_APP_DIR/setup-host.sh"
-          scp -q deploy/nginx-host/fuseai.com.br "vps:$VPS_APP_DIR/nginx-host/fuseai.com.br"
+          scp -q deploy/nginx-host/fusai.com.br "vps:$VPS_APP_DIR/nginx-host/fusai.com.br"
 
       - name: Configurar nginx do host e certificado
         env:
@@ -80,8 +80,8 @@ jobs:
         run: |
           set -uo pipefail
           ok=0
-          curl -fsS --max-time 15 https://api.fuseai.com.br/health | grep -q '"fuseai-api"' && echo "OK  https://api.fuseai.com.br/health" || { echo "ERRO api"; ok=1; }
-          curl -fsS --max-time 15 https://www.fuseai.com.br/docs | grep -q 'Documentação' && echo "OK  https://www.fuseai.com.br/docs" || { echo "ERRO www"; ok=1; }
-          code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 https://fuseai.com.br/)
-          [ "$code" = "301" ] && echo "OK  https://fuseai.com.br -> www (301)" || { echo "ERRO apex: $code"; ok=1; }
+          curl -fsS --max-time 15 https://api.fusai.com.br/health | grep -q '"fuseai-api"' && echo "OK  https://api.fusai.com.br/health" || { echo "ERRO api"; ok=1; }
+          curl -fsS --max-time 15 https://www.fusai.com.br/docs | grep -q 'Documentação' && echo "OK  https://www.fusai.com.br/docs" || { echo "ERRO www"; ok=1; }
+          code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 https://fusai.com.br/)
+          [ "$code" = "301" ] && echo "OK  https://fusai.com.br -> www (301)" || { echo "ERRO apex: $code"; ok=1; }
           exit $ok

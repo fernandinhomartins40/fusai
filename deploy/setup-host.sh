@@ -2,18 +2,18 @@
 # Configuração do nginx do HOST para a FuseAI (VPS compartilhada 72.60.10.112).
 # Executado SÓ pelo workflow manual .github/workflows/setup-host.yml (botão "Run workflow").
 #
-# - Confere que fuseai.com.br, www e api já apontam para a VPS (senão o certbot falharia).
-# - Cria o site /etc/nginx/sites-available/fuseai.com.br, se ainda não existir, e o ativa.
+# - Confere que fusai.com.br, www e api já apontam para a VPS (senão o certbot falharia).
+# - Cria o site /etc/nginx/sites-available/fusai.com.br, se ainda não existir, e o ativa.
 #   Não toca em nenhum outro site e faz `reload` (não restart): os outros apps não caem.
 # - Emite o certificado (certbot --nginx), se ainda não existir.
 # Pode ser rodado de novo com segurança: cada etapa já feita é pulada.
 set -euo pipefail
 
-SRC="$(cd "$(dirname "$0")" && pwd)/nginx-host/fuseai.com.br"
-AVAILABLE=/etc/nginx/sites-available/fuseai.com.br
-ENABLED=/etc/nginx/sites-enabled/fuseai.com.br
+SRC="$(cd "$(dirname "$0")" && pwd)/nginx-host/fusai.com.br"
+AVAILABLE=/etc/nginx/sites-available/fusai.com.br
+ENABLED=/etc/nginx/sites-enabled/fusai.com.br
 VPS_IP=72.60.10.112
-DOMAINS=(fuseai.com.br www.fuseai.com.br api.fuseai.com.br)
+DOMAINS=(fusai.com.br www.fusai.com.br api.fusai.com.br)
 : "${CERTBOT_EMAIL:?defina CERTBOT_EMAIL}"
 
 echo "==> DNS"
@@ -31,8 +31,8 @@ if [ -f "$AVAILABLE" ]; then
   echo "  $AVAILABLE já existe (mantido como está)."
 else
   # Nenhum outro site pode já responder por estes domínios.
-  if grep -RlsE "server_name[^;]*\b(www\.|api\.)?fuseai\.com\.br\b" /etc/nginx/sites-enabled/ /etc/nginx/conf.d/; then
-    echo "ERRO: outro arquivo do nginx já usa fuseai.com.br (listado acima). Nada foi alterado." >&2
+  if grep -RlsE "server_name[^;]*\b(www\.|api\.)?fusai\.com\.br\b" /etc/nginx/sites-enabled/ /etc/nginx/conf.d/; then
+    echo "ERRO: outro arquivo do nginx já usa fusai.com.br (listado acima). Nada foi alterado." >&2
     exit 1
   fi
   install -m 644 "$SRC" "$AVAILABLE"
@@ -47,21 +47,21 @@ fi
 systemctl reload nginx
 
 echo "==> Certificado HTTPS"
-if [ -d /etc/letsencrypt/live/fuseai.com.br ]; then
+if [ -d /etc/letsencrypt/live/fusai.com.br ]; then
   echo "  certificado já existe; o certbot renova sozinho."
 else
   certbot --nginx --non-interactive --agree-tos --redirect \
-    --cert-name fuseai.com.br -m "$CERTBOT_EMAIL" \
-    -d fuseai.com.br -d www.fuseai.com.br -d api.fuseai.com.br
+    --cert-name fusai.com.br -m "$CERTBOT_EMAIL" \
+    -d fusai.com.br -d www.fusai.com.br -d api.fusai.com.br
   nginx -t
   systemctl reload nginx
 fi
 
 echo "==> Conferência local por HTTPS"
-for host in www.fuseai.com.br api.fuseai.com.br; do
-  path=/docs; [ "$host" = api.fuseai.com.br ] && path=/health
+for host in www.fusai.com.br api.fusai.com.br; do
+  path=/docs; [ "$host" = api.fusai.com.br ] && path=/health
   code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 --resolve "$host:443:127.0.0.1" "https://$host$path")"
   echo "  https://$host$path -> $code"
   [ "$code" = "200" ] || { echo "ERRO: esperado 200" >&2; exit 1; }
 done
-echo "OK: https://www.fuseai.com.br e https://api.fuseai.com.br"
+echo "OK: https://www.fusai.com.br e https://api.fusai.com.br"

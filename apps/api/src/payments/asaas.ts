@@ -72,7 +72,7 @@ export class AsaasProvider implements PaymentProvider {
           access_token: this.config.apiKey,
           'content-type': 'application/json',
           accept: 'application/json',
-          'user-agent': 'FuseAI/1.0 (+https://www.fuseai.com.br)',
+          'user-agent': 'FuseAI/1.0 (+https://www.fusai.com.br)',
         },
         body: body === undefined ? undefined : JSON.stringify(body),
         signal: AbortSignal.timeout(this.config.timeoutMs ?? 20_000),

@@ -11,7 +11,7 @@ import type {
   SessionToken,
 } from './types';
 
-export const DEFAULT_BASE_URL = 'https://api.fuseai.com.br/v1';
+export const DEFAULT_BASE_URL = 'https://api.fusai.com.br/v1';
 
 /** Error in the OpenAI format returned by the gateway: `{ error: { message, type, code } }`. */
 export class FuseAIError extends Error {

@@ -1,5 +1,5 @@
 # Produção na VPS compartilhada (72.60.10.112). Só o fuseai-nginx publica porta, e só em
-# 127.0.0.1:3500. O nginx do HOST termina o TLS de fuseai.com.br, www e api e repassa tudo
+# 127.0.0.1:3500. O nginx do HOST termina o TLS de fusai.com.br, www e api e repassa tudo
 # para essa porta. Dentro do compose, o fuseai-nginx roteia pelo Host: api.* vai para a API, o resto para a web.
 #
 # Uso (só pelo deploy.sh, chamado pelo GitHub Actions):
@@ -90,7 +90,7 @@ services:
     restart: unless-stopped
     environment:
       NODE_ENV: production
-      APP_URL: https://www.fuseai.com.br
+      APP_URL: https://www.fusai.com.br
       # Chamadas do servidor Next à API pela rede interna (sem sair pela internet).
       INTERNAL_API_URL: http://api:4000
     depends_on:

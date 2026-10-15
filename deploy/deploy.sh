@@ -38,10 +38,10 @@ if [ ! -f .env ]; then
 # Gerado por deploy.sh em $(date -u +%Y-%m-%dT%H:%M:%SZ). NÃO troque ENCRYPTION_KEY nem
 # KEY_PEPPER: invalida as chaves de provedor cifradas e todas as chaves de API dos clientes.
 NODE_ENV=production
-APP_URL=https://www.fuseai.com.br
-API_URL=https://api.fuseai.com.br
-BETTER_AUTH_URL=https://api.fuseai.com.br
-COOKIE_DOMAIN=fuseai.com.br
+APP_URL=https://www.fusai.com.br
+API_URL=https://api.fusai.com.br
+BETTER_AUTH_URL=https://api.fusai.com.br
+COOKIE_DOMAIN=fusai.com.br
 LOG_LEVEL=info
 POSTGRES_PASSWORD=$(openssl rand -hex 24)
 BETTER_AUTH_SECRET=$(openssl rand -hex 32)
@@ -51,10 +51,10 @@ SESSION_TOKEN_SECRET=$(openssl rand -hex 32)
 ASAAS_ENV=sandbox
 ASAAS_API_KEY=
 ASAAS_WEBHOOK_TOKEN=$(openssl rand -hex 32)
-EMAIL_FROM=FuseAI <nao-responda@fuseai.com.br>
+EMAIL_FROM=FuseAI <nao-responda@fusai.com.br>
 RESEND_API_KEY=
 SMTP_URL=smtp://localhost:1025
-SEED_ADMIN_EMAIL=admin@fuseai.com.br
+SEED_ADMIN_EMAIL=admin@fusai.com.br
 SEED_ADMIN_PASSWORD=${admin_password}
 EOF
   chmod 600 .env
@@ -62,6 +62,22 @@ EOF
   echo "leia por SSH, não pelo log. Preencha ASAAS_API_KEY e RESEND_API_KEY quando tiver."
 fi
 chmod 600 .env
+
+# Endereços públicos não são segredo: seguem o código a cada deploy (um .env antigo com outro
+# domínio é corrigido aqui). Segredos e SEED_ADMIN_EMAIL (já gravado no banco) não são tocados.
+set_env() {
+  local key="$1" value="$2" tmp
+  tmp="$(mktemp)"
+  grep -v "^${key}=" .env > "$tmp" || true
+  printf '%s=%s\n' "$key" "$value" >> "$tmp"
+  cat "$tmp" > .env
+  rm -f "$tmp"
+}
+set_env APP_URL https://www.fusai.com.br
+set_env API_URL https://api.fusai.com.br
+set_env BETTER_AUTH_URL https://api.fusai.com.br
+set_env COOKIE_DOMAIN fusai.com.br
+set_env EMAIL_FROM 'FuseAI <nao-responda@fusai.com.br>'
 
 compose() { docker compose -f docker-compose.vps.yml --env-file .env --env-file "$1" "${@:2}"; }
 
@@ -116,8 +132,8 @@ compose images.env.new exec -T nginx nginx -s reload >/dev/null 2>&1 || true
 
 # ---------------------------------------------------------------------------- 6. saúde
 healthy() {
-  curl -fsS -m 5 -H 'Host: api.fuseai.com.br' "http://127.0.0.1:$PORT/health" | grep -q '"fuseai-api"' &&
-    curl -fsS -m 10 -o /dev/null -H 'Host: www.fuseai.com.br' "http://127.0.0.1:$PORT/docs"
+  curl -fsS -m 5 -H 'Host: api.fusai.com.br' "http://127.0.0.1:$PORT/health" | grep -q '"fuseai-api"' &&
+    curl -fsS -m 10 -o /dev/null -H 'Host: www.fusai.com.br' "http://127.0.0.1:$PORT/docs"
 }
 
 log "Verificando saúde em 127.0.0.1:$PORT"

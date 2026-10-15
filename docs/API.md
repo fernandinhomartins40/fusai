@@ -1,6 +1,6 @@
 # API FuseAI
 
-Base: `http://localhost:4000` (dev) · `https://api.fuseai.com.br` (prod). Referência completa dos endpoints no PRD §7, §9.3 e §10. Este arquivo documenta o que já está implementado.
+Base: `http://localhost:4000` (dev) · `https://api.fusai.com.br` (prod). Referência completa dos endpoints no PRD §7, §9.3 e §10. Este arquivo documenta o que já está implementado.
 
 Erros seguem `{ "error": { "message", "code" } }` (validação: `code: "invalid_request"` + `details`). Todas as respostas trazem `x-request-id` (repassa o `X-Request-Id` recebido, se houver).
 

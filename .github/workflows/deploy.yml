@@ -23,8 +23,8 @@ env:
   VPS_APP_DIR: /root/fuseai/deploy
   # Impressão SHA256 da chave de host ed25519 da VPS (conferida também de dentro da VPS).
   VPS_HOST_FINGERPRINT: SHA256:6ZU1oyYcSKKrodyE2uYKme3ciSkCWFxfniTKCGn7NW8
-  PUBLIC_WEB_URL: https://www.fuseai.com.br
-  PUBLIC_API_URL: https://api.fuseai.com.br
+  PUBLIC_WEB_URL: https://www.fusai.com.br
+  PUBLIC_API_URL: https://api.fusai.com.br
 
 jobs:
   validate-migrations:
@@ -300,7 +300,7 @@ jobs:
 
           # 1. DNS: os três nomes precisam apontar para a VPS.
           faltando=""
-          for host in fuseai.com.br www.fuseai.com.br api.fuseai.com.br; do
+          for host in fusai.com.br www.fusai.com.br api.fusai.com.br; do
             ip=$(getent ahostsv4 "$host" | awk '{print $1}' | head -1 || true)
             echo "DNS $host -> ${ip:-sem registro}"
             [ "$ip" = "$VPS_IP" ] || faltando="$faltando $host(${ip:-sem registro})"
@@ -326,7 +326,7 @@ jobs:
           check "$PUBLIC_API_URL/health" '"fuseai-api"' || ok=1
           check "$PUBLIC_WEB_URL/docs" 'Documentação' || ok=1
           check "$PUBLIC_WEB_URL/llms.txt" '# FuseAI' || ok=1
-          code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "https://fuseai.com.br/")
-          [ "$code" = "301" ] && echo "OK  https://fuseai.com.br -> www (301)" || { echo "::error::https://fuseai.com.br respondeu $code (esperado 301)"; ok=1; }
+          code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "https://fusai.com.br/")
+          [ "$code" = "301" ] && echo "OK  https://fusai.com.br -> www (301)" || { echo "::error::https://fusai.com.br respondeu $code (esperado 301)"; ok=1; }
           [ "$ok" = 0 ] && echo "### Domínio público OK" >> "$GITHUB_STEP_SUMMARY"
           exit $ok
