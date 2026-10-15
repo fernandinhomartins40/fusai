@@ -8,6 +8,7 @@ import { notFound } from '../../lib/errors';
 import { currentUser } from '../../lib/session';
 import { generateApiKey, hashApiKey, keyDisplayPrefix } from '../api-keys/keys';
 import { requireMembership } from './membership';
+import { serializeProject } from './projects';
 
 const EDITORS = ['OWNER', 'ADMIN', 'DEVELOPER'] as const;
 
@@ -55,20 +56,7 @@ export const dashboardApiKeyRoutes: FastifyPluginAsyncZod<{
   const keyParams = z.object({ id: z.string().min(1) });
 
   app.get('/internal/projects/:projectId', { schema: { params: projectParams } }, async (req) => {
-    const p = await projectFor(currentUser(req).id, req.params.projectId);
-    return {
-      id: p.id,
-      orgId: p.orgId,
-      name: p.name,
-      slug: p.slug,
-      billingMode: p.billingMode,
-      defaultModelId: p.defaultModelId,
-      allowedModelIds: p.allowedModelIds,
-      allowedOrigins: p.allowedOrigins,
-      webhookUrl: p.webhookUrl,
-      freeCreditMicros: p.freeCreditMicros.toString(),
-      createdAt: p.createdAt.toISOString(),
-    };
+    return serializeProject(await projectFor(currentUser(req).id, req.params.projectId));
   });
 
   app.get(

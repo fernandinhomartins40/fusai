@@ -1,0 +1,90 @@
+:root {
+  color-scheme: dark;
+  --fuse-accent: #db2777;
+  --fuse-bg: #18171c;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  background: #111014;
+  color: #f4f4f5;
+}
+main {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 24px 16px 48px;
+  display: grid;
+  gap: 24px;
+}
+h1 {
+  font-size: 22px;
+  margin: 0;
+}
+h2 {
+  font-size: 16px;
+  margin: 0 0 8px;
+}
+section {
+  display: grid;
+  gap: 12px;
+}
+.card {
+  border: 1px solid #2c2a33;
+  border-radius: 12px;
+  padding: 16px;
+  background: #18171c;
+  display: grid;
+  gap: 12px;
+}
+.muted {
+  color: #a1a1aa;
+  font-size: 13px;
+  margin: 0;
+}
+.balance {
+  font-size: 28px;
+  font-weight: 700;
+}
+textarea,
+input {
+  width: 100%;
+  font: inherit;
+  font-size: 16px;
+  color: inherit;
+  background: transparent;
+  border: 1px solid #3f3d46;
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+button {
+  font: inherit;
+  min-height: 44px;
+  border-radius: 12px;
+  border: none;
+  background: #db2777;
+  color: #fff;
+  font-weight: 600;
+  padding: 10px 16px;
+  cursor: pointer;
+}
+button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0;
+  font-size: 12px;
+}
+.answer {
+  white-space: pre-wrap;
+  line-height: 1.5;
+}
+.error {
+  color: #f87171;
+  margin: 0;
+}

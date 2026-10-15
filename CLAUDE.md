@@ -42,5 +42,8 @@ packages/config tsconfigs compartilhados
 packages/shared schemas zod, tipos, utilitários de dinheiro
 packages/ui     tema (tokens CSS Tailwind v4), logo, componentes base shadcn-style
 packages/db     Prisma schema, client, seed, migrations
+packages/sdk    @fuseai/sdk: cliente TS (chat, saldo, checkout Pix, verifyWebhook)
+packages/react  @fuseai/react: <FuseCheckout/>, <FuseBalance/>
+examples/next-pwa  app de exemplo (porta 3001) com session token, checkout e webhooks
 docs/           DECISIONS.md, PROGRESS.md, API.md
 ```

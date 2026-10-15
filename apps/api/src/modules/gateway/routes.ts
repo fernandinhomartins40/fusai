@@ -6,10 +6,12 @@ import { z } from 'zod';
 import { priceModel } from '../../lib/model-pricing';
 import type { RedisClient } from '../../lib/redis';
 import type { SettingsStore } from '../../lib/settings';
-import { createGatewayAuth, type GatewayContext, requireScope } from './auth';
+import type { PaymentProvider } from '../../payments/types';
+import { createGatewayAuth, type GatewayContext, requireScope, requireSecretKey } from './auth';
 import { type CatalogStore, isServable } from './catalog';
 import { chatBodySchema, createChatHandler } from './chat';
 import type { CircuitBreaker } from './circuit-breaker';
+import { endUserRoutes } from './end-users';
 import { GatewayError } from './errors';
 
 type Options = {
@@ -19,6 +21,9 @@ type Options = {
   breaker: CircuitBreaker;
   redis: RedisClient;
   keyPepper: string;
+  sessionSecret: string;
+  provider: PaymentProvider;
+  appUrl: string;
 };
 
 const usageQuery = z.object({
@@ -29,7 +34,7 @@ const usageQuery = z.object({
 /** Public OpenAI-compatible gateway (PRD §7.1). Errors use `{ error: { message, type, code } }`. */
 export const gatewayRoutes: FastifyPluginAsync<Options> = async (app, opts) => {
   const { prisma, catalog, settings } = opts;
-  const authenticate = createGatewayAuth(prisma, opts.keyPepper);
+  const authenticate = createGatewayAuth(prisma, opts.keyPepper, opts.sessionSecret);
   const chat = createChatHandler(opts);
   const ctxOf = (req: { gateway?: GatewayContext }) => req.gateway as GatewayContext;
 
@@ -93,7 +98,7 @@ export const gatewayRoutes: FastifyPluginAsync<Options> = async (app, opts) => {
       .map((e) => ({ e, prices: priceModel(e.model, s, markup) }))
       .filter(
         ({ prices }) =>
-          ctx.key.env === 'LIVE' || prices.outputPerM <= BigInt(s.test_key_max_output_micros),
+          ctx.env === 'LIVE' || prices.outputPerM <= BigInt(s.test_key_max_output_micros),
       )
       .sort(
         (a, b) =>
@@ -134,17 +139,27 @@ export const gatewayRoutes: FastifyPluginAsync<Options> = async (app, opts) => {
     },
   );
 
+  await app.register(endUserRoutes, {
+    prisma,
+    provider: opts.provider,
+    sessionSecret: opts.sessionSecret,
+    appUrl: opts.appUrl,
+  });
+
   app.get('/balance', async (req) => {
     const ctx = ctxOf(req);
     requireScope(ctx, 'billing:read');
-    const wallet = await prisma.wallet.findUnique({ where: { orgId: ctx.org.id } });
+    // End user (session token or X-Fuse-User): their own credits. Otherwise the organization's.
+    const wallet = ctx.appUser
+      ? await prisma.wallet.findUnique({ where: { appUserId: ctx.appUser.id } })
+      : await prisma.wallet.findUnique({ where: { orgId: ctx.org.id } });
     if (!wallet) throw new GatewayError(404, 'wallet_not_found', 'Carteira não encontrada.');
     const available = wallet.balanceMicros - wallet.reservedMicros;
     return {
       object: 'balance',
       currency: 'BRL',
-      owner: 'organization',
-      billing_type: ctx.org.billingType,
+      owner: ctx.appUser ? 'app_user' : 'organization',
+      billing_type: ctx.appUser ? ctx.project.billingMode : ctx.org.billingType,
       balance: microsToBrl(wallet.balanceMicros),
       reserved: microsToBrl(wallet.reservedMicros),
       available: microsToBrl(available),
@@ -156,6 +171,7 @@ export const gatewayRoutes: FastifyPluginAsync<Options> = async (app, opts) => {
 
   app.get('/usage', { schema: { querystring: usageQuery } }, async (req) => {
     const ctx = ctxOf(req);
+    requireSecretKey(ctx); // project-wide usage: never for an end user's session token
     requireScope(ctx, 'billing:read');
     const query = req.query as z.infer<typeof usageQuery>;
     const to = query.to ? new Date(query.to) : new Date();

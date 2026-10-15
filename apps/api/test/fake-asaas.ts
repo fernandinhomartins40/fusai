@@ -30,6 +30,8 @@ export async function startFakeAsaas(apiKey = '$aact_hmlg_test', listenPort = 0)
     body: unknown;
   }[] = [];
   let seq = 0;
+  // Ids unique per run, like the real Asaas (a dev DB may keep payments from earlier runs).
+  const run = Math.random().toString(36).slice(2, 8);
   const failNext = { createPayment: false };
 
   const server = createServer(async (req, res) => {
@@ -47,7 +49,7 @@ export async function startFakeAsaas(apiKey = '$aact_hmlg_test', listenPort = 0)
       if (!b.name || !b.cpfCnpj)
         return send(res, 400, { errors: [{ description: 'name e cpfCnpj obrigatórios' }] });
       const c = {
-        id: `cus_${++seq}`,
+        id: `cus_${run}${++seq}`,
         name: b.name,
         cpfCnpj: b.cpfCnpj,
         externalReference: b.externalReference,
@@ -68,7 +70,7 @@ export async function startFakeAsaas(apiKey = '$aact_hmlg_test', listenPort = 0)
         externalReference?: string;
       };
       const p: FakePayment = {
-        id: `pay_${++seq}`,
+        id: `pay_${run}${++seq}`,
         customer: b.customer,
         billingType: b.billingType,
         value: b.value,
@@ -122,7 +124,7 @@ export async function startFakeAsaas(apiKey = '$aact_hmlg_test', listenPort = 0)
       const p = payments.get(id);
       if (p) p.status = 'RECEIVED';
     },
-    webhookBody(event: string, id: string, eventId = `evt_${++seq}`) {
+    webhookBody(event: string, id: string, eventId = `evt_${run}${++seq}`) {
       const p = payments.get(id);
       return {
         id: eventId,

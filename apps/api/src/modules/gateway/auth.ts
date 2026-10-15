@@ -1,12 +1,27 @@
-import type { ApiKey, Organization, PrismaClient, Project, Wallet } from '@fuseai/db';
+import type { ApiKey, AppUser, Organization, PrismaClient, Project, Wallet } from '@fuseai/db';
 import type { FastifyRequest } from 'fastify';
 import { type ApiKeyScope, hashApiKey, hashesEqual, looksLikeApiKey } from '../api-keys/keys';
+import { SESSION_TOKEN_PREFIX, verifySessionToken } from '../app-users/service';
 import { GatewayError, invalidApiKey } from './errors';
 
+export type GatewayAppUser = AppUser & { wallet: Wallet | null };
+
+/**
+ * Who is calling /v1:
+ * - `secret`: a project API key (customer backend). `X-Fuse-User` may name an end user.
+ * - `session`: an end-user session token (browser / mobile app), short-lived and scoped.
+ */
 export type GatewayContext = {
-  key: ApiKey;
+  kind: 'secret' | 'session';
+  key: ApiKey | null;
   project: Project;
   org: Organization & { wallet: Wallet | null };
+  appUser: GatewayAppUser | null;
+  scopes: string[];
+  env: 'LIVE' | 'TEST';
+  /** Rate-limit bucket: the API key, or the end user for session tokens. */
+  rateKey: string;
+  rpmLimit: number | null;
 };
 
 declare module 'fastify' {
@@ -16,15 +31,65 @@ declare module 'fastify' {
 }
 
 const LAST_USED_THROTTLE_MS = 60_000;
+/** Session tokens are per end user: a modest default rate. */
+const SESSION_RPM = 60;
 
-/** Resolves `Authorization: Bearer fai_...` into key + project + organization. */
-export function createGatewayAuth(prisma: PrismaClient, pepper: string) {
-  return async function authenticate(req: FastifyRequest): Promise<GatewayContext> {
-    const header = req.headers.authorization ?? '';
-    const token = header.startsWith('Bearer ') ? header.slice(7).trim() : '';
-    if (!token) throw invalidApiKey('Envie a chave no header Authorization: Bearer fai_live_...');
+function assertActive(org: Organization) {
+  if (org.status === 'SUSPENDED') {
+    throw new GatewayError(
+      403,
+      'account_suspended',
+      'Conta suspensa. Fale com o suporte da FuseAI.',
+    );
+  }
+}
+
+export function createGatewayAuth(prisma: PrismaClient, pepper: string, sessionSecret: string) {
+  async function fromSessionToken(req: FastifyRequest, token: string): Promise<GatewayContext> {
+    const claims = verifySessionToken(token, sessionSecret);
+    if (!claims)
+      throw invalidApiKey('Session token inválido ou expirado. Peça um novo ao seu backend.');
+    const appUser = await prisma.appUser.findUnique({
+      where: { id: claims.sub },
+      include: { wallet: true, project: { include: { org: { include: { wallet: true } } } } },
+    });
+    if (!appUser || appUser.projectId !== claims.pid)
+      throw invalidApiKey('Session token inválido.');
+    const { project, ...user } = appUser;
+    const { org, ...proj } = project;
+    assertActive(org);
+    // Browsers send Origin: only the project's allowed origins may use its session tokens.
+    const origin = req.headers.origin;
+    if (origin && !proj.allowedOrigins.includes(origin)) {
+      throw new GatewayError(
+        403,
+        'origin_not_allowed',
+        `A origem ${origin} não está nas origens permitidas do projeto (Configurações → Origens permitidas).`,
+      );
+    }
+    return {
+      kind: 'session',
+      key: null,
+      project: proj,
+      org,
+      appUser: user,
+      scopes: claims.scp,
+      env: 'LIVE',
+      rateKey: `st:${user.id}`,
+      rpmLimit: SESSION_RPM,
+    };
+  }
+
+  async function fromApiKey(req: FastifyRequest, token: string): Promise<GatewayContext> {
     if (!looksLikeApiKey(token)) throw invalidApiKey();
-
+    // A secret key must live on a server. A browser Origin means it leaked into a front-end.
+    if (req.headers.origin) {
+      throw new GatewayError(
+        403,
+        'secret_key_in_browser',
+        'Chaves secretas não podem ser usadas no navegador. Use um session token (POST /v1/app-users/:id/session-token).',
+      );
+    }
     const hash = hashApiKey(token, pepper);
     const key = await prisma.apiKey.findUnique({
       where: { hash },
@@ -37,13 +102,7 @@ export function createGatewayAuth(prisma: PrismaClient, pepper: string) {
 
     const { project, ...apiKey } = key;
     const { org, ...proj } = project;
-    if (org.status === 'SUSPENDED') {
-      throw new GatewayError(
-        403,
-        'account_suspended',
-        'Conta suspensa. Fale com o suporte da FuseAI.',
-      );
-    }
+    assertActive(org);
 
     if (!apiKey.lastUsedAt || Date.now() - apiKey.lastUsedAt.getTime() > LAST_USED_THROTTLE_MS) {
       prisma.apiKey
@@ -51,14 +110,68 @@ export function createGatewayAuth(prisma: PrismaClient, pepper: string) {
         .catch((err) => req.log.warn({ err }, 'failed to update lastUsedAt'));
     }
 
-    const ctx: GatewayContext = { key: apiKey, project: proj, org };
+    // Backend calls on behalf of an end user (END_USER_WALLET / HYBRID).
+    let appUser: GatewayAppUser | null = null;
+    const externalId = req.headers['x-fuse-user'];
+    if (typeof externalId === 'string' && externalId) {
+      appUser = await prisma.appUser.findUnique({
+        where: { projectId_externalId: { projectId: proj.id, externalId } },
+        include: { wallet: true },
+      });
+      if (!appUser) {
+        throw new GatewayError(
+          404,
+          'app_user_not_found',
+          `Usuário final "${externalId}" não encontrado. Crie com POST /v1/app-users.`,
+        );
+      }
+    }
+
+    return {
+      kind: 'secret',
+      key: apiKey,
+      project: proj,
+      org,
+      appUser,
+      scopes: apiKey.scopes,
+      env: apiKey.env,
+      rateKey: `key:${apiKey.id}`,
+      rpmLimit: apiKey.rpmLimit,
+    };
+  }
+
+  return async function authenticate(req: FastifyRequest): Promise<GatewayContext> {
+    const header = req.headers.authorization ?? '';
+    const token = header.startsWith('Bearer ') ? header.slice(7).trim() : '';
+    if (!token) throw invalidApiKey('Envie a chave no header Authorization: Bearer fai_live_...');
+    const ctx = token.startsWith(SESSION_TOKEN_PREFIX)
+      ? await fromSessionToken(req, token)
+      : await fromApiKey(req, token);
     req.gateway = ctx;
     return ctx;
   };
 }
 
-export function requireScope(ctx: GatewayContext, scope: ApiKeyScope) {
-  if (!ctx.key.scopes.includes(scope)) {
-    throw new GatewayError(403, 'insufficient_scope', `Esta chave não tem o escopo "${scope}".`);
+export function requireScope(ctx: GatewayContext, scope: ApiKeyScope | 'balance') {
+  // Session tokens use "balance"; API keys the equivalent "billing:read".
+  const ok =
+    ctx.scopes.includes(scope) ||
+    (scope === 'billing:read' && ctx.kind === 'session' && ctx.scopes.includes('balance'));
+  if (!ok) {
+    throw new GatewayError(
+      403,
+      'insufficient_scope',
+      `Esta credencial não tem o escopo "${scope}".`,
+    );
+  }
+}
+
+export function requireSecretKey(ctx: GatewayContext) {
+  if (ctx.kind !== 'secret') {
+    throw new GatewayError(
+      403,
+      'secret_key_required',
+      'Esta rota só aceita a chave secreta do projeto (no seu backend).',
+    );
   }
 }

@@ -118,3 +118,40 @@ Membros da organização; 404 para quem não é membro.
 | GET | `/internal/organizations/:orgId/payments?cursor&limit` | sessão (membro) | Histórico de recargas. |
 | GET | `/internal/admin/payments?status&cursor` | super admin | Todos os pagamentos. |
 | POST | `/internal/admin/payments/:id/refund` | super admin | Pede o estorno ao Asaas (o débito entra com o webhook `PAYMENT_REFUNDED`). 409 se não for estornável. |
+
+## Usuários finais e checkout (Fase 7)
+
+Credenciais em `/v1`:
+- **chave secreta** `fai_live_…` (só no servidor; com `Origin` → 403 `secret_key_in_browser`). Header opcional `X-Fuse-User: <externalId>` cobra/consulta em nome de um usuário final.
+- **session token** `fai_st_…` (15 min, escopos `chat`, `checkout`, `balance`). Aceito em `/v1/models`, `/v1/chat/completions`, `/v1/balance`, `/v1/packages`, `/v1/checkout/*`. Com `Origin`, ela precisa estar em `allowedOrigins` do projeto (403 `origin_not_allowed`).
+
+Quem paga o chat: `ORG_WALLET` → organização; `END_USER_WALLET` → usuário final (sem usuário: 400 `app_user_required`); `HYBRID` → usuário final e, sem saldo, a organização.
+
+| Método | Rota | Credencial | Descrição |
+|---|---|---|---|
+| POST | `/v1/app-users` | secreta (`app_users`) | Upsert `{ externalId, email?, name?, document? }` → `{ id, externalId, email, name, balanceMicros, availableMicros, createdAt }` (201 se novo). Crédito grátis do projeto 1×. |
+| GET | `/v1/app-users/:externalId` | secreta (`app_users`) | Dados + saldo. 404 `app_user_not_found`. |
+| POST | `/v1/app-users/:externalId/session-token` | secreta (`app_users`) | `{ token, expiresAt, scopes }`. |
+| GET | `/v1/packages` | `checkout` | `{ data: [{ id, name, priceCents, creditMicros, bonusMicros, highlight }] }`. |
+| POST | `/v1/checkout/pix` | `checkout` | `{ packageId, externalId? (obrigatório com a secreta), returnUrl?, document?, name?, email? }` + `Idempotency-Key` opcional → 201 `{ checkoutId, status, amountCents, creditMicros, packageName, copyPaste, qrBase64, expiresAt, hostedUrl, … }`. Erros: 400 `document_required`, `invalid_return_url`, `billing_mode_org_wallet`; 404 `package_not_found`. |
+| GET | `/v1/checkout/:checkoutId` | `checkout` | Status (session token vê só os próprios). |
+| GET | `/public/checkout/:checkoutId` | nenhuma | Dados da página hospedada `/pay/{checkoutId}` (30 req/min por IP). |
+
+`GET /v1/balance` com session token ou `X-Fuse-User` devolve a carteira do usuário final (`owner: "app_user"`).
+
+### Webhooks de saída
+`POST` JSON para `Project.webhookUrl`: `{ id: "evt_…", type, created, data }`.
+Headers: `X-Fuse-Event`, `X-Fuse-Delivery`, `X-Fuse-Signature: t=<unix>,v1=<hex hmac_sha256(secret, t + "." + corpo)>`.
+Eventos: `payment.received`, `app_user.credited`, `payment.expired`, `payment.refunded` (`data.payment { id, checkoutId, status, amountCents, creditMicros, packageId }`, `data.appUser { id, externalId, balanceMicros }`), `balance.low` (`availableMicros`, `thresholdMicros`), `usage.limit_reached` (`apiKey`, `spendLimitMicros`, `spentMicros`), `test.ping`.
+Sucesso = qualquer 2xx em até 10 s. Novas tentativas: 1 min, 5 min, 30 min, 2 h, 12 h (6 no total). Verificação pronta: `verifyWebhook` de `@fuseai/sdk/server`.
+
+### Painel (sessão)
+| Método | Rota | Descrição |
+|---|---|---|
+| GET/POST | `/internal/projects/:id/packages` | Lista / cria pacote (`name, priceCents ≥ 500, creditMicros, bonusMicros, highlight, active, sortOrder`). |
+| PATCH/DELETE | `/internal/projects/:id/packages/:packageId` | Edita / remove (desativa se já vendido). |
+| GET | `/internal/projects/:id/app-users?q&cursor` | Usuários finais com saldo (50 por página). |
+| POST | `/internal/projects/:id/app-users/:appUserId/adjust` | `{ amountMicros (±), description }` — dono/admin. |
+| GET | `/internal/projects/:id/webhooks?status&cursor` | Histórico de entregas. |
+| POST | `/internal/projects/:id/webhooks/:hookId/resend` | Reenvia agora. |
+| POST | `/internal/projects/:id/webhooks/test` | Envia `test.ping` e devolve o resultado. |

@@ -23,7 +23,8 @@
     "EMAIL_FROM",
     "RESEND_API_KEY",
     "SMTP_URL",
-    "SEED_*"
+    "SEED_*",
+    "FUSE_*"
   ],
   "tasks": {
     "build": {

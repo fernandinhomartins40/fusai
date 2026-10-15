@@ -8,28 +8,44 @@ import { chargeFor, providerCost, type Usage } from './usage';
 
 export const ZERO_USAGE: Usage = { prompt: 0, cached: 0, completion: 0, reasoning: 0 };
 
-/** Who pays for a request (PRD §5.3/§5.4). */
-export type Billing =
-  | { mode: 'internal' }
-  | { mode: 'wallet'; walletId: string; creditLimitMicros: bigint };
+export type WalletTarget = {
+  walletId: string;
+  creditLimitMicros: bigint;
+  owner: 'org' | 'app_user';
+};
+
+/** Who pays (PRD §5.3/§5.4): wallets to try in order, or nobody for INTERNAL organizations. */
+export type Billing = { mode: 'internal' } | { mode: 'wallet'; candidates: WalletTarget[] };
 
 export function resolveBilling(ctx: GatewayContext): Billing {
   if (ctx.org.billingType === 'INTERNAL') return { mode: 'internal' };
-  if (ctx.project.billingMode === 'END_USER_WALLET') {
-    // End-user wallets (X-Fuse-User / session tokens) arrive in Phase 7.
-    throw new GatewayError(
-      400,
-      'app_user_required',
-      'Este projeto cobra do usuário final: a identificação do usuário (X-Fuse-User) ainda não está disponível.',
-    );
-  }
   if (!ctx.org.wallet)
     throw new GatewayError(500, 'wallet_missing', 'Carteira da organização não encontrada.');
-  return {
-    mode: 'wallet',
+  const org: WalletTarget = {
     walletId: ctx.org.wallet.id,
     creditLimitMicros: ctx.org.billingType === 'POSTPAID' ? ctx.org.creditLimitMicros : 0n,
+    owner: 'org',
   };
+  const user: WalletTarget | null = ctx.appUser?.wallet
+    ? { walletId: ctx.appUser.wallet.id, creditLimitMicros: 0n, owner: 'app_user' }
+    : null;
+
+  switch (ctx.project.billingMode) {
+    case 'ORG_WALLET':
+      return { mode: 'wallet', candidates: [org] };
+    case 'END_USER_WALLET':
+      if (!user) {
+        throw new GatewayError(
+          400,
+          'app_user_required',
+          'Este projeto cobra do usuário final: use um session token ou envie o header X-Fuse-User.',
+        );
+      }
+      return { mode: 'wallet', candidates: [user] };
+    case 'HYBRID':
+      // Freemium: the end user's credits first, the organization covers the rest.
+      return { mode: 'wallet', candidates: user ? [user, org] : [org] };
+  }
 }
 
 export function monthStartUtc(now = new Date()): Date {
@@ -57,13 +73,13 @@ export type FinishInput = {
 };
 
 /**
- * Settles the request: charges the real usage (or releases the hold) and writes the UsageLog in
- * the same transaction. INTERNAL organizations only get the log, with a virtual charge.
+ * Settles the request on the wallet that was reserved (`target`; null = INTERNAL org):
+ * charges the real usage or releases the hold, and writes the UsageLog in the same transaction.
  */
 export async function finishRequest(
   prisma: PrismaClient,
   ctx: GatewayContext,
-  billing: Billing,
+  target: WalletTarget | null,
   settings: Settings,
   usageId: string,
   input: FinishInput,
@@ -76,8 +92,9 @@ export async function finishRequest(
         requestId: usageId,
         orgId: ctx.org.id,
         projectId: ctx.project.id,
-        apiKeyId: ctx.key.id,
-        walletId: billing.mode === 'wallet' ? billing.walletId : null,
+        apiKeyId: ctx.key?.id ?? null,
+        appUserId: ctx.appUser?.id ?? null,
+        walletId: target?.walletId ?? null,
         modelId: input.entry.model.id,
         providerId: input.entry.provider.id,
         promptTokens: input.usage.prompt,
@@ -95,13 +112,13 @@ export async function finishRequest(
       },
     });
 
-  if (billing.mode === 'internal') {
+  if (!target) {
     await log(prisma);
     return charge;
   }
   await settle(prisma, {
     requestId: usageId,
-    walletId: billing.walletId,
+    walletId: target.walletId,
     chargeMicros: charge,
     description: `${input.entry.model.slug} · ${input.usage.prompt} + ${input.usage.completion} tokens`,
     onSettled: log,

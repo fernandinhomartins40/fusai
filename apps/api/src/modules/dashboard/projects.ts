@@ -24,6 +24,7 @@ type Options = {
 const EDITORS = ['OWNER', 'ADMIN', 'DEVELOPER'] as const;
 const MANAGERS = ['OWNER', 'ADMIN'] as const;
 const invalid = (message: string) => new HttpError(400, 'invalid_request', message);
+const newWebhookSecret = () => `whsec_${randomBytes(32).toString('base64url')}`;
 
 export function serializeProject(p: Project) {
   return {
@@ -135,6 +136,10 @@ export const dashboardProjectRoutes: FastifyPluginAsyncZod<Options> = async (app
           ...rest,
           ...(body.allowedOrigins ? { allowedOrigins: [...new Set(body.allowedOrigins)] } : {}),
           ...(freeCreditMicros !== undefined ? { freeCreditMicros: BigInt(freeCreditMicros) } : {}),
+          // Deliveries are always signed: the first webhook URL gets a secret automatically.
+          ...(body.webhookUrl && !project.webhookSecret
+            ? { webhookSecret: encryptSecret(newWebhookSecret(), encryptionKey) }
+            : {}),
         },
       });
       await audit(prisma, req, 'project.update', project.id, { fields: Object.keys(body) });
@@ -157,7 +162,7 @@ export const dashboardProjectRoutes: FastifyPluginAsyncZod<Options> = async (app
     { schema: { params: projectParams } },
     async (req) => {
       const { project } = await projectFor(currentUser(req).id, req.params.projectId, EDITORS);
-      const secret = `whsec_${randomBytes(32).toString('base64url')}`;
+      const secret = newWebhookSecret();
       await prisma.project.update({
         where: { id: project.id },
         data: { webhookSecret: encryptSecret(secret, encryptionKey) },

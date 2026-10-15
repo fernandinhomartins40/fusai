@@ -5,7 +5,12 @@ import { Redis } from 'ioredis';
 export const JOBS_QUEUE = 'jobs';
 export const BULL_PREFIX = 'fuse:bull';
 
-export type JobName = 'process-webhook' | 'release-holds' | 'expire-payments' | 'sweep-webhooks';
+export type JobName =
+  | 'process-webhook'
+  | 'release-holds'
+  | 'expire-payments'
+  | 'sweep-webhooks'
+  | 'deliver-webhooks';
 
 export interface JobQueue {
   add(name: JobName, data: Record<string, unknown>): Promise<void>;

@@ -9,7 +9,7 @@
 | 4 — Chaves de API e gateway | ✅ concluída (ver pendências) |
 | 5 — Painel do cliente | ✅ concluída (ver pendências) |
 | 6 — Pix (Asaas) | ✅ concluída — falta validar no sandbox real (ver pendências) |
-| 7 — Usuários finais e checkout | ⏳ |
+| 7 — Usuários finais e checkout | ✅ concluída — falta validar no sandbox real (ver pendências) |
 | 8 — MCP e Kit de Integração | ⏳ |
 | 9 — Landing page | ⏳ |
 | 10 — Admin completo e hardening | ⏳ |
@@ -307,6 +307,101 @@ pnpm --filter @fuseai/api dev:worker       # processa webhooks, expiração e em
 
 ### Pendências
 - **Não validado no sandbox real do Asaas** (sem chave neste ambiente): seguir o roteiro acima. A integração segue a documentação oficial, mas o primeiro teste real pode revelar detalhes (ex.: exigência de chave Pix cadastrada na conta).
-- Pagamentos de usuários finais, checkout hospedado e webhooks de saída (`payment.received`): Fase 7.
+- ~~Pagamentos de usuários finais, checkout hospedado e webhooks de saída: Fase 7.~~ Feito na Fase 7.
 - Reprocessar webhook recebido pelo admin e notas fiscais: Fase 10 / fase 2 do produto.
 - Docker continua indisponível nesta máquina.
+
+## Fase 7 — Usuários finais e checkout
+
+### Feito
+- **Usuários finais (AppUser)** em `/v1` com a chave secreta (escopo `app_users`):
+  - `POST /v1/app-users` faz upsert e cria a carteira; o crédito grátis do projeto entra uma vez (`BONUS`, referência = id do usuário), exceto em `ORG_WALLET`;
+  - `GET /v1/app-users/:externalId` e `POST /v1/app-users/:externalId/session-token`.
+- **Session token** `fai_st_` + JWT HS256 (15 min, escopos `chat`, `checkout`, `balance`), assinado com `SESSION_TOKEN_SECRET`:
+  - aceito em chat, models, balance, packages e checkout;
+  - `Origin` precisa estar em `Project.allowedOrigins`;
+  - a chave secreta com `Origin` (vazou para o navegador) é recusada com 403 `secret_key_in_browser`;
+  - `/v1/usage` e as rotas de AppUser exigem a chave secreta.
+- **Quem paga** (`resolveBilling`):
+  - `ORG_WALLET` → organização;
+  - `END_USER_WALLET` → usuário final (session token ou header `X-Fuse-User`); sem usuário → 400 `app_user_required`;
+  - `HYBRID` → usuário final primeiro, organização se ele não tiver saldo.
+  - O `UsageLog` guarda `appUserId`.
+- **Checkout Pix do usuário final**:
+  - `GET /v1/packages`, `POST /v1/checkout/pix` e `GET /v1/checkout/:checkoutId`;
+  - pacotes do projeto, sem taxa;
+  - CPF/CNPJ pedido na primeira compra (400 `document_required`) e guardado no AppUser, com cliente Asaas próprio;
+  - `checkoutId` = `publicId` aleatório `chk_…`;
+  - `Idempotency-Key`;
+  - `returnUrl` validado (bloqueia `javascript:`, `data:`, `vbscript:`, `file:`, `blob:`).
+  - O crédito vai para a carteira do usuário final pelo mesmo caminho único da Fase 6.
+- **Checkout hospedado** `/pay/[checkoutId]` (web):
+  - página pública mobile-first com QR, copia e cola, contagem e status a cada 3 s, e tela de sucesso;
+  - `?return_url=` validado com `safeReturnUrl`;
+  - `noindex` e `no-referrer`;
+  - dados via `GET /public/checkout/:id` (30 req/min por IP).
+- **Webhooks de saída** (`modules/webhooks-out`):
+  - eventos `payment.received`, `app_user.credited`, `payment.expired` e `payment.refunded` são gravados na **mesma transação** do crédito, da expiração ou do estorno (outbox);
+  - `balance.low` (1×/dia por projeto) e `usage.limit_reached` (1×/dia por chave) via Redis `SET NX`;
+  - assinatura `X-Fuse-Signature: t=…,v1=hmac_sha256(secret, t + "." + corpo)`, mais `X-Fuse-Event` e `X-Fuse-Delivery`;
+  - novas tentativas em 1 min, 5 min, 30 min, 2 h e 12 h (máximo de 6 tentativas), com lease contra envio duplo;
+  - sem seguir redirects; em produção só https e IP público (anti-SSRF);
+  - o segredo é gerado sozinho ao cadastrar a primeira URL.
+- **Worker**: job `deliver-webhooks` a cada 30 s e logo após processar um webhook do Asaas.
+- **CORS**: `/v1` aceita qualquer origem sem cookies (o gateway checa `allowedOrigins` por token); o resto aceita só o `APP_URL`, com cookies.
+- **Painel**:
+  - abas do projeto **Usuários finais** (busca, saldo, ajuste manual de bônus/remoção por dono e admin, com auditoria) e **Pacotes de créditos** (CRUD; pacote já vendido é desativado, não apagado);
+  - **Webhooks** com histórico de entregas (status, tentativas, HTTP, corpo), reenvio e evento de teste.
+- **`@fuseai/sdk`** (TS, sem dependências; browser, Node 18+, React Native):
+  - chat (com stream), models, balance, packages, `checkout.createPix/get/waitForPayment` e `appUsers`;
+  - `FuseAIError`;
+  - token renovável (função) com **uma** busca compartilhada entre chamadas simultâneas;
+  - `@fuseai/sdk/server` com `verifyWebhook` (WebCrypto, tolerância de 5 min).
+- **`@fuseai/react`**: `<FuseProvider>`, `<FuseCheckout/>` (pacotes → CPF na 1ª vez → QR + copiar + contagem → sucesso, `onPaid`) e `<FuseBalance/>`, com estilos inline em variáveis CSS `--fuse-*` (sem Tailwind).
+- **`examples/next-pwa`** (porta 3001):
+  - backend com `/api/session` (upsert + session token, chave secreta só no servidor) e `/api/webhooks/fuse` (verifica a assinatura e é idempotente);
+  - front com saldo, `<FuseCheckout/>`, chat em stream e lista de webhooks;
+  - manifest e service worker mínimos (instalável).
+
+### Como testar
+```bash
+docker compose up -d && pnpm db:migrate && pnpm db:seed
+pnpm dev && pnpm --filter @fuseai/api dev:worker
+```
+1. No painel, crie um projeto em **Cobrar do usuário final**. Em Configurações:
+   - origem permitida `http://localhost:3001`;
+   - webhook `http://localhost:3001/api/webhooks/fuse`.
+   - Crie uma chave e um pacote (aba Pacotes de créditos).
+2. `cp examples/next-pwa/.env.example examples/next-pwa/.env.local`. Preencha a chave e o segredo do webhook (Configurações → Revelar). Depois rode `pnpm --filter @fuseai/example-next-pwa dev`.
+3. Abra http://localhost:3001 → Pagar com Pix → CPF → pague no sandbox do Asaas (ou com o Asaas falso). O saldo sobe, os webhooks aparecem como verificados e o chat debita o saldo do usuário.
+
+### Verificado
+- `pnpm lint`, `pnpm typecheck` (8 pacotes) e `pnpm test` passando: 154 testes (38 shared, 7 SDK, 109 API).
+- 12 testes novos de integração na API cobrem:
+  - upsert com crédito grátis 1×;
+  - session token com escopo, origem, assinatura e expiração;
+  - chave secreta no navegador;
+  - `X-Fuse-User`, `END_USER_WALLET` (402) e `HYBRID` (fallback para a organização);
+  - compra completa com webhooks assinados (HMAC conferido);
+  - backoff 1m/5m/… até `failed` e reenvio;
+  - validações do checkout;
+  - preflight CORS;
+  - CRUD de pacotes, lista e ajuste de usuários.
+- **Aceite no navegador**: 28/28 a 375px, com API, worker BullMQ, web, app de exemplo, Asaas falso e LLM falso reais.
+  - Configuração feita só pela API do painel.
+  - O app de exemplo cria o AppUser (R$ 0,50 grátis) e compra o pacote pelo `<FuseCheckout/>`: pede o CPF, mostra QR, copiar e contagem.
+  - O webhook do Asaas chega 3× e a tela vira "Pagamento confirmado". O saldo vai a R$ 10,50 (R$ 9 + R$ 1 de bônus + R$ 0,50).
+  - `payment.received` e `app_user.credited` chegam ao app 1× cada, com assinatura verificada.
+  - O chat em stream com session token debita a carteira do usuário final (R$ 10,48).
+  - Checkout hospedado: pendente → pago sozinho; `return_url` com `javascript:` ignorado, deep link aceito; id inexistente → "não encontrado".
+  - Abas do painel sem estouro horizontal; evento de teste entregue (HTTP 200).
+- **Bugs achados no aceite e corrigidos**:
+  - várias chamadas simultâneas pediam vários session tokens ao backend do app, criando usuários diferentes; o SDK agora compartilha uma única busca;
+  - `GET /internal/projects/:id` não trazia `hasWebhookSecret` (desde a Fase 5), então Configurações sempre mostrava "Nenhum segredo gerado";
+  - o Asaas falso reiniciava os ids (`pay_1`…) e colidia com cobranças antigas do banco de dev.
+
+### Pendências
+- Sandbox real do Asaas ainda não validado (igual à Fase 6).
+- SSE `GET /v1/checkout/:id/events` (o PRD dá como alternativa ao polling): ficou só o polling de 3 s.
+- `@fuseai/sdk` e `@fuseai/react` exportam TypeScript (padrão do monorepo); o build para publicar no npm fica para a Fase 10.
+- Sem nota fiscal nem split: o valor das vendas aos usuários finais entra na conta Asaas da FuseAI (ver D-085).

@@ -12,6 +12,7 @@ import type { CatalogStore } from '../gateway/catalog';
 import { dashboardPaymentRoutes } from '../payments/routes';
 import { dashboardAnalyticsRoutes } from './analytics';
 import { dashboardApiKeyRoutes } from './api-keys';
+import { dashboardEndUserRoutes } from './end-users';
 import { createOrganization, createProject } from './organizations';
 import { dashboardProjectRoutes } from './projects';
 import { dashboardTeamRoutes } from './team';
@@ -39,6 +40,7 @@ export const dashboardRoutes: FastifyPluginAsyncZod<Options> = async (
   await app.register(dashboardApiKeyRoutes, { prisma, env });
   await app.register(dashboardAnalyticsRoutes, { prisma, settings });
   await app.register(dashboardProjectRoutes, { prisma, env, settings, catalog, encryptionKey });
+  await app.register(dashboardEndUserRoutes, { prisma, env, encryptionKey });
   await app.register(dashboardTeamRoutes, { prisma, env, mailer });
   await app.register(dashboardPaymentRoutes, { prisma, provider, settings, redis });
 

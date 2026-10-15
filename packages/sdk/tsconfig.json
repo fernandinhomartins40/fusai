@@ -1,0 +1,4 @@
+{
+  "extends": "@fuseai/config/tsconfig.library.json",
+  "include": ["src"]
+}

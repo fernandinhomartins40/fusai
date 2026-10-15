@@ -253,3 +253,47 @@ export const adminPaymentRoutes: FastifyPluginAsyncZod<{
     },
   );
 };
+
+const publicIdParams = z.object({ publicId: z.string().regex(/^chk_[A-Za-z0-9_-]{16,40}$/) });
+
+/**
+ * Public, unauthenticated: the hosted checkout page `/pay/{publicId}` (PRD §9.3). The random
+ * publicId is the capability; only what the buyer needs to pay is exposed. 30 req/min per IP.
+ */
+export const publicCheckoutRoutes: FastifyPluginAsyncZod<{
+  prisma: PrismaClient;
+  redis: RedisClient;
+}> = async (app, { prisma, redis }) => {
+  app.get('/checkout/:publicId', { schema: { params: publicIdParams } }, async (req, reply) => {
+    const rl = await slidingWindow(redis, `pubchk:${req.ip}`, 30, 60_000).catch(() => null);
+    if (rl && !rl.allowed) {
+      reply.header('retry-after', Math.ceil(rl.retryAfterMs / 1000));
+      throw new HttpError(429, 'rate_limited', 'Muitas consultas. Aguarde alguns segundos.');
+    }
+    reply.header('cache-control', 'no-store');
+    const payment = await prisma.payment.findUnique({
+      where: { publicId: req.params.publicId },
+      include: { org: { select: { name: true } } },
+    });
+    if (!payment?.projectId) throw notFound('Checkout não encontrado');
+    const project = await prisma.project.findUnique({
+      where: { id: payment.projectId },
+      select: { name: true },
+    });
+    const meta = (payment.metadata ?? {}) as { packageName?: string; returnUrl?: string };
+    const pending = payment.status === 'PENDING';
+    return {
+      checkoutId: payment.publicId,
+      status: payment.status,
+      amountCents: payment.amountCents,
+      creditMicros: payment.creditMicros.toString(),
+      packageName: meta.packageName ?? null,
+      merchantName: project?.name ?? payment.org.name,
+      copyPaste: pending ? payment.pixCopyPaste : null,
+      qrBase64: pending ? payment.pixQrBase64 : null,
+      expiresAt: payment.expiresAt?.toISOString() ?? null,
+      paidAt: payment.paidAt?.toISOString() ?? null,
+      returnUrl: meta.returnUrl ?? null,
+    };
+  });
+};

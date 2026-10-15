@@ -27,7 +27,7 @@ import { createCatalog } from './modules/gateway/catalog';
 import { createCircuitBreaker } from './modules/gateway/circuit-breaker';
 import { gatewayRoutes } from './modules/gateway/routes';
 import { healthRoutes } from './modules/health/routes';
-import { paymentWebhookRoutes } from './modules/payments/routes';
+import { paymentWebhookRoutes, publicCheckoutRoutes } from './modules/payments/routes';
 import { createPaymentProvider, type PaymentProvider } from './payments';
 
 declare module 'fastify' {
@@ -118,10 +118,29 @@ export async function buildApp(env: Env, deps: AppDeps = {}) {
 
   await app.register(helmet, { contentSecurityPolicy: false });
   // @fastify/cors only allows GET/HEAD/POST by default: the dashboard also uses PUT/PATCH/DELETE.
+  // /v1 is called from customers' apps with session tokens: any origin, never cookies (the
+  // gateway checks Project.allowedOrigins per token). Everything else: only our web app.
   await app.register(cors, {
-    origin: [env.APP_URL],
-    credentials: true,
-    methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE'],
+    delegator: (req, cb) => {
+      const isGateway = (req.url ?? '').startsWith('/v1/');
+      cb(
+        null,
+        isGateway
+          ? {
+              origin: true,
+              credentials: false,
+              methods: ['GET', 'POST'],
+              allowedHeaders: ['authorization', 'content-type', 'idempotency-key'],
+              exposedHeaders: ['x-fuse-request-id', 'x-request-id', 'retry-after'],
+              maxAge: 600,
+            }
+          : {
+              origin: [env.APP_URL],
+              credentials: true,
+              methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE'],
+            },
+      );
+    },
   });
 
   await app.register(healthRoutes);
@@ -155,7 +174,11 @@ export async function buildApp(env: Env, deps: AppDeps = {}) {
     breaker,
     redis,
     keyPepper: env.KEY_PEPPER,
+    sessionSecret: env.SESSION_TOKEN_SECRET,
+    provider,
+    appUrl: env.APP_URL,
   });
+  await app.register(publicCheckoutRoutes, { prefix: '/public', prisma, redis });
 
   // In-memory caches (catalog 10s, settings 60s); exposed so tests can reset them.
   app.decorate('caches', {

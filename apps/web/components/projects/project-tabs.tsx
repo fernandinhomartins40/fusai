@@ -10,6 +10,8 @@ export function ProjectTabs({ projectId }: { projectId: string }) {
   const tabs = [
     { href: base, label: 'Visão geral', exact: true },
     { href: `${base}/chaves`, label: 'Chaves de API' },
+    { href: `${base}/usuarios`, label: 'Usuários finais' },
+    { href: `${base}/pacotes`, label: 'Pacotes de créditos' },
     { href: `${base}/modelos`, label: 'Modelos permitidos' },
     { href: `${base}/configuracoes`, label: 'Configurações' },
   ];

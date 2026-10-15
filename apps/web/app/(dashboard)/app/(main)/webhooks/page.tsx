@@ -10,8 +10,12 @@ import {
 import { Settings } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { FilterFrame } from '@/components/filter-frame';
+import { RefreshButton } from '@/components/refresh-button';
+import { WebhookDeliveries } from '@/components/webhook-deliveries';
 import { getCurrentOrg } from '@/lib/current-org';
 import type { ProjectDetail } from '@/lib/dashboard-types';
+import type { WebhookDeliveryPage } from '@/lib/end-user-types';
 import { getMe, serverApi } from '@/lib/session';
 
 export const metadata: Metadata = { title: 'Webhooks' };
@@ -23,11 +27,15 @@ const EVENTS = [
   ['app_user.credited', 'Créditos adicionados a um usuário final'],
   ['balance.low', 'Saldo abaixo do alerta'],
   ['usage.limit_reached', 'Limite de gasto de uma chave atingido'],
+  ['test.ping', 'Evento de teste (botão abaixo)'],
 ] as const;
 
-export default async function WebhooksPage() {
+type Props = { searchParams: Promise<{ projeto?: string }> };
+
+export default async function WebhooksPage({ searchParams }: Props) {
   const org = await getCurrentOrg(await getMe());
   if (!org) return null;
+  const sp = await searchParams;
   const projects = (
     await Promise.all(
       org.projects.map((p) =>
@@ -35,6 +43,14 @@ export default async function WebhooksPage() {
       ),
     )
   ).flatMap((r) => (r.data ? [r.data] : []));
+  const selected =
+    projects.find((p) => p.id === sp.projeto) ??
+    projects.find((p) => p.webhookUrl) ??
+    projects[0] ??
+    null;
+  const history = selected
+    ? (await serverApi<WebhookDeliveryPage>(`/internal/projects/${selected.id}/webhooks`)).data
+    : null;
 
   return (
     <div className="grid gap-6">
@@ -97,16 +113,35 @@ export default async function WebhooksPage() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Histórico de entregas</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="py-6 text-center text-muted-foreground text-sm">
-            Nenhuma entrega ainda. As notificações aparecerão aqui, com opção de reenviar.
-          </p>
-        </CardContent>
-      </Card>
+      {selected && history ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Histórico de entregas</CardTitle>
+            <CardDescription>
+              Até 6 tentativas: na hora, depois de 1 min, 5 min, 30 min, 2 h e 12 h.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <FilterFrame
+              filters={[
+                {
+                  name: 'projeto',
+                  label: 'Projeto',
+                  options: projects.map((p) => ({ value: p.id, label: p.name })),
+                  defaultValue: selected.id,
+                },
+              ]}
+              actions={<RefreshButton />}
+            >
+              <WebhookDeliveries
+                projectId={selected.id}
+                initial={history}
+                canEdit={org.role !== 'BILLING'}
+              />
+            </FilterFrame>
+          </CardContent>
+        </Card>
+      ) : null}
     </div>
   );
 }

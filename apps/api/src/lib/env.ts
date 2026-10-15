@@ -31,6 +31,8 @@ const envSchema = z.object({
 
   /** Mixed into API key hashes: sha256(key + KEY_PEPPER). Changing it invalidates every key. */
   KEY_PEPPER: z.string().min(8),
+  /** Signs end-user session tokens (HS256, 15 min). */
+  SESSION_TOKEN_SECRET: z.string().min(8),
 
   ASAAS_ENV: z.enum(['sandbox', 'production']).default('sandbox'),
   ASAAS_API_KEY: optional,
@@ -57,6 +59,9 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
   if (env.NODE_ENV === 'production' && env.ASAAS_WEBHOOK_TOKEN.startsWith('change-me')) {
     throw new Error('ASAAS_WEBHOOK_TOKEN must be changed in production');
   }
+  if (env.NODE_ENV === 'production' && env.SESSION_TOKEN_SECRET.startsWith('change-me')) {
+    throw new Error('SESSION_TOKEN_SECRET must be changed in production');
+  }
   if (env.NODE_ENV === 'production' && env.KEY_PEPPER.startsWith('change-me')) {
     throw new Error('KEY_PEPPER must be changed in production');
   }
@@ -71,6 +76,7 @@ export function testEnv(overrides: Partial<NodeJS.ProcessEnv> = {}): Env {
     BETTER_AUTH_SECRET: 'test-secret-test-secret-test-secret',
     ENCRYPTION_KEY: Buffer.alloc(32, 7).toString('base64'),
     KEY_PEPPER: 'test-pepper-123',
+    SESSION_TOKEN_SECRET: 'test-session-secret-123',
     ASAAS_WEBHOOK_TOKEN: 'test-webhook-token-123',
     ASAAS_API_KEY: '$aact_hmlg_test',
     REDIS_URL: process.env.TEST_REDIS_URL ?? 'redis://localhost:6379/1',

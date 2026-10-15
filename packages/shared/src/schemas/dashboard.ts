@@ -84,3 +84,38 @@ export const logsQuerySchema = usageFilterSchema.extend({
   cursor: z.string().min(1).optional(),
   limit: z.coerce.number().int().min(1).max(100).optional(),
 });
+
+/** Credit package a project sells to its end users (PRD §9.3). Pix at Asaas starts at R$ 5. */
+export const projectPackageSchema = z.object({
+  name: z.string().trim().min(2, 'Nome muito curto').max(60),
+  priceCents: z.coerce
+    .number()
+    .int()
+    .min(500, 'O preço mínimo é R$ 5,00')
+    .max(1_000_000, 'O preço máximo é R$ 10.000,00'),
+  creditMicros: micros(10_000_000_000n, 'Máximo de R$ 10.000 em créditos').refine(
+    (v) => !INTEGER_RE.test(v) || BigInt(v) > 0n,
+    'Informe os créditos',
+  ),
+  bonusMicros: micros(10_000_000_000n, 'Máximo de R$ 10.000 de bônus'),
+  highlight: z.boolean(),
+  active: z.boolean(),
+  sortOrder: z.coerce.number().int().min(0).max(1000),
+});
+export const projectPackageUpdateSchema = projectPackageSchema.partial();
+export type ProjectPackageInput = z.input<typeof projectPackageSchema>;
+
+/** Manual credit adjustment for an end user: positive = bonus, negative = removal. */
+export const appUserAdjustSchema = z.object({
+  amountMicros: z
+    .string()
+    .trim()
+    .regex(/^-?\d+$/, 'Valor inválido')
+    .refine((v) => {
+      if (!/^-?\d+$/.test(v)) return true;
+      const n = BigInt(v);
+      return n !== 0n && n <= 1_000_000_000n && n >= -1_000_000_000n;
+    }, 'Use um valor diferente de zero, até R$ 1.000'),
+  description: z.string().trim().min(3, 'Descreva o motivo').max(200),
+});
+export type AppUserAdjustInput = z.input<typeof appUserAdjustSchema>;

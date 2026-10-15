@@ -5,11 +5,13 @@
  * - expire-payments  (every 1 min): cancel unpaid Pix past its deadline
  * - sweep-webhooks   (every 2 min): retry webhook events that were stored but not processed
  * - release-holds    (every 5 min): release orphaned balance holds (PRD §7.4 step 6)
+ * - deliver-webhooks (every 30 s, and right after a payment event): signed webhooks to customers
  */
 import { prisma } from '@fuseai/db';
 import { Queue, Worker } from 'bullmq';
 import { Redis } from 'ioredis';
 import pino from 'pino';
+import { parseEncryptionKey } from './lib/crypto';
 import { loadEnv } from './lib/env';
 import { BULL_PREFIX, JOBS_QUEUE } from './lib/jobs';
 import { createSmtpMailer } from './lib/mailer';
@@ -20,12 +22,17 @@ import {
   processPendingWebhookEvents,
   processWebhookEvent,
 } from './modules/payments/service';
+import { deliverDueWebhooks } from './modules/webhooks-out/service';
 import { createPaymentProvider } from './payments';
 
 const env = loadEnv();
 const log = pino({ name: 'fuseai-worker', level: env.LOG_LEVEL });
 const provider = createPaymentProvider(env);
 const mailer = createSmtpMailer(env);
+const deliverOpts = {
+  encryptionKey: parseEncryptionKey(env.ENCRYPTION_KEY),
+  production: env.NODE_ENV === 'production',
+};
 const hooks = {
   onCredited: (payment: Parameters<typeof notifyPaymentCredited>[3]) =>
     notifyPaymentCredited(prisma, mailer, env.APP_URL, payment),
@@ -39,6 +46,7 @@ const schedules = [
   ['release-holds', 5 * 60_000],
   ['expire-payments', 60_000],
   ['sweep-webhooks', 2 * 60_000],
+  ['deliver-webhooks', 30_000],
 ] as const;
 for (const [name, every] of schedules) {
   await queue.upsertJobScheduler(name, { every }, { name, opts: keep });
@@ -53,7 +61,12 @@ const worker = new Worker(
     switch (job.name) {
       case 'process-webhook':
         await processWebhookEvent(prisma, provider, String(job.data.eventId), hooks);
+        await deliverDueWebhooks(prisma, deliverOpts); // payment.received etc. without waiting
         return null;
+      case 'deliver-webhooks': {
+        const delivered = await deliverDueWebhooks(prisma, deliverOpts);
+        return { delivered };
+      }
       case 'expire-payments': {
         const expired = await expirePendingPayments(prisma, provider);
         if (expired) log.info({ expired }, 'expired pix charges');

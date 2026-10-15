@@ -251,15 +251,16 @@ model ApiKey {
 }
 
 model AppUser {
-  id         String   @id @default(cuid())
-  projectId  String
-  externalId String // user id in the customer's system
-  email      String?
-  name       String?
-  document   String? // CPF (optional, may be required by the PSP)
-  createdAt  DateTime @default(now())
-  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  wallet     Wallet?
+  id              String   @id @default(cuid())
+  projectId       String
+  externalId      String // user id in the customer's system
+  email           String?
+  name            String?
+  document        String? // CPF (optional, may be required by the PSP)
+  asaasCustomerId String?
+  createdAt       DateTime @default(now())
+  project         Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  wallet          Wallet?
 
   @@unique([projectId, externalId])
 }
@@ -342,6 +343,8 @@ model Payment {
   paidAt             DateTime?
   creditedAt         DateTime? // guarantees a single credit
   idempotencyKey     String              @unique
+  /// Unguessable id used by the hosted checkout (/pay/[publicId]) and /v1/checkout.
+  publicId           String?             @unique
   metadata           Json?
   createdAt          DateTime            @default(now())
   org                Organization        @relation(fields: [orgId], references: [id])
@@ -362,15 +365,17 @@ model InboundWebhookEvent {
 }
 
 model OutboundWebhook {
-  id            String   @id @default(cuid())
-  projectId     String
-  event         String // "payment.received","balance.low","app_user.credited"
-  payload       Json
-  status        String   @default("pending") // pending|delivered|failed
-  attempts      Int      @default(0)
-  lastError     String?
-  nextAttemptAt DateTime @default(now())
-  createdAt     DateTime @default(now())
+  id             String    @id @default(cuid())
+  projectId      String
+  event          String // "payment.received","balance.low","app_user.credited"
+  payload        Json
+  status         String    @default("pending") // pending|delivered|failed
+  attempts       Int       @default(0)
+  lastError      String?
+  responseStatus Int?
+  deliveredAt    DateTime?
+  nextAttemptAt  DateTime  @default(now())
+  createdAt      DateTime  @default(now())
 
   @@index([status, nextAttemptAt])
   @@index([projectId, createdAt])
