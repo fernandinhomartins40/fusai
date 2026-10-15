@@ -10,16 +10,16 @@ import {
   modelPrices,
   mulDecimalsCeil,
   type PriceModeValue,
-} from '@fuseai/shared';
+} from '@fusai/shared';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@fuseai/ui/components/card';
-import { Input } from '@fuseai/ui/components/input';
-import { Label } from '@fuseai/ui/components/label';
+} from '@fusai/ui/components/card';
+import { Input } from '@fusai/ui/components/input';
+import { Label } from '@fusai/ui/components/label';
 import { useMemo, useState } from 'react';
 import type { AdminSettings } from '@/lib/admin-types';
 import { pct } from '@/lib/format';

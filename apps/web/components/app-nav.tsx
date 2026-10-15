@@ -1,6 +1,6 @@
 'use client';
 
-import { cn } from '@fuseai/ui/lib/utils';
+import { cn } from '@fusai/ui/lib/utils';
 import {
   Activity,
   BarChart3,
@@ -47,7 +47,7 @@ export function AppSidebar() {
                 : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground',
             )}
           >
-            <Icon className={cn('size-4', active && 'text-fuse-pink')} aria-hidden />
+            <Icon className={cn('size-4', active && 'text-fusai-accent')} aria-hidden />
             {label}
           </Link>
         );

@@ -1,4 +1,4 @@
-import { Button } from '@fuseai/ui/components/button';
+import { Button } from '@fusai/ui/components/button';
 import { ShieldAlert } from 'lucide-react';
 import Link from 'next/link';
 

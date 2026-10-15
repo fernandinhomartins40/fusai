@@ -1,6 +1,6 @@
 'use client';
 
-import { Button } from '@fuseai/ui/components/button';
+import { Button } from '@fusai/ui/components/button';
 import { Loader2, PlugZap } from 'lucide-react';
 import { useState } from 'react';
 import { FormAlert } from '@/components/form-field';

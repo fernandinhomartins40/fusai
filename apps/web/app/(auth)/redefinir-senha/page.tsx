@@ -1,4 +1,4 @@
-import { Button } from '@fuseai/ui/components/button';
+import { Button } from '@fusai/ui/components/button';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { AuthShell } from '@/components/auth/auth-shell';

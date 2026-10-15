@@ -7,7 +7,7 @@
  * - release-holds    (every 5 min): release orphaned balance holds (PRD §7.4 step 6)
  * - deliver-webhooks (every 30 s, and right after a payment event): signed webhooks to customers
  */
-import { prisma } from '@fuseai/db';
+import { prisma } from '@fusai/db';
 import { Queue, Worker } from 'bullmq';
 import { Redis } from 'ioredis';
 import pino from 'pino';

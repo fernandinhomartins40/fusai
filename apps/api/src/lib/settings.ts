@@ -1,5 +1,5 @@
-import type { PrismaClient } from '@fuseai/db';
-import { DEFAULT_SETTINGS, type Settings, settingsSchema } from '@fuseai/shared';
+import type { PrismaClient } from '@fusai/db';
+import { DEFAULT_SETTINGS, type Settings, settingsSchema } from '@fusai/shared';
 
 const TTL_MS = 60_000;
 

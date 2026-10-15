@@ -1,6 +1,6 @@
 'use client';
 
-import { Button } from '@fuseai/ui/components/button';
+import { Button } from '@fusai/ui/components/button';
 import { LogOut } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { authClient } from '@/lib/auth-client';

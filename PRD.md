@@ -1,6 +1,6 @@
-# FuseAI — PRD e Instruções de Implementação
+# fusai — PRD e Instruções de Implementação
 
-> **Produto:** FuseAI — Hub de IA multi-provedor com cobrança pré-paga por tokens
+> **Produto:** fusai — Hub de IA multi-provedor com cobrança pré-paga por tokens
 > **Domínio:** https://www.fusai.com.br (web) · https://api.fusai.com.br (API/gateway/MCP)
 > **Versão do documento:** 1.0 — outubro/2026
 > **Público deste documento:** a IA (Claude Code) que vai implementar o sistema, e o dono do produto.
@@ -19,13 +19,13 @@
 
 ## 1. Visão do produto
 
-A FuseAI é um **gateway de IA** no estilo OpenRouter, voltado ao mercado brasileiro:
+A fusai é um **gateway de IA** no estilo OpenRouter, voltado ao mercado brasileiro:
 
 - O dono (super admin) cadastra suas chaves de API de provedores baratos (DeepSeek, Moonshot/Kimi, Zhipu/GLM, Alibaba/Qwen, MiniMax e OpenRouter como fallback).
-- A FuseAI expõe **uma única API compatível com OpenAI** (`/v1/chat/completions`) e cobra o cliente **por token consumido**, com **margem configurável** sobre o custo real.
+- A fusai expõe **uma única API compatível com OpenAI** (`/v1/chat/completions`) e cobra o cliente **por token consumido**, com **margem configurável** sobre o custo real.
 - Clientes compram **créditos pré-pagos via Pix** (Asaas), geram **chaves de API**, conectam a **IA de programação deles via MCP** para implementar a integração sozinha, e acompanham consumo num painel.
-- Os **usuários finais** dos apps dos clientes (web, PWA ou nativo) também podem **comprar créditos de IA via Pix dentro do próprio app**, usando o SDK/checkout da FuseAI.
-- O dono também usa a FuseAI para **as próprias aplicações** (organização interna, sem cobrança, só com rastreio de custo).
+- Os **usuários finais** dos apps dos clientes (web, PWA ou nativo) também podem **comprar créditos de IA via Pix dentro do próprio app**, usando o SDK/checkout da fusai.
+- O dono também usa a fusai para **as próprias aplicações** (organização interna, sem cobrança, só com rastreio de custo).
 
 ### 1.1 Modelo de receita
 
@@ -35,7 +35,7 @@ Preço de venda (R$/1M tokens) = custo do provedor (US$/1M) × câmbio USD→BRL
 
 Exemplo ilustrativo: um modelo que custa US$ 0,66 por 1M tokens de saída, com câmbio 5,50, custa ~R$ 3,63. Com multiplicador 4×, vende a ~R$ 14,52/1M. O admin pode também definir **preço fixo** por modelo (ignora o cálculo automático).
 
-Diferente do OpenRouter (que repassa o preço sem markup e cobra uma taxa na compra de créditos), a FuseAI aplica **margem no token**. Opcionalmente o admin pode configurar também uma **taxa percentual na recarga** (desligada por padrão).
+Diferente do OpenRouter (que repassa o preço sem markup e cobra uma taxa na compra de créditos), a fusai aplica **margem no token**. Opcionalmente o admin pode configurar também uma **taxa percentual na recarga** (desligada por padrão).
 
 ### 1.2 Personas
 
@@ -43,8 +43,8 @@ Diferente do OpenRouter (que repassa o preço sem markup e cobra uma taxa na com
 |---|---|
 | **Super Admin** (dono) | Cadastra provedores/chaves, modelos e preços, vê margem e receita, gerencia clientes, pacotes, pagamentos, saldo manual. |
 | **Cliente (Organização)** | Empresa/dev para quem o dono cria apps. Cadastra-se, cria projetos, gera chaves, compra créditos, conecta MCP, vê consumo. |
-| **Usuário final (AppUser)** | Usuário do app do cliente. Compra créditos via Pix dentro do app e consome IA. Não acessa o painel FuseAI. |
-| **IA do cliente** (Claude Code, Cursor etc.) | Conecta no MCP da FuseAI com a chave do projeto e implementa a integração no app do cliente. |
+| **Usuário final (AppUser)** | Usuário do app do cliente. Compra créditos via Pix dentro do app e consome IA. Não acessa o painel fusai. |
+| **IA do cliente** (Claude Code, Cursor etc.) | Conecta no MCP da fusai com a chave do projeto e implementa a integração no app do cliente. |
 
 ---
 
@@ -99,7 +99,7 @@ Diferente do OpenRouter (que repassa o preço sem markup e cobra uma taxa na com
 ## 4. Estrutura do monorepo
 
 ```
-fuseai/
+fusai/
 ├─ apps/
 │  ├─ web/                    # Next.js 15
 │  │  ├─ app/
@@ -129,8 +129,8 @@ fuseai/
 │  ├─ db/                     # Prisma schema, client, seed, migrations
 │  ├─ shared/                 # schemas zod, tipos, constantes, utils de dinheiro
 │  ├─ ui/                     # componentes shadcn compartilhados + tema
-│  ├─ sdk/                    # @fuseai/sdk  (cliente TS: chat, saldo, checkout)
-│  ├─ react/                  # @fuseai/react (<FuseCheckout/>, <FuseBalance/>)
+│  ├─ sdk/                    # @fusai/sdk  (cliente TS: chat, saldo, checkout)
+│  ├─ react/                  # @fusai/react (<FusaiCheckout/>, <FusaiBalance/>)
 │  └─ config/                 # tsconfig, biome, tailwind preset
 ├─ docker/
 │  ├─ api.Dockerfile
@@ -484,7 +484,7 @@ model AuditLog {
 ### 6.1 Seed (`packages/db/prisma/seed.ts`)
 
 - Super admin a partir de `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD`.
-- Organização `FuseAI Interno` com `billingType = INTERNAL`.
+- Organização `fusai Interno` com `billingType = INTERNAL`.
 - Settings: `usd_brl_rate = 5.50`, `default_markup = 4.0`, `topup_fee_pct = 0`, `min_topup_cents = 1000`, `low_balance_threshold_micros = 5_000_000`.
 - Provedores (status `DISABLED` até o admin colar a chave): DeepSeek, Moonshot (Kimi), Zhipu/Z.ai (GLM), Alibaba Cloud Model Studio (Qwen), MiniMax, OpenRouter.
 - Alguns modelos de exemplo com custos **marcados como “verificar”** no `description`. **Os preços dos provedores mudam com frequência; o admin deve conferir na página oficial de cada provedor antes de ativar.**
@@ -522,7 +522,7 @@ interface LlmProvider {
 
 - Uma classe `OpenAICompatibleProvider` serve para todos. Subclasses só se algum provedor precisar de ajuste (ex.: campo de reasoning, nome de parâmetro).
 - Em streaming, envie `stream_options: { include_usage: true }` ao upstream e leia `usage` do último chunk. Se o provedor não devolver usage, **estime** com contagem aproximada (`js-tiktoken` com `cl100k_base`) e marque `UsageLog.errorCode = "usage_estimated"`.
-- Repasse o SSE ao cliente chunk a chunk, reescrevendo `model` para o slug público da FuseAI. Nunca exponha o nome do provedor nem a URL upstream nas respostas.
+- Repasse o SSE ao cliente chunk a chunk, reescrevendo `model` para o slug público da fusai. Nunca exponha o nome do provedor nem a URL upstream nas respostas.
 - Se o cliente desconectar, aborte o upstream (`AbortController`) e cobre os tokens já gerados.
 
 ### 7.3 Roteamento e fallback
@@ -634,10 +634,10 @@ Implementar `AsaasProvider`. Deixar pasta pronta para `MercadoPagoProvider`/`Efi
 **Três formas de integrar, do mais simples ao mais customizado:**
 
 1. **Checkout hospedado** — `https://www.fusai.com.br/pay/{checkoutId}`: página mobile-first com QR, copia-e-cola, status ao vivo e tela de sucesso; aceita `?return_url=` (deep link ou URL). Funciona em **PWA, WebView e app nativo** (abrir no navegador/in-app browser).
-2. **Componente React** — `@fuseai/react`: `<FuseCheckout sessionToken={...} packageId="..." onPaid={...} />` e `<FuseBalance />`. Funciona em Next/React e PWA.
-3. **SDK/REST** — `@fuseai/sdk` (TS, roda em browser e React Native) ou REST puro para Flutter/Swift/Kotlin; o app desenha a própria UI de QR.
+2. **Componente React** — `@fusai/react`: `<FusaiCheckout sessionToken={...} packageId="..." onPaid={...} />` e `<FusaiBalance />`. Funciona em Next/React e PWA.
+3. **SDK/REST** — `@fusai/sdk` (TS, roda em browser e React Native) ou REST puro para Flutter/Swift/Kotlin; o app desenha a própria UI de QR.
 
-**Observação para apps nativos iOS/Android (incluir na doc e na landing, sem prometer o que não depende da FuseAI):** vender créditos digitais dentro de app de loja tem regras próprias. No Brasil, desde junho/2026 (iOS 26.5), a Apple passou a permitir meios de pagamento alternativos e links externos em apps da App Store após acordo com o CADE, com comissões próprias para essas modalidades. O Google Play tem política própria. O cliente é responsável por verificar as regras da loja dele; a FuseAI fornece o checkout hospedado e o SDK.
+**Observação para apps nativos iOS/Android (incluir na doc e na landing, sem prometer o que não depende da fusai):** vender créditos digitais dentro de app de loja tem regras próprias. No Brasil, desde junho/2026 (iOS 26.5), a Apple passou a permitir meios de pagamento alternativos e links externos em apps da App Store após acordo com o CADE, com comissões próprias para essas modalidades. O Google Play tem política própria. O cliente é responsável por verificar as regras da loja dele; a fusai fornece o checkout hospedado e o SDK.
 
 ### 9.4 Webhooks de saída para o cliente
 
@@ -670,7 +670,7 @@ Objetivo: o cliente gera uma chave, cola um comando na IA de programação dele 
 | `create_test_checkout` | Gera checkout Pix em sandbox (somente chave `test`). |
 | `send_test_webhook` | Dispara um evento de exemplo para o webhookUrl. |
 
-- **Resources:** `fuseai://docs/api` (referência completa), `fuseai://docs/sdk`, `fuseai://docs/checkout`, `fuseai://project` (config atual).
+- **Resources:** `fusai://docs/api` (referência completa), `fusai://docs/sdk`, `fusai://docs/checkout`, `fusai://project` (config atual).
 - **Prompts:** `integrar_chat`, `integrar_compra_pix`, `migrar_de_openai`.
 - Toda chamada MCP gera `AuditLog`.
 
@@ -679,11 +679,11 @@ Objetivo: o cliente gera uma chave, cola um comando na IA de programação dele 
 Ao gerar uma chave, a tela mostra, prontos para copiar:
 
 1. **Comandos MCP**:
-   - Claude Code: `claude mcp add --transport http fuseai https://api.fusai.com.br/mcp --header "Authorization: Bearer <CHAVE>"`
+   - Claude Code: `claude mcp add --transport http fusai https://api.fusai.com.br/mcp --header "Authorization: Bearer <CHAVE>"`
    - JSON para Cursor / VS Code / Claude Desktop (bloco `mcpServers` com `type: "http"`/`streamable-http`, url e header).
-2. **`.env` pronto**: `FUSEAI_API_KEY=...`, `FUSEAI_BASE_URL=https://api.fusai.com.br/v1`.
-3. **Botão “Baixar FUSEAI.md”**: arquivo de instruções para a IA do cliente colocar na raiz do projeto, gerado dinamicamente com os dados do projeto (sem a chave), contendo: regras (não expor secret key no front; usar session token), endpoints, exemplos, fluxo Pix, webhooks e checklist de testes.
-4. **Prompt sugerido** para colar na IA: “Leia o FUSEAI.md e use o MCP fuseai para integrar chat com IA e compra de créditos via Pix neste projeto.”
+2. **`.env` pronto**: `FUSAI_API_KEY=...`, `FUSAI_BASE_URL=https://api.fusai.com.br/v1`.
+3. **Botão “Baixar FUSAI.md”**: arquivo de instruções para a IA do cliente colocar na raiz do projeto, gerado dinamicamente com os dados do projeto (sem a chave), contendo: regras (não expor secret key no front; usar session token), endpoints, exemplos, fluxo Pix, webhooks e checklist de testes.
+4. **Prompt sugerido** para colar na IA: “Leia o FUSAI.md e use o MCP fusai para integrar chat com IA e compra de créditos via Pix neste projeto.”
 5. Exemplo “migrar do OpenAI”: só trocar `baseURL` e `apiKey` no SDK oficial da OpenAI.
 
 ### 10.3 Docs públicas
@@ -698,7 +698,7 @@ Ao gerar uma chave, a tela mostra, prontos para copiar:
 ### 11.1 Design system
 
 - **Dark-first** com modo claro; fonte **Geist** e **Geist Mono**; cantos `rounded-2xl`; bordas sutis; muito espaço em branco.
-- Cor de marca “fuse”: gradiente **âmbar `#F59E0B` → rosa `#EC4899` → violeta `#8B5CF6`**, usado com parcimônia (logo, CTAs, destaques de gráfico).
+- Cor de marca (logo oficial “fusai”): gradiente **azul-marinho `#162A9E` → azul `#0066FE` → ciano `#00D2FF`**, com tinta `#0A0E1A`; usado com parcimônia (logo, CTAs, destaques de gráfico).
 - Fundo landing: grid sutil + glow radial do gradiente; seções com animações de entrada leves (`motion`, respeitar `prefers-reduced-motion`).
 - Componentes: shadcn/ui (Button, Card, Dialog, Sheet, Table com TanStack Table, Tabs, Badge, Sonner para toasts, Command para busca).
 - Logo: wordmark “fuse**ai**” com o “ai” em gradiente; ícone de dois traços se fundindo. Gere em SVG.
@@ -708,7 +708,7 @@ Ao gerar uma chave, a tela mostra, prontos para copiar:
 
 Seções, nesta ordem:
 1. **Header** fixo com blur: logo, Modelos, Preços, Docs, Entrar, botão “Começar grátis”.
-2. **Hero**: título forte (ex.: “Uma API. Os melhores modelos de IA. Pague com Pix.”), subtítulo sobre economia com modelos de ponta a preço baixo, CTAs “Criar conta” e “Ver docs”, e um bloco de código animado mostrando `baseURL` trocado para FuseAI.
+2. **Hero**: título forte (ex.: “Uma API. Os melhores modelos de IA. Pague com Pix.”), subtítulo sobre economia com modelos de ponta a preço baixo, CTAs “Criar conta” e “Ver docs”, e um bloco de código animado mostrando `baseURL` trocado para fusai.
 3. **Logos/modelos suportados** (texto/nome, sem usar logos de terceiros sem permissão).
 4. **Como funciona** (3 passos): Crie a conta → Gere a chave e conecte o MCP → Sua IA integra e seus usuários pagam com Pix.
 5. **Recursos**: API compatível com OpenAI, Pix instantâneo, créditos para usuários finais dentro do app, MCP para IA de programação, painel de consumo, fallback automático.
@@ -800,7 +800,7 @@ ASAAS_API_KEY=
 ASAAS_WEBHOOK_TOKEN=change-me
 
 # Email
-EMAIL_FROM="FuseAI <nao-responda@fusai.com.br>"
+EMAIL_FROM="fusai <nao-responda@fusai.com.br>"
 RESEND_API_KEY=
 SMTP_URL=smtp://localhost:1025           # Mailpit em dev
 
@@ -851,7 +851,7 @@ Cada fase termina com critérios de aceite verificáveis. Commit ao final de cad
 
 ### Fase 4 — Chaves de API e gateway
 - Criação/revogação de chaves; `/v1/models`, `/v1/chat/completions` (normal e stream), fallback, circuit breaker, rate limit, UsageLog.
-- **Aceite:** o SDK oficial `openai` (Node) apontando para `http://localhost:4000/v1` com uma chave FuseAI funciona com e sem stream; saldo debitado = tokens × preço; sem saldo → 402; chave revogada → 401.
+- **Aceite:** o SDK oficial `openai` (Node) apontando para `http://localhost:4000/v1` com uma chave fusai funciona com e sem stream; saldo debitado = tokens × preço; sem saldo → 402; chave revogada → 401.
 
 ### Fase 5 — Painel do cliente
 - Visão geral, projetos, chaves, carteira (extrato), consumo, logs, equipe, configurações.
@@ -862,11 +862,11 @@ Cada fase termina com critérios de aceite verificáveis. Commit ao final de cad
 - **Aceite (sandbox Asaas):** gerar Pix, simular pagamento no sandbox, crédito aparece uma única vez mesmo reenviando o webhook 3×.
 
 ### Fase 7 — Usuários finais e checkout no app
-- AppUsers, session tokens, pacotes do projeto, `/v1/checkout/pix`, página `/pay/[id]`, `@fuseai/sdk`, `@fuseai/react`, webhooks de saída com HMAC e retry.
-- **Aceite:** app de exemplo em `examples/next-pwa` (mínimo) cria AppUser, compra pacote via `<FuseCheckout/>` em sandbox, recebe webhook assinado e consome IA debitando a carteira do usuário final.
+- AppUsers, session tokens, pacotes do projeto, `/v1/checkout/pix`, página `/pay/[id]`, `@fusai/sdk`, `@fusai/react`, webhooks de saída com HMAC e retry.
+- **Aceite:** app de exemplo em `examples/next-pwa` (mínimo) cria AppUser, compra pacote via `<FusaiCheckout/>` em sandbox, recebe webhook assinado e consome IA debitando a carteira do usuário final.
 
 ### Fase 8 — MCP e Kit de Integração
-- Servidor MCP com tools/resources/prompts; página Kit de Integração; gerador do `FUSEAI.md`; docs MDX; `llms.txt`.
+- Servidor MCP com tools/resources/prompts; página Kit de Integração; gerador do `FUSAI.md`; docs MDX; `llms.txt`.
 - **Aceite:** `claude mcp add ...` com chave local conecta; `get_integration_guide` retorna guia personalizado; MCP Inspector lista todas as tools.
 
 ### Fase 9 — Landing page
@@ -894,8 +894,8 @@ Cada fase termina com critérios de aceite verificáveis. Commit ao final de cad
 
 ## 17. Glossário
 
-- **Créditos**: saldo pré-pago em R$ dentro da FuseAI.
+- **Créditos**: saldo pré-pago em R$ dentro da fusai.
 - **Reserva (hold)**: valor bloqueado temporariamente durante uma requisição de IA.
 - **AppUser**: usuário final do app de um cliente.
-- **Session token**: JWT curto que permite ao front/app do cliente chamar a FuseAI em nome de um AppUser sem expor a secret key.
+- **Session token**: JWT curto que permite ao front/app do cliente chamar a fusai em nome de um AppUser sem expor a secret key.
 - **Margem/markup**: multiplicador aplicado sobre o custo do provedor convertido em reais.

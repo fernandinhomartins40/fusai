@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
-import { prisma as defaultPrisma, type PrismaClient } from '@fuseai/db';
+import { prisma as defaultPrisma, type PrismaClient } from '@fusai/db';
 import Fastify, { type FastifyError } from 'fastify';
 import {
   hasZodFastifySchemaValidationErrors,

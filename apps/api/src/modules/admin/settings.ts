@@ -1,5 +1,5 @@
-import type { PrismaClient } from '@fuseai/db';
-import { settingsSchema } from '@fuseai/shared';
+import type { PrismaClient } from '@fusai/db';
+import { settingsSchema } from '@fusai/shared';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { audit } from '../../lib/audit';
 import type { SettingsStore } from '../../lib/settings';

@@ -1,5 +1,5 @@
-import type { Model } from '@fuseai/db';
-import { costForTokens, type ModelPrices, mulDecimalsCeil } from '@fuseai/shared';
+import type { Model } from '@fusai/db';
+import { costForTokens, type ModelPrices, mulDecimalsCeil } from '@fusai/shared';
 import { getEncoding, type Tiktoken } from 'js-tiktoken';
 import type { ChatUsage } from '../../providers/types';
 

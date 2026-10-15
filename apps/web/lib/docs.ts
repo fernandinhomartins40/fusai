@@ -1,5 +1,5 @@
 import 'server-only';
-import { DOC_PAGES, type DocPage, renderDoc } from '@fuseai/docs';
+import { DOC_PAGES, type DocPage, renderDoc } from '@fusai/docs';
 import { Marked } from 'marked';
 import { API_URL, APP_URL } from './config';
 

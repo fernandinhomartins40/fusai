@@ -1,9 +1,9 @@
 'use client';
 
-import { brlToMicros } from '@fuseai/shared';
-import { Button } from '@fuseai/ui/components/button';
-import { Dialog } from '@fuseai/ui/components/dialog';
-import { Input } from '@fuseai/ui/components/input';
+import { brlToMicros } from '@fusai/shared';
+import { Button } from '@fusai/ui/components/button';
+import { Dialog } from '@fusai/ui/components/dialog';
+import { Input } from '@fusai/ui/components/input';
 import {
   Table,
   TableBody,
@@ -11,7 +11,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@fuseai/ui/components/table';
+} from '@fusai/ui/components/table';
 import { Loader2, Search, Users } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -226,7 +226,7 @@ function AdjustForm({
         ).map(([value, label]) => (
           <label
             key={value}
-            className="flex cursor-pointer items-center gap-2 rounded-xl border p-3 text-sm hover:bg-accent/50 has-[:checked]:border-fuse-pink/60 has-[:checked]:bg-accent/40"
+            className="flex cursor-pointer items-center gap-2 rounded-xl border p-3 text-sm hover:bg-accent/50 has-[:checked]:border-fusai-accent/60 has-[:checked]:bg-accent/40"
           >
             <input
               type="radio"
@@ -234,7 +234,7 @@ function AdjustForm({
               value={value}
               checked={kind === value}
               onChange={() => setKind(value)}
-              className="accent-[var(--fuse-pink)]"
+              className="accent-[var(--fusai-accent)]"
             />
             {label}
           </label>

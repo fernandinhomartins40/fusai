@@ -14,7 +14,7 @@ import type {
 export const DEFAULT_BASE_URL = 'https://api.fusai.com.br/v1';
 
 /** Error in the OpenAI format returned by the gateway: `{ error: { message, type, code } }`. */
-export class FuseAIError extends Error {
+export class FusaiError extends Error {
   constructor(
     readonly status: number,
     readonly code: string,
@@ -22,11 +22,11 @@ export class FuseAIError extends Error {
     readonly type = 'api_error',
   ) {
     super(message);
-    this.name = 'FuseAIError';
+    this.name = 'FusaiError';
   }
 }
 
-export type FuseAIOptions = {
+export type FusaiOptions = {
   /**
    * Secret key `fai_live_…` — ONLY on your server. In browsers and apps use `sessionToken`.
    */
@@ -43,21 +43,21 @@ export type FuseAIOptions = {
 type RequestOptions = { body?: unknown; headers?: Record<string, string>; signal?: AbortSignal };
 
 /**
- * FuseAI client (PRD §9.3). Works in browsers, Node 18+ and React Native (needs `fetch`).
+ * fusai client (PRD §9.3). Works in browsers, Node 18+ and React Native (needs `fetch`).
  * Chat is OpenAI-compatible: the official `openai` SDK also works with `baseURL`.
  */
-export class FuseAI {
+export class Fusai {
   private readonly baseUrl: string;
   private readonly fetchImpl: typeof fetch;
   private token: string | null = null;
   private pending: Promise<string> | null = null;
 
-  constructor(private readonly options: FuseAIOptions) {
+  constructor(private readonly options: FusaiOptions) {
     if (!options.apiKey && !options.sessionToken) {
-      throw new Error('FuseAI: informe apiKey (servidor) ou sessionToken (app).');
+      throw new Error('fusai: informe apiKey (servidor) ou sessionToken (app).');
     }
     if (options.apiKey && typeof window !== 'undefined' && typeof document !== 'undefined') {
-      console.warn('FuseAI: não use a chave secreta no navegador. Use um session token.');
+      console.warn('fusai: não use a chave secreta no navegador. Use um session token.');
     }
     this.baseUrl = (options.baseUrl ?? DEFAULT_BASE_URL).replace(/\/+$/, '');
     this.fetchImpl = options.fetch ?? globalThis.fetch.bind(globalThis);
@@ -79,7 +79,7 @@ export class FuseAI {
       });
       this.token = await this.pending;
     }
-    if (!this.token) throw new Error('FuseAI: session token ausente.');
+    if (!this.token) throw new Error('fusai: session token ausente.');
     return this.token;
   }
 
@@ -109,7 +109,7 @@ export class FuseAI {
       const data = (await res.json().catch(() => null)) as {
         error?: { message?: string; code?: string; type?: string };
       } | null;
-      throw new FuseAIError(
+      throw new FusaiError(
         res.status,
         data?.error?.code ?? `http_${res.status}`,
         data?.error?.message ?? `Erro HTTP ${res.status}`,
@@ -145,7 +145,7 @@ export class FuseAI {
       body: { ...body, stream: true, stream_options: { include_usage: true } },
       signal,
     });
-    if (!res.body) throw new FuseAIError(500, 'no_stream', 'Resposta sem stream');
+    if (!res.body) throw new FusaiError(500, 'no_stream', 'Resposta sem stream');
     const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
     let buffer = '';
     try {
@@ -165,7 +165,7 @@ export class FuseAI {
               error?: { message: string; code?: string };
             };
             if (parsed.error) {
-              throw new FuseAIError(500, parsed.error.code ?? 'stream_error', parsed.error.message);
+              throw new FusaiError(500, parsed.error.code ?? 'stream_error', parsed.error.message);
             }
             yield parsed;
           }

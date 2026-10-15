@@ -6,8 +6,8 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@fuseai/ui/components/card';
-import { cn } from '@fuseai/ui/lib/utils';
+} from '@fusai/ui/components/card';
+import { cn } from '@fusai/ui/lib/utils';
 import { Check } from 'lucide-react';
 import { useState } from 'react';
 import { KeyStep } from './key-step';
@@ -34,7 +34,7 @@ export function OnboardingWizard({
       <div>
         <h1 className="font-semibold text-2xl tracking-tight">Boas-vindas, {userName}!</h1>
         <p className="mt-1 text-muted-foreground">
-          Três passos rápidos para começar a usar a FuseAI.
+          Três passos rápidos para começar a usar a fusai.
         </p>
       </div>
 
@@ -48,7 +48,7 @@ export function OnboardingWizard({
             <span
               className={cn(
                 'flex size-7 shrink-0 items-center justify-center rounded-full border font-medium text-xs',
-                i < step && 'border-transparent bg-fuse-gradient text-white',
+                i < step && 'border-transparent bg-fusai-fill text-white',
                 i === step && 'border-foreground',
                 i > step && 'text-muted-foreground',
               )}
@@ -93,7 +93,7 @@ export function OnboardingWizard({
             <CardHeader>
               <CardTitle>Sua chave de API</CardTitle>
               <CardDescription>
-                Use-a no servidor do seu app para chamar a FuseAI com o SDK da OpenAI.
+                Use-a no servidor do seu app para chamar a fusai com o SDK da OpenAI.
               </CardDescription>
             </CardHeader>
             <CardContent>

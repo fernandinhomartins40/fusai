@@ -1,4 +1,4 @@
-import { Label } from '@fuseai/ui/components/label';
+import { Label } from '@fusai/ui/components/label';
 import type { ReactNode } from 'react';
 
 type FieldProps = {

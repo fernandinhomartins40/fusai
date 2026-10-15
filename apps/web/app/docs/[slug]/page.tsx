@@ -1,4 +1,4 @@
-import { DOC_PAGES, getDoc } from '@fuseai/docs';
+import { DOC_PAGES, getDoc } from '@fusai/docs';
 import { ArrowLeft, ArrowRight, FileText } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';

@@ -53,7 +53,7 @@ const stream = await client.chat.completions.create({
 for await (const chunk of stream) process.stdout.write(chunk.choices[0]?.delta?.content ?? '');
 ```
 
-Se o cliente desconectar no meio, a FuseAI cobra só o que foi gerado até ali.
+Se o cliente desconectar no meio, a fusai cobra só o que foi gerado até ali.
 
 ## Ferramentas (function calling)
 
@@ -61,11 +61,11 @@ Se o cliente desconectar no meio, a FuseAI cobra só o que foi gerado até ali.
 
 ## Como a cobrança funciona
 
-1. Antes de chamar o modelo, a FuseAI **reserva** uma estimativa (entrada + `max_tokens` de saída). Sem saldo para a reserva: `402 insufficient_funds`.
+1. Antes de chamar o modelo, a fusai **reserva** uma estimativa (entrada + `max_tokens` de saída). Sem saldo para a reserva: `402 insufficient_funds`.
 2. No fim, cobra o uso real (`prompt_tokens × preço de entrada + completion_tokens × preço de saída`, com tokens em cache mais baratos) e devolve o resto da reserva.
 
 Dica: defina `max_tokens` para reservar menos e evitar 402 com saldo baixo.
 
 ## Fallback
 
-Se o provedor do modelo falhar (erro 5xx, timeout ou limite), a FuseAI tenta automaticamente os modelos de reserva configurados. Nesse caso, o campo `model` da resposta mostra o modelo que realmente respondeu, e a cobrança usa o preço dele. A reserva prévia já considera o mais caro entre o pedido e os de reserva.
+Se o provedor do modelo falhar (erro 5xx, timeout ou limite), a fusai tenta automaticamente os modelos de reserva configurados. Nesse caso, o campo `model` da resposta mostra o modelo que realmente respondeu, e a cobrança usa o preço dele. A reserva prévia já considera o mais caro entre o pedido e os de reserva.

@@ -1,4 +1,4 @@
-import type { PrismaClient } from '@fuseai/db';
+import type { PrismaClient } from '@fusai/db';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import type { Env } from '../../lib/env';
 import type { sessionGuards } from '../../lib/session';

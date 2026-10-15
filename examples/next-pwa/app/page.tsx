@@ -1,10 +1,10 @@
 'use client';
 
-import { FuseBalance, FuseCheckout, FuseProvider, useFuseClient } from '@fuseai/react';
-import type { Model } from '@fuseai/sdk';
+import { FusaiBalance, FusaiCheckout, FusaiProvider, useFusaiClient } from '@fusai/react';
+import type { Model } from '@fusai/sdk';
 import { useCallback, useEffect, useState } from 'react';
 
-const BASE_URL = process.env.NEXT_PUBLIC_FUSE_BASE_URL;
+const BASE_URL = process.env.NEXT_PUBLIC_FUSAI_BASE_URL;
 
 /** Asks OUR backend for a fresh session token (it holds the secret key). */
 async function getSessionToken() {
@@ -22,35 +22,35 @@ export default function Home() {
   }, []);
 
   return (
-    <FuseProvider sessionToken={getSessionToken} baseUrl={BASE_URL}>
+    <FusaiProvider sessionToken={getSessionToken} baseUrl={BASE_URL}>
       <main>
         <header style={{ display: 'grid', gap: 4 }}>
           <h1>Demo: app com créditos de IA via Pix</h1>
           <p className="muted">
-            Exemplo mínimo da FuseAI: o usuário compra créditos com Pix e conversa com a IA. O
+            Exemplo mínimo da fusai: o usuário compra créditos com Pix e conversa com a IA. O
             consumo sai da carteira dele.
           </p>
         </header>
 
         <section className="card" aria-labelledby="saldo">
           <h2 id="saldo">Seu saldo</h2>
-          <FuseBalance className="balance" refreshKey={refreshKey} refreshIntervalMs={15_000} />
+          <FusaiBalance className="balance" refreshKey={refreshKey} refreshIntervalMs={15_000} />
         </section>
 
         <section aria-labelledby="comprar">
           <h2 id="comprar">Comprar créditos</h2>
-          <FuseCheckout onPaid={bump} style={{ maxWidth: 'none' }} />
+          <FusaiCheckout onPaid={bump} style={{ maxWidth: 'none' }} />
         </section>
 
         <Chat onDone={bump} />
         <Webhooks refreshKey={refreshKey} />
       </main>
-    </FuseProvider>
+    </FusaiProvider>
   );
 }
 
 function Chat({ onDone }: { onDone: () => void }) {
-  const fuse = useFuseClient();
+  const fuse = useFusaiClient();
   const [models, setModels] = useState<Model[]>([]);
   const [model, setModel] = useState('');
   const [prompt, setPrompt] = useState('Explique Pix em uma frase.');

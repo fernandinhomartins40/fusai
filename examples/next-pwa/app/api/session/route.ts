@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server';
 import { fuseServer } from '@/lib/fuse-server';
 
 /**
- * Your backend: identify the signed-in user (here a demo cookie), make sure the FuseAI end user
+ * Your backend: identify the signed-in user (here a demo cookie), make sure the fusai end user
  * exists, and hand the browser a short-lived session token (15 min). The secret key stays here.
  */
 export async function POST() {

@@ -1,5 +1,5 @@
 'use client';
 
-export { type FuseClientProps, FuseProvider, useFuseClient } from './context';
-export { FuseBalance } from './fuse-balance';
-export { FuseCheckout } from './fuse-checkout';
+export { type FusaiClientProps, FusaiProvider, useFusaiClient } from './context';
+export { FusaiBalance } from './fuse-balance';
+export { FusaiCheckout } from './fuse-checkout';

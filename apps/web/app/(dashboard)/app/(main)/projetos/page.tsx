@@ -1,5 +1,5 @@
-import { Badge } from '@fuseai/ui/components/badge';
-import { Card, CardDescription, CardHeader, CardTitle } from '@fuseai/ui/components/card';
+import { Badge } from '@fusai/ui/components/badge';
+import { Card, CardDescription, CardHeader, CardTitle } from '@fusai/ui/components/card';
 import { ChevronRight } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
@@ -28,7 +28,7 @@ export default async function ProjectsPage() {
       <div className="grid gap-4 sm:grid-cols-2">
         {org.projects.map((p) => (
           <Link key={p.id} href={`/app/projetos/${p.id}`} className="group rounded-2xl">
-            <Card className="transition-colors group-hover:border-fuse-pink/40">
+            <Card className="transition-colors group-hover:border-fusai-accent/40">
               <CardHeader>
                 <div className="flex items-center justify-between gap-2">
                   <CardTitle className="truncate">{p.name}</CardTitle>

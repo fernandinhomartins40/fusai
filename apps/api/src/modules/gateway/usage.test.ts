@@ -1,4 +1,4 @@
-import { Prisma } from '@fuseai/db';
+import { Prisma } from '@fusai/db';
 import { describe, expect, it } from 'vitest';
 import { chargeFor, countTokens, estimateUsage, normalizeUsage, providerCost } from './usage';
 

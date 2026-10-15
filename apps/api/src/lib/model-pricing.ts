@@ -1,4 +1,4 @@
-import type { Model } from '@fuseai/db';
+import type { Model } from '@fusai/db';
 import {
   costBrlPerM,
   type ModelPriceInput,
@@ -6,7 +6,7 @@ import {
   marginBps,
   modelPrices,
   type Settings,
-} from '@fuseai/shared';
+} from '@fusai/shared';
 
 type Decimalish = { toFixed(): string };
 

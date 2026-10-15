@@ -1,6 +1,6 @@
-import { Badge } from '@fuseai/ui/components/badge';
-import { Button } from '@fuseai/ui/components/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@fuseai/ui/components/card';
+import { Badge } from '@fusai/ui/components/badge';
+import { Button } from '@fusai/ui/components/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@fusai/ui/components/card';
 import { KeyRound, Pencil, Plus } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';

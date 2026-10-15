@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Deploy da FuseAI na VPS. Executado SÓ pelo GitHub Actions (.github/workflows/deploy.yml),
+# Deploy da fusai na VPS. Executado SÓ pelo GitHub Actions (.github/workflows/deploy.yml),
 # depois do rsync desta pasta para /root/fuseai/deploy. Nunca rode à mão em produção.
 #
 # Entrada (variáveis de ambiente):
@@ -51,7 +51,7 @@ SESSION_TOKEN_SECRET=$(openssl rand -hex 32)
 ASAAS_ENV=sandbox
 ASAAS_API_KEY=
 ASAAS_WEBHOOK_TOKEN=$(openssl rand -hex 32)
-EMAIL_FROM=FuseAI <nao-responda@fusai.com.br>
+EMAIL_FROM=fusai <nao-responda@fusai.com.br>
 RESEND_API_KEY=
 SMTP_URL=smtp://localhost:1025
 SEED_ADMIN_EMAIL=admin@fusai.com.br
@@ -77,7 +77,7 @@ set_env APP_URL https://www.fusai.com.br
 set_env API_URL https://api.fusai.com.br
 set_env BETTER_AUTH_URL https://api.fusai.com.br
 set_env COOKIE_DOMAIN fusai.com.br
-set_env EMAIL_FROM 'FuseAI <nao-responda@fusai.com.br>'
+set_env EMAIL_FROM 'fusai <nao-responda@fusai.com.br>'
 
 compose() { docker compose -f docker-compose.vps.yml --env-file .env --env-file "$1" "${@:2}"; }
 

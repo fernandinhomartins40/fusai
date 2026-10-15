@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { once } from 'node:events';
-import type { PrismaClient } from '@fuseai/db';
-import { estimateHoldMicros } from '@fuseai/shared';
+import type { PrismaClient } from '@fusai/db';
+import { estimateHoldMicros } from '@fusai/shared';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { priceModel } from '../../lib/model-pricing';

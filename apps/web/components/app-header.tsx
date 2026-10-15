@@ -1,5 +1,5 @@
-import { Badge } from '@fuseai/ui/components/badge';
-import { Logo } from '@fuseai/ui/logo';
+import { Badge } from '@fusai/ui/components/badge';
+import { Logo } from '@fusai/ui/logo';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { SignOutButton } from './sign-out-button';

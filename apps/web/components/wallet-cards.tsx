@@ -1,5 +1,5 @@
-import { formatBRL } from '@fuseai/shared';
-import { Card, CardDescription, CardHeader, CardTitle } from '@fuseai/ui/components/card';
+import { formatBRL } from '@fusai/shared';
+import { Card, CardDescription, CardHeader, CardTitle } from '@fusai/ui/components/card';
 import type { WalletInfo } from '@/lib/wallet-types';
 
 /** Balance / reserved / available, shared by the customer wallet and the admin customer page. */

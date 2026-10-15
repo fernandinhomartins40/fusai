@@ -1,4 +1,4 @@
-import { formatBRL } from '@fuseai/shared';
+import { formatBRL } from '@fusai/shared';
 import {
   Table,
   TableBody,
@@ -6,7 +6,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@fuseai/ui/components/table';
+} from '@fusai/ui/components/table';
 import type { Metadata } from 'next';
 import { DailySpendChart } from '@/components/charts/daily-spend-chart';
 import { ModelSpendChart } from '@/components/charts/model-spend-chart';

@@ -4,7 +4,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@fuseai/ui/components/card';
+} from '@fusai/ui/components/card';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { ProjectSettingsForm } from '@/components/projects/project-settings-form';

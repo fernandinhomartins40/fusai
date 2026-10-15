@@ -1,7 +1,7 @@
 import { createHmac } from 'node:crypto';
 import { createServer, type IncomingHttpHeaders } from 'node:http';
 import type { AddressInfo } from 'node:net';
-import { prisma } from '@fuseai/db';
+import { prisma } from '@fusai/db';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { startFakeAsaas } from '../../../test/fake-asaas';
 import { startFakeLlm } from '../../../test/fake-llm';
@@ -527,12 +527,12 @@ describe('end users, session tokens and Pix checkout (Phase 7)', () => {
     expect(tooMuch.statusCode).toBe(400);
     expect((await appUserWallet(user.id)).balanceMicros).toBe(3_500_000n);
 
-    // Kit de Integração: FUSEAI.md download (no secrets inside).
-    const md = await dash('GET', `${base}/fuseai-md`, owner);
+    // Kit de Integração: FUSAI.md download (no secrets inside).
+    const md = await dash('GET', `${base}/fusai-md`, owner);
     expect(md.statusCode).toBe(200);
     expect(md.headers['content-type']).toContain('text/markdown');
-    expect(md.headers['content-disposition']).toContain('FUSEAI.md');
-    expect(md.body).toContain('# FUSEAI.md');
+    expect(md.headers['content-disposition']).toContain('FUSAI.md');
+    expect(md.body).toContain('# FUSAI.md');
     expect(md.body).toContain('100 mensagens');
     expect(md.body).not.toContain(g.plain);
   });

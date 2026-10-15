@@ -7,7 +7,7 @@ import {
   type PrismaClient,
   type Project,
   type Wallet,
-} from '@fuseai/db';
+} from '@fusai/db';
 import {
   ceilDiv,
   centsToMicros,
@@ -16,7 +16,7 @@ import {
   mulDecimalsCeil,
   onlyDigits,
   type Settings,
-} from '@fuseai/shared';
+} from '@fusai/shared';
 import { HttpError } from '../../lib/errors';
 import type { NormalizedPaymentEvent, PaymentProvider } from '../../payments/types';
 import { applyLedger } from '../billing/wallet';
@@ -160,7 +160,7 @@ export async function createOrgTopup(
     provider,
     payment,
     customerId,
-    `FuseAI: ${formatBRL(baseMicros + bonusMicros)} em créditos (${org.name})`,
+    `fusai: ${formatBRL(baseMicros + bonusMicros)} em créditos (${org.name})`,
   );
 }
 

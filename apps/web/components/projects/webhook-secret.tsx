@@ -1,6 +1,6 @@
 'use client';
 
-import { Button } from '@fuseai/ui/components/button';
+import { Button } from '@fusai/ui/components/button';
 import { Eye, EyeOff, Loader2, RotateCw } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
@@ -66,7 +66,7 @@ export function WebhookSecret({ projectId, hasSecret }: { projectId: string; has
       <p className="text-muted-foreground text-xs">
         Cada entrega leva o header <code className="font-mono">X-Fuse-Signature: t=…,v1=…</code>{' '}
         (HMAC-SHA256 de <code className="font-mono">t + "." + corpo</code>) para você validar que
-        veio da FuseAI.
+        veio da fusai.
       </p>
     </div>
   );

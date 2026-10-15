@@ -1,7 +1,7 @@
 'use client';
 
-import { mcpSnippets } from '@fuseai/docs/kit';
-import { cn } from '@fuseai/ui/lib/utils';
+import { mcpSnippets } from '@fusai/docs/kit';
+import { cn } from '@fusai/ui/lib/utils';
 import { useState } from 'react';
 import { CodeBlock } from '@/components/copy-button';
 import { API_URL } from '@/lib/config';

@@ -1,6 +1,6 @@
 'use client';
 
-import { Button } from '@fuseai/ui/components/button';
+import { Button } from '@fusai/ui/components/button';
 import { ArrowRight, PartyPopper } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -31,7 +31,7 @@ export function KeyStep({ projectId, projectName }: { projectId: string; project
   return (
     <div className="grid gap-5">
       <div className="flex items-center gap-3">
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-fuse-gradient text-white">
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-fusai-fill text-white">
           <PartyPopper className="size-5" aria-hidden />
         </span>
         <div className="grid">

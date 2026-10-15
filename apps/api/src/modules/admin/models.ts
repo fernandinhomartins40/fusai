@@ -1,5 +1,5 @@
-import type { Model, Prisma, PrismaClient, Provider } from '@fuseai/db';
-import { fixedPricesMissing, modelCreateSchema, modelUpdateSchema } from '@fuseai/shared';
+import type { Model, Prisma, PrismaClient, Provider } from '@fusai/db';
+import { fixedPricesMissing, modelCreateSchema, modelUpdateSchema } from '@fusai/shared';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import { audit } from '../../lib/audit';

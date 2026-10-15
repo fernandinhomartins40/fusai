@@ -1,5 +1,5 @@
 /** Small CSS confetti burst in the brand colors (disabled by prefers-reduced-motion in the theme). */
-const COLORS = ['var(--fuse-amber)', 'var(--fuse-pink)', 'var(--fuse-violet)'];
+const COLORS = ['var(--fusai-navy)', 'var(--fusai-blue)', 'var(--fusai-cyan)'];
 
 export function Confetti() {
   return (

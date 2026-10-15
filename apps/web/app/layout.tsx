@@ -9,8 +9,8 @@ import './globals.css';
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.APP_URL ?? 'http://localhost:3000'),
   title: {
-    default: 'FuseAI — Uma API. Os melhores modelos de IA. Pague com Pix.',
-    template: '%s · FuseAI',
+    default: 'fusai — Uma API. Os melhores modelos de IA. Pague com Pix.',
+    template: '%s · fusai',
   },
   description:
     'Gateway de IA compatível com OpenAI, com os melhores modelos a preço baixo, créditos pré-pagos e recarga via Pix.',
@@ -18,8 +18,8 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: '(prefers-color-scheme: dark)', color: '#111014' },
-    { media: '(prefers-color-scheme: light)', color: '#fcfcfd' },
+    { media: '(prefers-color-scheme: dark)', color: '#0a0e1a' },
+    { media: '(prefers-color-scheme: light)', color: '#fbfcfe' },
   ],
 };
 

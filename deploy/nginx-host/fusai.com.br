@@ -1,7 +1,7 @@
 # nginx do HOST (VPS 72.60.10.112) para fusai.com.br, www.fusai.com.br e api.fusai.com.br.
 # Instalado UMA vez pelo deploy/setup-host.sh (com aprovação). Depois, o certbot (--nginx)
 # acrescenta os blocos HTTPS e o redirecionamento HTTP -> HTTPS, como nos outros sites.
-# O compose da FuseAI escuta só em 127.0.0.1:3500; o fuseai-nginx roteia pelo Host.
+# O compose da fusai escuta só em 127.0.0.1:3500; o fuseai-nginx roteia pelo Host.
 
 # Sem www -> www (endereço canônico).
 server {

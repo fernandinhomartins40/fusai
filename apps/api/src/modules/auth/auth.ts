@@ -1,5 +1,5 @@
-import type { PrismaClient } from '@fuseai/db';
-import { PASSWORD_MIN_LENGTH } from '@fuseai/shared';
+import type { PrismaClient } from '@fusai/db';
+import { PASSWORD_MIN_LENGTH } from '@fusai/shared';
 import { betterAuth } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
 import { resetPasswordEmail, verificationEmail } from '../../lib/email-templates';
@@ -16,7 +16,7 @@ export function createAuth(env: Env, prisma: PrismaClient, mailer: Mailer, redis
       : undefined;
 
   return betterAuth({
-    appName: 'FuseAI',
+    appName: 'fusai',
     baseURL: env.BETTER_AUTH_URL,
     basePath: '/api/auth',
     secret: env.BETTER_AUTH_SECRET,

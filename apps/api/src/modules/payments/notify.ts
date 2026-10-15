@@ -1,5 +1,5 @@
-import type { Payment, PrismaClient } from '@fuseai/db';
-import { centsToMicros, formatBRL } from '@fuseai/shared';
+import type { Payment, PrismaClient } from '@fusai/db';
+import { centsToMicros, formatBRL } from '@fusai/shared';
 import { paymentConfirmedEmail } from '../../lib/email-templates';
 import type { Mailer } from '../../lib/mailer';
 

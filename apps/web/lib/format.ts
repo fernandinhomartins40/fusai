@@ -1,4 +1,4 @@
-import { formatBps, formatBRL } from '@fuseai/shared';
+import { formatBps, formatBRL } from '@fusai/shared';
 
 /** "14520000" (micros) -> "R$ 14,52". */
 export const brl = (micros: string | bigint) => formatBRL(BigInt(micros));

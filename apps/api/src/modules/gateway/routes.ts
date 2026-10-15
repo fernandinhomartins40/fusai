@@ -1,5 +1,5 @@
-import type { PrismaClient } from '@fuseai/db';
-import { microsToBrl } from '@fuseai/shared';
+import type { PrismaClient } from '@fusai/db';
+import { microsToBrl } from '@fusai/shared';
 import type { FastifyError, FastifyPluginAsync } from 'fastify';
 import { hasZodFastifySchemaValidationErrors } from 'fastify-type-provider-zod';
 import { z } from 'zod';

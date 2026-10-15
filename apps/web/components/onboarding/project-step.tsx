@@ -1,9 +1,9 @@
 'use client';
 
-import { type BillingModeValue, createProjectSchema } from '@fuseai/shared';
-import { Button } from '@fuseai/ui/components/button';
-import { Input } from '@fuseai/ui/components/input';
-import { cn } from '@fuseai/ui/lib/utils';
+import { type BillingModeValue, createProjectSchema } from '@fusai/shared';
+import { Button } from '@fusai/ui/components/button';
+import { Input } from '@fusai/ui/components/input';
+import { cn } from '@fusai/ui/lib/utils';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Loader2 } from 'lucide-react';
 import { useState } from 'react';
@@ -83,13 +83,13 @@ export function ProjectStep({
             key={mode.value}
             className={cn(
               'flex cursor-pointer gap-3 rounded-xl border p-3 transition-colors hover:bg-accent/50',
-              selected === mode.value && 'border-fuse-pink/60 bg-accent/40',
+              selected === mode.value && 'border-fusai-accent/60 bg-accent/40',
             )}
           >
             <input
               type="radio"
               value={mode.value}
-              className="mt-1 accent-[var(--fuse-pink)]"
+              className="mt-1 accent-[var(--fusai-accent)]"
               {...form.register('billingMode')}
             />
             <span className="grid gap-0.5">

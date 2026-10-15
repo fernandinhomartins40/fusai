@@ -1,5 +1,5 @@
-import type { ApiKey, PrismaClient } from '@fuseai/db';
-import { apiKeyCreateSchema, apiKeyUpdateSchema } from '@fuseai/shared';
+import type { ApiKey, PrismaClient } from '@fusai/db';
+import { apiKeyCreateSchema, apiKeyUpdateSchema } from '@fusai/shared';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import { audit } from '../../lib/audit';

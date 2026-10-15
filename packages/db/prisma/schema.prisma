@@ -1,4 +1,4 @@
-// FuseAI database schema (PRD section 6).
+// fusai database schema (PRD section 6).
 // Money: integer micro-reais (BigInt). Pix amounts: integer cents. Provider costs: USD per 1M tokens.
 
 generator client {

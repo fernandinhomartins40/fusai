@@ -1,5 +1,5 @@
 {
-  "name": "@fuseai/api",
+  "name": "@fusai/api",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -15,9 +15,9 @@
   "dependencies": {
     "@fastify/cors": "11.3.1",
     "@fastify/helmet": "13.2.0",
-    "@fuseai/db": "workspace:*",
-    "@fuseai/docs": "workspace:*",
-    "@fuseai/shared": "workspace:*",
+    "@fusai/db": "workspace:*",
+    "@fusai/docs": "workspace:*",
+    "@fusai/shared": "workspace:*",
     "@modelcontextprotocol/sdk": "1.31.0",
     "@prisma/client": "6.19.3",
     "better-auth": "1.7.7",
@@ -32,7 +32,7 @@
     "zod": "^4.1.0"
   },
   "devDependencies": {
-    "@fuseai/config": "workspace:*",
+    "@fusai/config": "workspace:*",
     "@types/node": "22.20.5",
     "@types/nodemailer": "^8.0.2",
     "openai": "^6.49.0",

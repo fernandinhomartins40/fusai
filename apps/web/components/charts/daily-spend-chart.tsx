@@ -1,6 +1,6 @@
 'use client';
 
-import { formatBRL } from '@fuseai/shared';
+import { formatBRL } from '@fusai/shared';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import type { DailyPoint } from '@/lib/dashboard-types';
 import { ChartCard } from './chart-card';

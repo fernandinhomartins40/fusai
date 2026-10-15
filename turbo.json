@@ -24,7 +24,7 @@
     "RESEND_API_KEY",
     "SMTP_URL",
     "SEED_*",
-    "FUSE_*"
+    "FUSAI_*"
   ],
   "tasks": {
     "build": {

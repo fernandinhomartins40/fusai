@@ -1,12 +1,12 @@
 'use client';
 
-import { brlToMicros, formatBRL } from '@fuseai/shared';
-import { Badge } from '@fuseai/ui/components/badge';
-import { Button } from '@fuseai/ui/components/button';
-import { Dialog } from '@fuseai/ui/components/dialog';
-import { Input } from '@fuseai/ui/components/input';
-import { Label } from '@fuseai/ui/components/label';
-import { Switch } from '@fuseai/ui/components/switch';
+import { brlToMicros, formatBRL } from '@fusai/shared';
+import { Badge } from '@fusai/ui/components/badge';
+import { Button } from '@fusai/ui/components/button';
+import { Dialog } from '@fusai/ui/components/dialog';
+import { Input } from '@fusai/ui/components/input';
+import { Label } from '@fusai/ui/components/label';
+import { Switch } from '@fusai/ui/components/switch';
 import {
   Table,
   TableBody,
@@ -14,7 +14,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@fuseai/ui/components/table';
+} from '@fusai/ui/components/table';
 import { Loader2, Package, Plus } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -60,7 +60,7 @@ export function PackagesPanel({ projectId, packages, billingMode }: Props) {
         <div className="grid gap-0.5">
           <h2 className="font-semibold text-lg">Pacotes de créditos</h2>
           <p className="text-muted-foreground text-sm">
-            O que os usuários do seu app compram via Pix. O valor pago vai para a sua conta FuseAI;
+            O que os usuários do seu app compram via Pix. O valor pago vai para a sua conta fusai;
             os créditos vão para a carteira do usuário.
           </p>
         </div>
@@ -142,7 +142,7 @@ export function PackagesPanel({ projectId, packages, billingMode }: Props) {
         open={editing !== null}
         onClose={() => close(false)}
         title={editing === 'new' ? 'Novo pacote' : 'Editar pacote'}
-        description="Preço em reais; créditos e bônus em reais de saldo FuseAI."
+        description="Preço em reais; créditos e bônus em reais de saldo fusai."
       >
         {editing ? (
           <PackageForm
@@ -279,7 +279,7 @@ function PackageForm({
       </div>
       <p className="text-muted-foreground text-xs">
         A margem é sua: o usuário paga o preço e recebe créditos + bônus, que são consumidos pelos
-        preços da FuseAI.
+        preços da fusai.
       </p>
       <Button type="submit" variant="brand" disabled={pending || !name.trim()}>
         {pending ? <Loader2 className="animate-spin" /> : null}

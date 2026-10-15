@@ -1,10 +1,10 @@
 'use client';
 
-import { brlToMicros, centsToMicros, formatBRL } from '@fuseai/shared';
-import { Button } from '@fuseai/ui/components/button';
-import { Dialog } from '@fuseai/ui/components/dialog';
-import { Input } from '@fuseai/ui/components/input';
-import { cn } from '@fuseai/ui/lib/utils';
+import { brlToMicros, centsToMicros, formatBRL } from '@fusai/shared';
+import { Button } from '@fusai/ui/components/button';
+import { Dialog } from '@fusai/ui/components/dialog';
+import { Input } from '@fusai/ui/components/input';
+import { cn } from '@fusai/ui/lib/utils';
 import { useQuery } from '@tanstack/react-query';
 import { CheckCircle2, Clock, Loader2, Plus } from 'lucide-react';
 import Link from 'next/link';
@@ -146,7 +146,7 @@ export function TopupDialog({
                       key={p.id}
                       className={cn(
                         'relative grid cursor-pointer gap-0.5 rounded-xl border p-3 transition-colors hover:bg-accent/50 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring',
-                        selected && 'border-fuse-pink/70 bg-accent/40',
+                        selected && 'border-fusai-accent/70 bg-accent/40',
                       )}
                     >
                       <input
@@ -161,7 +161,7 @@ export function TopupDialog({
                         className="sr-only"
                       />
                       {p.highlight ? (
-                        <span className="absolute top-2 right-2 rounded-full bg-fuse-gradient px-1.5 py-0.5 font-medium text-[10px] text-white">
+                        <span className="absolute top-2 right-2 rounded-full bg-fusai-fill px-1.5 py-0.5 font-medium text-[10px] text-white">
                           popular
                         </span>
                       ) : null}
@@ -179,7 +179,7 @@ export function TopupDialog({
               htmlFor="custom-amount"
               className={cn(
                 'grid gap-2 rounded-xl border p-3',
-                mode === 'custom' && 'border-fuse-pink/70 bg-accent/40',
+                mode === 'custom' && 'border-fusai-accent/70 bg-accent/40',
               )}
             >
               <span className="font-medium text-sm">Outro valor (R$)</span>
@@ -264,7 +264,7 @@ export function TopupDialog({
               aria-live="polite"
             >
               <span className="flex items-center gap-2">
-                <Loader2 className="size-4 animate-spin text-fuse-pink" aria-hidden />
+                <Loader2 className="size-4 animate-spin text-fusai-accent" aria-hidden />
                 Aguardando pagamento…
               </span>
               {countdown ? (

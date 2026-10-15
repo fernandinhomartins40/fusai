@@ -94,7 +94,7 @@ export type Checkout = {
   qrBase64: string | null;
   expiresAt: string | null;
   paidAt: string | null;
-  /** FuseAI hosted page for this checkout (open in the browser / in-app browser). */
+  /** fusai hosted page for this checkout (open in the browser / in-app browser). */
   hostedUrl: string;
   createdAt: string;
 };
@@ -130,7 +130,7 @@ export type SessionToken = {
   scopes: string[];
 };
 
-/** Payload of a FuseAI webhook (header X-Fuse-Event = type). */
+/** Payload of a fusai webhook (header X-Fuse-Event = type). */
 export type WebhookEvent<T = Record<string, unknown>> = {
   id: string;
   type:

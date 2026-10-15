@@ -1,4 +1,4 @@
-import { Button } from '@fuseai/ui/components/button';
+import { Button } from '@fusai/ui/components/button';
 import { Download } from 'lucide-react';
 import { API_URL } from '@/lib/config';
 

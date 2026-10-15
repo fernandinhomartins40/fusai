@@ -10,7 +10,7 @@ export const buttonVariants = cva(
       variant: {
         default: 'bg-primary text-primary-foreground hover:bg-primary/90',
         brand:
-          'bg-fuse-gradient text-white shadow-lg shadow-fuse-pink/20 hover:brightness-110 hover:shadow-fuse-pink/30',
+          'bg-fusai-fill text-white shadow-lg shadow-fusai-blue/25 hover:brightness-110 hover:shadow-fusai-blue/40',
         secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
         outline: 'border bg-background hover:bg-accent hover:text-accent-foreground',
         ghost: 'hover:bg-accent hover:text-accent-foreground',

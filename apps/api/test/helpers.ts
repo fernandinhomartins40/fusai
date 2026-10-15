@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { prisma } from '@fuseai/db';
+import { prisma } from '@fusai/db';
 import { buildApp } from '../src/app';
 import { testEnv } from '../src/lib/env';
 import { createMemoryJobQueue } from '../src/lib/jobs';

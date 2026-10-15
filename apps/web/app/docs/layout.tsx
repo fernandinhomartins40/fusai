@@ -1,5 +1,5 @@
-import { DOC_PAGES } from '@fuseai/docs';
-import { Logo } from '@fuseai/ui/logo';
+import { DOC_PAGES } from '@fusai/docs';
+import { Logo } from '@fusai/ui/logo';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { DocsNav } from '@/components/docs/docs-nav';
@@ -11,7 +11,7 @@ export default function DocsLayout({ children }: { children: ReactNode }) {
       <header className="sticky top-0 z-30 border-b bg-background/80 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
           <div className="flex items-center gap-3">
-            <Link href="/" aria-label="FuseAI — página inicial">
+            <Link href="/" aria-label="fusai — página inicial">
               <Logo />
             </Link>
             <span className="text-muted-foreground text-sm">Docs</span>

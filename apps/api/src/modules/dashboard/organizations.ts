@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto';
-import type { BillingMode, PrismaClient } from '@fuseai/db';
-import { slugify } from '@fuseai/shared';
+import type { BillingMode, PrismaClient } from '@fusai/db';
+import { slugify } from '@fusai/shared';
 import type { SettingsStore } from '../../lib/settings';
 import { applyLedger } from '../billing/wallet';
 import { requireMembership } from './membership';

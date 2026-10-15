@@ -1,5 +1,5 @@
-import { Badge } from '@fuseai/ui/components/badge';
-import { Button } from '@fuseai/ui/components/button';
+import { Badge } from '@fusai/ui/components/badge';
+import { Button } from '@fusai/ui/components/button';
 import {
   Table,
   TableBody,
@@ -7,7 +7,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@fuseai/ui/components/table';
+} from '@fusai/ui/components/table';
 import { Plus } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';

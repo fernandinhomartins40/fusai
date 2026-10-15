@@ -1,6 +1,6 @@
 'use client';
 
-import { Switch } from '@fuseai/ui/components/switch';
+import { Switch } from '@fusai/ui/components/switch';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { toast } from 'sonner';

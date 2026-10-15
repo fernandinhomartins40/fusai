@@ -1,5 +1,5 @@
-import type { Organization, PrismaClient, Project } from '@fuseai/db';
-import { microsToBrl } from '@fuseai/shared';
+import type { Organization, PrismaClient, Project } from '@fusai/db';
+import { microsToBrl } from '@fusai/shared';
 import { priceModel } from '../../lib/model-pricing';
 import type { SettingsStore } from '../../lib/settings';
 import type { GatewayContext } from './auth';
@@ -33,7 +33,7 @@ export async function listModelsFor(
       id: e.model.slug,
       object: 'model' as const,
       created: 0,
-      owned_by: 'fuseai',
+      owned_by: 'fusai',
       name: e.model.displayName,
       description: e.model.description,
       context_window: e.model.contextWindow,

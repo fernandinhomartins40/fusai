@@ -1,5 +1,5 @@
-import type { PrismaClient, Provider } from '@fuseai/db';
-import { providerCreateSchema, providerUpdateSchema } from '@fuseai/shared';
+import type { PrismaClient, Provider } from '@fusai/db';
+import { providerCreateSchema, providerUpdateSchema } from '@fusai/shared';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import { audit } from '../../lib/audit';

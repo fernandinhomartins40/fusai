@@ -72,7 +72,7 @@ export class AsaasProvider implements PaymentProvider {
           access_token: this.config.apiKey,
           'content-type': 'application/json',
           accept: 'application/json',
-          'user-agent': 'FuseAI/1.0 (+https://www.fusai.com.br)',
+          'user-agent': 'fusai/1.0 (+https://www.fusai.com.br)',
         },
         body: body === undefined ? undefined : JSON.stringify(body),
         signal: AbortSignal.timeout(this.config.timeoutMs ?? 20_000),
@@ -113,7 +113,7 @@ export class AsaasProvider implements PaymentProvider {
       cpfCnpj: input.document,
       ...(input.email ? { email: input.email } : {}),
       externalReference: input.externalRef,
-      notificationDisabled: true, // FuseAI sends its own e-mails
+      notificationDisabled: true, // fusai sends its own e-mails
     });
     return customer.id;
   }

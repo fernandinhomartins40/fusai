@@ -32,4 +32,4 @@ Acima do limite: `429 rate_limited` com o header `retry-after`. As respostas do 
 
 ## Privacidade
 
-A FuseAI **não armazena o conteúdo** das mensagens nem das respostas: só metadados de uso (tokens, modelo, latência, custo). Os provedores dos modelos processam o conteúdo conforme os próprios termos.
+A fusai **não armazena o conteúdo** das mensagens nem das respostas: só metadados de uso (tokens, modelo, latência, custo). Os provedores dos modelos processam o conteúdo conforme os próprios termos.

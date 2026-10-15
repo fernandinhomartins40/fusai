@@ -1,12 +1,12 @@
-import { formatBRL, formatDocument } from '@fuseai/shared';
-import { Badge } from '@fuseai/ui/components/badge';
+import { formatBRL, formatDocument } from '@fusai/shared';
+import { Badge } from '@fusai/ui/components/badge';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@fuseai/ui/components/card';
+} from '@fusai/ui/components/card';
 import { AlertTriangle, CheckCircle2 } from 'lucide-react';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';

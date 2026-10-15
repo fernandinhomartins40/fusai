@@ -11,7 +11,7 @@ const nextConfig: NextConfig = {
   // Production images are built on Linux (Docker), where it is always enabled.
   output: process.platform === 'win32' ? undefined : 'standalone',
   outputFileTracingRoot: path.join(import.meta.dirname, '../../'),
-  transpilePackages: ['@fuseai/ui', '@fuseai/shared', '@fuseai/docs'],
+  transpilePackages: ['@fusai/ui', '@fusai/shared', '@fusai/docs'],
   poweredByHeader: false,
   reactStrictMode: true,
   env: {

@@ -11,7 +11,7 @@ Authorization: Bearer fai_live_...
 ```
 
 - `fai_live_…`: produção. `fai_test_…`: teste, só com modelos baratos.
-- A FuseAI guarda apenas um hash da chave. Se perder, gere outra e revogue a antiga em **Projetos → Chaves de API**.
+- A fusai guarda apenas um hash da chave. Se perder, gere outra e revogue a antiga em **Projetos → Chaves de API**.
 - Cada chave pode ter limite de requisições por minuto, limite de gasto mensal e data de expiração.
 
 **A chave secreta nunca pode ir para o front-end nem para o app.** Se a API recebe uma chave secreta com header `Origin` (vinda de um navegador), ela recusa com `403 secret_key_in_browser`.
@@ -30,11 +30,11 @@ Chaves novas têm todos os escopos. Sem o escopo: `403 insufficient_scope`.
 
 ## Session token (navegador e app)
 
-Para chamar a FuseAI direto do front-end ou do app do seu usuário, o **seu backend** gera um session token curto:
+Para chamar a fusai direto do front-end ou do app do seu usuário, o **seu backend** gera um session token curto:
 
 ```bash
 curl -X POST {{V1}}/app-users/usuario-123/session-token \
-  -H "Authorization: Bearer $FUSEAI_API_KEY"
+  -H "Authorization: Bearer $FUSAI_API_KEY"
 # { "token": "fai_st_...", "expiresAt": "...", "scopes": ["chat","checkout","balance"] }
 ```
 
@@ -51,7 +51,7 @@ Do servidor, com a chave secreta, envie `X-Fuse-User: <externalId>` para cobrar 
 
 ```bash
 curl {{V1}}/chat/completions \
-  -H "Authorization: Bearer $FUSEAI_API_KEY" \
+  -H "Authorization: Bearer $FUSAI_API_KEY" \
   -H "X-Fuse-User: usuario-123" \
   -H "Content-Type: application/json" \
   -d '{"model":"fuse/deepseek-chat","messages":[{"role":"user","content":"Oi"}]}'

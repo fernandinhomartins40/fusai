@@ -1,12 +1,12 @@
-import { Badge } from '@fuseai/ui/components/badge';
-import { Button } from '@fuseai/ui/components/button';
+import { Badge } from '@fusai/ui/components/badge';
+import { Button } from '@fusai/ui/components/button';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@fuseai/ui/components/card';
+} from '@fusai/ui/components/card';
 import { Settings } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
@@ -57,7 +57,7 @@ export default async function WebhooksPage({ searchParams }: Props) {
       <div className="grid gap-1">
         <h1 className="font-semibold text-2xl tracking-tight">Webhooks</h1>
         <p className="text-muted-foreground text-sm">
-          A FuseAI avisa seu servidor sobre pagamentos e saldo. Configure por projeto.
+          A fusai avisa seu servidor sobre pagamentos e saldo. Configure por projeto.
         </p>
       </div>
 

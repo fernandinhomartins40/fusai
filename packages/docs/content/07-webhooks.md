@@ -1,6 +1,6 @@
 # Webhooks
 
-> A FuseAI avisa o seu servidor quando um Pix cai, expira ou é estornado, e quando o saldo fica baixo. Toda entrega é assinada.
+> A fusai avisa o seu servidor quando um Pix cai, expira ou é estornado, e quando o saldo fica baixo. Toda entrega é assinada.
 
 ## Configurar
 
@@ -43,11 +43,11 @@ Headers: `X-Fuse-Event` (tipo), `X-Fuse-Delivery` (id da entrega) e `X-Fuse-Sign
 Node / Next.js (com o SDK):
 
 ```ts
-import { verifyWebhook } from '@fuseai/sdk/server';
+import { verifyWebhook } from '@fusai/sdk/server';
 
 export async function POST(req: Request) {
   const raw = await req.text();
-  const event = await verifyWebhook(process.env.FUSEAI_WEBHOOK_SECRET!, req.headers.get('x-fuse-signature'), raw);
+  const event = await verifyWebhook(process.env.FUSAI_WEBHOOK_SECRET!, req.headers.get('x-fuse-signature'), raw);
   if (!event) return new Response('assinatura inválida', { status: 401 });
   if (await jaProcessado(event.id)) return Response.json({ ok: true }); // idempotência
   // ... trate event.type

@@ -181,7 +181,7 @@ async function seedAdmin() {
     data: {
       id,
       email,
-      name: 'Admin FuseAI',
+      name: 'Admin fusai',
       emailVerified: true,
       role: 'SUPER_ADMIN',
       accounts: {
@@ -202,7 +202,7 @@ async function seedInternalOrg(adminId: string) {
     where: { slug: 'fuseai-interno' },
     update: {},
     create: {
-      name: 'FuseAI Interno',
+      name: 'fusai Interno',
       slug: 'fuseai-interno',
       billingType: 'INTERNAL',
       wallet: { create: { ownerType: 'ORGANIZATION' } },

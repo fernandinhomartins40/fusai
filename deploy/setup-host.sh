@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Configuração do nginx do HOST para a FuseAI (VPS compartilhada 72.60.10.112).
+# Configuração do nginx do HOST para a fusai (VPS compartilhada 72.60.10.112).
 # Executado SÓ pelo workflow manual .github/workflows/setup-host.yml (botão "Run workflow").
 #
 # - Confere que fusai.com.br, www e api já apontam para a VPS (senão o certbot falharia).

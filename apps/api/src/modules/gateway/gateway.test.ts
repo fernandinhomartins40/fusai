@@ -1,5 +1,5 @@
 import type { AddressInfo } from 'node:net';
-import { prisma } from '@fuseai/db';
+import { prisma } from '@fusai/db';
 import OpenAI from 'openai';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { startFakeLlm } from '../../../test/fake-llm';
@@ -49,7 +49,7 @@ describe('gateway with the official OpenAI SDK', () => {
     const g = await setup({ balanceMicros: 1_000_000n });
     const res = await client(g.plain).chat.completions.create({ model: 'fuse/echo', messages });
 
-    expect(res.choices[0]?.message.content).toBe('Olá do FuseAI!');
+    expect(res.choices[0]?.message.content).toBe('Olá do fusai!');
     expect(res.model).toBe('fuse/echo');
     expect(res.id.startsWith('chatcmpl-')).toBe(true);
     expect((res as unknown as Record<string, unknown>).provider).toBeUndefined();
@@ -96,7 +96,7 @@ describe('gateway with the official OpenAI SDK', () => {
       if (chunk.usage) usage = chunk.usage;
       models.add(chunk.model);
     }
-    expect(text).toBe('Olá do FuseAI!');
+    expect(text).toBe('Olá do fusai!');
     expect(usage).toMatchObject({ prompt_tokens: 12, completion_tokens: 8 });
     expect([...models]).toEqual(['fuse/echo']);
     expect(fake.requests[0]?.body.stream_options).toEqual({ include_usage: true });

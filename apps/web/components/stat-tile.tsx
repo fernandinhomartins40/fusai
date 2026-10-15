@@ -1,5 +1,5 @@
-import { Card, CardContent } from '@fuseai/ui/components/card';
-import { cn } from '@fuseai/ui/lib/utils';
+import { Card, CardContent } from '@fusai/ui/components/card';
+import { cn } from '@fusai/ui/lib/utils';
 import type { ReactNode } from 'react';
 
 type StatTileProps = {

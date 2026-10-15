@@ -1,4 +1,4 @@
-import { Prisma, type PrismaClient } from '@fuseai/db';
+import { Prisma, type PrismaClient } from '@fusai/db';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import { audit } from '../../lib/audit';
@@ -13,7 +13,7 @@ import { PaymentProviderError } from '../../payments/types';
 import { requireMembership } from '../dashboard/membership';
 import { createOrgTopup, MAX_TOPUP_CENTS, serializePayment } from './service';
 
-/** Public: Asaas → FuseAI. Persist + 200 immediately, process in the worker (PRD §9.1 step 6). */
+/** Public: Asaas → fusai. Persist + 200 immediately, process in the worker (PRD §9.1 step 6). */
 export const paymentWebhookRoutes: FastifyPluginAsyncZod<{
   prisma: PrismaClient;
   provider: PaymentProvider;

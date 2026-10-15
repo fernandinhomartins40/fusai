@@ -1,7 +1,7 @@
 :root {
   color-scheme: dark;
-  --fuse-accent: #db2777;
-  --fuse-bg: #18171c;
+  --fusai-accent: #0066fe;
+  --fusai-bg: #121829;
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 * {
@@ -9,7 +9,7 @@
 }
 body {
   margin: 0;
-  background: #111014;
+  background: #0a0e1a;
   color: #f4f4f5;
 }
 main {
@@ -32,10 +32,10 @@ section {
   gap: 12px;
 }
 .card {
-  border: 1px solid #2c2a33;
+  border: 1px solid #232b3f;
   border-radius: 12px;
   padding: 16px;
-  background: #18171c;
+  background: #121829;
   display: grid;
   gap: 12px;
 }
@@ -55,7 +55,7 @@ input {
   font-size: 16px;
   color: inherit;
   background: transparent;
-  border: 1px solid #3f3d46;
+  border: 1px solid #2e374d;
   border-radius: 12px;
   padding: 10px 12px;
 }
@@ -64,7 +64,7 @@ button {
   min-height: 44px;
   border-radius: 12px;
   border: none;
-  background: #db2777;
+  background: #0066fe;
   color: #fff;
   font-weight: 600;
   padding: 10px 16px;

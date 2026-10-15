@@ -1,7 +1,7 @@
 {
-  "name": "@fuseai/react",
+  "name": "@fusai/react",
   "version": "0.1.0",
-  "description": "Componentes React da FuseAI: <FuseCheckout/> (Pix) e <FuseBalance/>.",
+  "description": "Componentes React da fusai: <FusaiCheckout/> (Pix) e <FusaiBalance/>.",
   "type": "module",
   "sideEffects": false,
   "exports": {
@@ -11,13 +11,13 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@fuseai/sdk": "workspace:*"
+    "@fusai/sdk": "workspace:*"
   },
   "peerDependencies": {
     "react": ">=18"
   },
   "devDependencies": {
-    "@fuseai/config": "workspace:*",
+    "@fusai/config": "workspace:*",
     "@types/react": "^19.1.0",
     "react": "19.2.0",
     "typescript": "5.9.3"

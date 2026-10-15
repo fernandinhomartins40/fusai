@@ -13,7 +13,7 @@ export default async function SignInPage() {
   return (
     <AuthShell
       title="Entrar"
-      description="Acesse o painel da FuseAI."
+      description="Acesse o painel da fusai."
       footer={
         <>
           Ainda não tem conta?{' '}

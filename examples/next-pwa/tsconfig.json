@@ -1,5 +1,5 @@
 {
-  "extends": "@fuseai/config/tsconfig.next.json",
+  "extends": "@fusai/config/tsconfig.next.json",
   "compilerOptions": {
     "paths": {
       "@/*": ["./*"]

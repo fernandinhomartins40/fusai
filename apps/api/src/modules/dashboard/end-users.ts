@@ -1,10 +1,10 @@
 import { randomUUID } from 'node:crypto';
-import type { CreditPackage, PrismaClient } from '@fuseai/db';
+import type { CreditPackage, PrismaClient } from '@fusai/db';
 import {
   appUserAdjustSchema,
   projectPackageSchema,
   projectPackageUpdateSchema,
-} from '@fuseai/shared';
+} from '@fusai/shared';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import { audit } from '../../lib/audit';
@@ -284,7 +284,7 @@ export const dashboardEndUserRoutes: FastifyPluginAsyncZod<Options> = async (app
         throw new HttpError(400, 'webhook_url_required', 'Cadastre a URL do webhook primeiro');
       }
       const hook = await emitEvent(prisma, project.id, 'test.ping', {
-        message: 'Webhook de teste da FuseAI',
+        message: 'Webhook de teste da fusai',
       });
       if (!hook) throw new HttpError(400, 'webhook_url_required', 'Cadastre a URL do webhook');
       await deliverWebhook(prisma, hook.id, deliverOpts);

@@ -1,5 +1,5 @@
-import { safeReturnUrl } from '@fuseai/shared';
-import { Logo } from '@fuseai/ui/components/logo';
+import { safeReturnUrl } from '@fusai/shared';
+import { Logo } from '@fusai/ui/components/logo';
 import type { Metadata } from 'next';
 import { HostedCheckout } from './hosted-checkout';
 

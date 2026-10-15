@@ -1,5 +1,5 @@
 @import "tailwindcss";
-@import "@fuseai/ui/styles.css";
+@import "@fusai/ui/styles.css";
 
 @source "../";
 
@@ -27,7 +27,7 @@
   .docs-prose a {
     text-decoration: underline;
     text-underline-offset: 4px;
-    text-decoration-color: var(--fuse-pink);
+    text-decoration-color: var(--fusai-accent);
   }
   .docs-prose ul,
   .docs-prose ol {

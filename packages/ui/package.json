@@ -1,5 +1,5 @@
 {
-  "name": "@fuseai/ui",
+  "name": "@fusai/ui",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -28,7 +28,7 @@
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
-    "@fuseai/config": "workspace:*",
+    "@fusai/config": "workspace:*",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",
     "react": "19.2.0",

@@ -1,4 +1,4 @@
-# API FuseAI
+# API fusai
 
 Base: `http://localhost:4000` (dev) · `https://api.fusai.com.br` (prod). Referência completa dos endpoints no PRD §7, §9.3 e §10. Este arquivo documenta o que já está implementado.
 
@@ -143,7 +143,7 @@ Quem paga o chat: `ORG_WALLET` → organização; `END_USER_WALLET` → usuário
 `POST` JSON para `Project.webhookUrl`: `{ id: "evt_…", type, created, data }`.
 Headers: `X-Fuse-Event`, `X-Fuse-Delivery`, `X-Fuse-Signature: t=<unix>,v1=<hex hmac_sha256(secret, t + "." + corpo)>`.
 Eventos: `payment.received`, `app_user.credited`, `payment.expired`, `payment.refunded` (`data.payment { id, checkoutId, status, amountCents, creditMicros, packageId }`, `data.appUser { id, externalId, balanceMicros }`), `balance.low` (`availableMicros`, `thresholdMicros`), `usage.limit_reached` (`apiKey`, `spendLimitMicros`, `spentMicros`), `test.ping`.
-Sucesso = qualquer 2xx em até 10 s. Novas tentativas: 1 min, 5 min, 30 min, 2 h, 12 h (6 no total). Verificação pronta: `verifyWebhook` de `@fuseai/sdk/server`.
+Sucesso = qualquer 2xx em até 10 s. Novas tentativas: 1 min, 5 min, 30 min, 2 h, 12 h (6 no total). Verificação pronta: `verifyWebhook` de `@fusai/sdk/server`.
 
 ### Painel (sessão)
 | Método | Rota | Descrição |
@@ -174,12 +174,12 @@ Sucesso = qualquer 2xx em até 10 s. Novas tentativas: 1 min, 5 min, 30 min, 2 h
 | `create_test_checkout` | `packageId?`, `externalId?` | só chave `fai_test_` + Asaas sandbox |
 | `send_test_webhook` | — | envia `test.ping` |
 
-Recursos: `fuseai://docs/api`, `fuseai://docs/sdk`, `fuseai://docs/checkout`, `fuseai://project` (FUSEAI.md). Prompts: `integrar_chat`, `integrar_compra_pix` (arg `stack?`), `migrar_de_openai`. Toda chamada gera `AuditLog` `mcp.<tool>`.
+Recursos: `fusai://docs/api`, `fusai://docs/sdk`, `fusai://docs/checkout`, `fusai://project` (FUSAI.md). Prompts: `integrar_chat`, `integrar_compra_pix` (arg `stack?`), `migrar_de_openai`. Toda chamada gera `AuditLog` `mcp.<tool>`.
 
 ### Painel
 | Método | Rota | Descrição |
 |---|---|---|
-| GET | `/internal/projects/:id/fuseai-md` | `FUSEAI.md` (text/markdown, anexo) com os dados atuais do projeto, sem chave. |
+| GET | `/internal/projects/:id/fusai-md` | `FUSAI.md` (text/markdown, anexo) com os dados atuais do projeto, sem chave. |
 
 ### Web (público)
 `/docs`, `/docs/<slug>` (HTML), `/docs/<slug>.md` (Markdown), `/llms.txt`, `/llms-full.txt`.

@@ -2,7 +2,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import type { AddressInfo } from 'node:net';
 
 /**
- * Fake Asaas v3 (only what FuseAI uses), following docs.asaas.com:
+ * Fake Asaas v3 (only what fusai uses), following docs.asaas.com:
  * `access_token` auth header, /customers, /payments, /payments/:id/pixQrCode, refund, DELETE,
  * and webhook bodies `{ id: "evt_…", event, payment: { id, status, value, externalReference } }`.
  */

@@ -1,11 +1,11 @@
-import { verifyWebhook } from '@fuseai/sdk/server';
+import { verifyWebhook } from '@fusai/sdk/server';
 import { NextResponse } from 'next/server';
 import { receivedWebhooks } from '@/lib/fuse-server';
 
-/** FuseAI → your server. Always verify X-Fuse-Signature against the RAW body. */
+/** fusai → your server. Always verify X-Fuse-Signature against the RAW body. */
 export async function POST(req: Request) {
-  const secret = process.env.FUSE_WEBHOOK_SECRET;
-  if (!secret) return NextResponse.json({ error: 'FUSE_WEBHOOK_SECRET ausente' }, { status: 500 });
+  const secret = process.env.FUSAI_WEBHOOK_SECRET;
+  if (!secret) return NextResponse.json({ error: 'FUSAI_WEBHOOK_SECRET ausente' }, { status: 500 });
   const raw = await req.text();
   const event = await verifyWebhook(secret, req.headers.get('x-fuse-signature'), raw);
   if (!event) return NextResponse.json({ error: 'assinatura inválida' }, { status: 401 });

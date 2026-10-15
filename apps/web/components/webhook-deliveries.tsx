@@ -1,7 +1,7 @@
 'use client';
 
-import { Badge } from '@fuseai/ui/components/badge';
-import { Button } from '@fuseai/ui/components/button';
+import { Badge } from '@fusai/ui/components/badge';
+import { Button } from '@fusai/ui/components/button';
 import { Loader2, RotateCw, Send, Webhook } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';

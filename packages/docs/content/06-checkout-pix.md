@@ -14,7 +14,7 @@ Na primeira compra, o Pix exige **CPF ou CNPJ** de quem paga: envie `document` (
 
 ```bash
 curl -X POST {{V1}}/checkout/pix \
-  -H "Authorization: Bearer $FUSEAI_API_KEY" \
+  -H "Authorization: Bearer $FUSAI_API_KEY" \
   -H "Content-Type: application/json" \
   -H "Idempotency-Key: compra-usuario-123-001" \
   -d '{"externalId": "usuario-123", "packageId": "PACOTE_ID", "document": "52998224725", "name": "Maria", "returnUrl": "meuapp://compra-ok"}'
@@ -37,21 +37,21 @@ Abra `hostedUrl` no navegador (ou no navegador interno do app). A página mostra
 ## Opção 2 — Componente React
 
 ```tsx
-import { FuseCheckout, FuseBalance, FuseProvider } from '@fuseai/react';
+import { FusaiCheckout, FusaiBalance, FusaiProvider } from '@fusai/react';
 
 const getToken = () => fetch('/api/fuse-session', { method: 'POST' }).then((r) => r.json()).then((d) => d.token);
 
 export function Loja() {
   return (
-    <FuseProvider sessionToken={getToken} baseUrl="{{V1}}">
-      <p>Saldo: <FuseBalance /></p>
-      <FuseCheckout onPaid={(c) => console.log('pago!', c.checkoutId)} />
-    </FuseProvider>
+    <FusaiProvider sessionToken={getToken} baseUrl="{{V1}}">
+      <p>Saldo: <FusaiBalance /></p>
+      <FusaiCheckout onPaid={(c) => console.log('pago!', c.checkoutId)} />
+    </FusaiProvider>
   );
 }
 ```
 
-Sem `packageId`, o componente lista os pacotes; com `packageId`, vai direto ao Pix. Personalize as cores com variáveis CSS (`--fuse-accent`, `--fuse-bg`, `--fuse-radius`…).
+Sem `packageId`, o componente lista os pacotes; com `packageId`, vai direto ao Pix. Personalize as cores com variáveis CSS (`--fusai-accent`, `--fusai-bg`, `--fusai-radius`…).
 
 ## Opção 3 — SDK ou REST (sua própria tela)
 
@@ -75,4 +75,4 @@ Em Flutter, Swift ou Kotlin: `POST /v1/checkout/pix` e `GET /v1/checkout/:checko
 
 ## Apps nas lojas (iOS e Android)
 
-Vender créditos digitais dentro de apps de loja tem regras próprias. No Brasil, desde junho de 2026 (iOS 26.5), a Apple permite meios de pagamento alternativos e links externos em apps da App Store, com comissões próprias para essas modalidades. O Google Play tem política própria. Você é responsável por verificar as regras da sua loja; a FuseAI fornece o checkout hospedado e o SDK.
+Vender créditos digitais dentro de apps de loja tem regras próprias. No Brasil, desde junho de 2026 (iOS 26.5), a Apple permite meios de pagamento alternativos e links externos em apps da App Store, com comissões próprias para essas modalidades. O Google Play tem política própria. Você é responsável por verificar as regras da sua loja; a fusai fornece o checkout hospedado e o SDK.

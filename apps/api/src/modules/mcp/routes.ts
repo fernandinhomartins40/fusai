@@ -1,4 +1,4 @@
-import type { PrismaClient } from '@fuseai/db';
+import type { PrismaClient } from '@fusai/db';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import type { FastifyPluginAsync } from 'fastify';
 import type { Env } from '../../lib/env';
@@ -31,7 +31,7 @@ export const mcpRoutes: FastifyPluginAsync<Options> = async (app, opts) => {
 
   app.setErrorHandler((err, req, reply) => {
     if (err instanceof GatewayError) {
-      if (err.statusCode === 401) reply.header('www-authenticate', 'Bearer realm="fuseai"');
+      if (err.statusCode === 401) reply.header('www-authenticate', 'Bearer realm="fusai"');
       return reply.status(err.statusCode).headers(err.headers).send(err.toBody());
     }
     req.log.error({ err }, 'mcp error');

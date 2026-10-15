@@ -1,9 +1,9 @@
-import { type Checkout, type CreditPackage, FuseAIError, formatMicros } from '@fuseai/sdk';
+import { type Checkout, type CreditPackage, FusaiError, formatMicros } from '@fusai/sdk';
 import { type CSSProperties, useEffect, useId, useRef, useState } from 'react';
-import { type FuseClientProps, useFuseClient } from './context';
+import { type FusaiClientProps, useFusaiClient } from './context';
 import { s, theme } from './styles';
 
-type Props = FuseClientProps & {
+type Props = FusaiClientProps & {
   /** Package to buy. Without it, the component lists the project's packages to choose from. */
   packageId?: string;
   /** Buyer CPF/CNPJ and name, when your app already has them (otherwise the form asks). */
@@ -31,7 +31,7 @@ const newKey = () =>
  * Pix purchase of credits for the signed-in end user (PRD §9.3):
  * package → (CPF, first time) → QR + copy-paste + countdown → live status → success.
  */
-export function FuseCheckout({
+export function FusaiCheckout({
   packageId: fixedPackage,
   document: initialDocument,
   name: initialName,
@@ -42,7 +42,7 @@ export function FuseCheckout({
   style,
   ...client
 }: Props) {
-  const fuse = useFuseClient(client);
+  const fuse = useFusaiClient(client);
   const ids = useId();
   const [packages, setPackages] = useState<CreditPackage[] | null>(null);
   const [selected, setSelected] = useState<string | null>(fixedPackage ?? null);
@@ -104,7 +104,7 @@ export function FuseCheckout({
       });
       setStep({ kind: 'pending', checkout });
     } catch (err) {
-      if (err instanceof FuseAIError && err.code === 'document_required') {
+      if (err instanceof FusaiError && err.code === 'document_required') {
         // The PSP needs the buyer's CPF/CNPJ: ask for it (only the first time).
         if (step.kind === 'document') setError(err.message);
         setStep({ kind: 'document' });
@@ -127,7 +127,7 @@ export function FuseCheckout({
   if (!fuse) {
     return (
       <div className={className} style={box}>
-        <p style={s.alert}>FuseCheckout: informe sessionToken ou use &lt;FuseProvider&gt;.</p>
+        <p style={s.alert}>FusaiCheckout: informe sessionToken ou use &lt;FusaiProvider&gt;.</p>
       </div>
     );
   }

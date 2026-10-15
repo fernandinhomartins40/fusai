@@ -4,7 +4,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@fuseai/ui/components/card';
+} from '@fusai/ui/components/card';
 import type { Metadata } from 'next';
 import { OrgSettingsForm } from '@/components/org-settings-form';
 import { billingTypeLabel } from '@/lib/admin-labels';

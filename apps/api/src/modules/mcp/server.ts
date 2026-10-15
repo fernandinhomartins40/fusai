@@ -1,12 +1,7 @@
 import { randomBytes } from 'node:crypto';
-import type { PrismaClient } from '@fuseai/db';
-import { type DocUrls, docBundle, fuseaiMd, GUIDE_STACKS, integrationGuide } from '@fuseai/docs';
-import {
-  brlToMicros,
-  microsToBrl,
-  projectPackageSchema,
-  projectUpdateSchema,
-} from '@fuseai/shared';
+import type { PrismaClient } from '@fusai/db';
+import { type DocUrls, docBundle, fusaiMd, GUIDE_STACKS, integrationGuide } from '@fusai/docs';
+import { brlToMicros, microsToBrl, projectPackageSchema, projectUpdateSchema } from '@fusai/shared';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { encryptSecret } from '../../lib/crypto';
@@ -88,9 +83,9 @@ export function buildMcpServer(ctx: GatewayContext, deps: McpDeps) {
   }
 
   const server = new McpServer(
-    { name: 'fuseai', title: 'FuseAI', version: '1.0.0' },
+    { name: 'fusai', title: 'fusai', version: '1.0.0' },
     {
-      instructions: `FuseAI: gateway de IA compatível com OpenAI, cobrança em reais e Pix. Esta conexão está ligada ao projeto "${ctx.project.name}". Comece por get_integration_guide (informe a stack do app). Nunca coloque a chave secreta no front-end: use session tokens.`,
+      instructions: `fusai: gateway de IA compatível com OpenAI, cobrança em reais e Pix. Esta conexão está ligada ao projeto "${ctx.project.name}". Comece por get_integration_guide (informe a stack do app). Nunca coloque a chave secreta no front-end: use session tokens.`,
     },
   );
 
@@ -248,7 +243,7 @@ export function buildMcpServer(ctx: GatewayContext, deps: McpDeps) {
           messages: [
             {
               role: 'user',
-              content: args.message ?? 'Responda só: OK, integração FuseAI funcionando.',
+              content: args.message ?? 'Responda só: OK, integração fusai funcionando.',
             },
           ],
         },
@@ -537,7 +532,7 @@ export function buildMcpServer(ctx: GatewayContext, deps: McpDeps) {
       if (!p.webhookUrl)
         return fail('O projeto não tem URL de webhook. Configure com update_project_settings.');
       const hook = await emitEvent(prisma, p.id, 'test.ping', {
-        message: 'Webhook de teste da FuseAI (MCP)',
+        message: 'Webhook de teste da fusai (MCP)',
       });
       if (!hook) return fail('O projeto não tem URL de webhook.');
       await deliverWebhook(prisma, hook.id, {
@@ -558,7 +553,7 @@ export function buildMcpServer(ctx: GatewayContext, deps: McpDeps) {
   const docResource = (name: 'api' | 'sdk' | 'checkout', title: string) =>
     server.registerResource(
       `docs-${name}`,
-      `fuseai://docs/${name}`,
+      `fusai://docs/${name}`,
       { title, mimeType: 'text/markdown' },
       async (uri) => {
         await audit(`resource.docs.${name}`);
@@ -567,18 +562,18 @@ export function buildMcpServer(ctx: GatewayContext, deps: McpDeps) {
         };
       },
     );
-  docResource('api', 'Referência da API FuseAI');
-  docResource('sdk', 'SDKs (@fuseai/sdk, @fuseai/react, OpenAI)');
+  docResource('api', 'Referência da API fusai');
+  docResource('sdk', 'SDKs (@fusai/sdk, @fusai/react, OpenAI)');
   docResource('checkout', 'Usuários finais, checkout Pix e webhooks');
   server.registerResource(
     'project',
-    'fuseai://project',
-    { title: `Projeto ${ctx.project.name} (FUSEAI.md)`, mimeType: 'text/markdown' },
+    'fusai://project',
+    { title: `Projeto ${ctx.project.name} (FUSAI.md)`, mimeType: 'text/markdown' },
     async (uri) => {
       await audit('resource.project');
       return {
         contents: [
-          { uri: uri.href, mimeType: 'text/markdown', text: fuseaiMd(await snapshot(), urls) },
+          { uri: uri.href, mimeType: 'text/markdown', text: fusaiMd(await snapshot(), urls) },
         ],
       };
     },
@@ -592,7 +587,7 @@ export function buildMcpServer(ctx: GatewayContext, deps: McpDeps) {
     'integrar_chat',
     {
       title: 'Integrar chat com IA',
-      description: 'Adiciona chat com IA da FuseAI ao app atual.',
+      description: 'Adiciona chat com IA da fusai ao app atual.',
       argsSchema: {
         stack: z
           .string()
@@ -602,7 +597,7 @@ export function buildMcpServer(ctx: GatewayContext, deps: McpDeps) {
     },
     ({ stack }) =>
       prompt(
-        `Integre um chat com IA neste projeto usando a FuseAI. Passos: 1) chame a tool get_integration_guide${stack ? ` com stack "${stack}"` : ' com a stack deste projeto'}; 2) siga as regras de segurança (chave só no servidor, session token no front); 3) implemente o chat com streaming e trate 402/429; 4) valide com test_chat. Mostre os arquivos alterados no fim.`,
+        `Integre um chat com IA neste projeto usando a fusai. Passos: 1) chame a tool get_integration_guide${stack ? ` com stack "${stack}"` : ' com a stack deste projeto'}; 2) siga as regras de segurança (chave só no servidor, session token no front); 3) implemente o chat com streaming e trate 402/429; 4) valide com test_chat. Mostre os arquivos alterados no fim.`,
       ),
   );
   server.registerPrompt(
@@ -614,19 +609,18 @@ export function buildMcpServer(ctx: GatewayContext, deps: McpDeps) {
     },
     ({ stack }) =>
       prompt(
-        `Implemente a compra de créditos via Pix para os usuários deste app com a FuseAI. Passos: 1) get_project_config (se o modo for ORG_WALLET, pergunte se devo mudar para END_USER_WALLET ou HYBRID com update_project_settings); 2) list_packages (se não houver, proponha pacotes e crie com create_package após confirmação); 3) get_integration_guide${stack ? ` com stack "${stack}"` : ''}; 4) implemente: upsert do usuário final, rota de session token, saldo, checkout (FuseCheckout ou página hospedada) e webhook com verificação de assinatura; 5) cadastre a origem do front e a URL do webhook (update_project_settings, com confirmação); 6) teste com send_test_webhook e, com chave de teste, create_test_checkout.`,
+        `Implemente a compra de créditos via Pix para os usuários deste app com a fusai. Passos: 1) get_project_config (se o modo for ORG_WALLET, pergunte se devo mudar para END_USER_WALLET ou HYBRID com update_project_settings); 2) list_packages (se não houver, proponha pacotes e crie com create_package após confirmação); 3) get_integration_guide${stack ? ` com stack "${stack}"` : ''}; 4) implemente: upsert do usuário final, rota de session token, saldo, checkout (FusaiCheckout ou página hospedada) e webhook com verificação de assinatura; 5) cadastre a origem do front e a URL do webhook (update_project_settings, com confirmação); 6) teste com send_test_webhook e, com chave de teste, create_test_checkout.`,
       ),
   );
   server.registerPrompt(
     'migrar_de_openai',
     {
-      title: 'Migrar da OpenAI para a FuseAI',
-      description:
-        'Troca o provedor de IA do app para a FuseAI mantendo o código do SDK da OpenAI.',
+      title: 'Migrar da OpenAI para a fusai',
+      description: 'Troca o provedor de IA do app para a fusai mantendo o código do SDK da OpenAI.',
     },
     () =>
       prompt(
-        `Migre este projeto da OpenAI para a FuseAI. Mantenha o SDK oficial da OpenAI e troque só a configuração: apiKey = process.env.FUSEAI_API_KEY e baseURL = "${env.API_URL}/v1" (ou equivalente na linguagem). Use list_models para escolher modelos equivalentes aos usados hoje e substitua os nomes (ex.: gpt-4o-mini → um modelo fuse/*). Atualize .env.example sem colocar a chave real. No fim, valide com test_chat.`,
+        `Migre este projeto da OpenAI para a fusai. Mantenha o SDK oficial da OpenAI e troque só a configuração: apiKey = process.env.FUSAI_API_KEY e baseURL = "${env.API_URL}/v1" (ou equivalente na linguagem). Use list_models para escolher modelos equivalentes aos usados hoje e substitua os nomes (ex.: gpt-4o-mini → um modelo fuse/*). Atualize .env.example sem colocar a chave real. No fim, valide com test_chat.`,
       ),
   );
 

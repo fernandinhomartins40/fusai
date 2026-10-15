@@ -1,9 +1,9 @@
 'use client';
 
-import { formatBRL } from '@fuseai/shared';
-import { Badge } from '@fuseai/ui/components/badge';
-import { Button } from '@fuseai/ui/components/button';
-import { Dialog } from '@fuseai/ui/components/dialog';
+import { formatBRL } from '@fusai/shared';
+import { Badge } from '@fusai/ui/components/badge';
+import { Button } from '@fusai/ui/components/button';
+import { Dialog } from '@fusai/ui/components/dialog';
 import {
   Table,
   TableBody,
@@ -11,7 +11,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@fuseai/ui/components/table';
+} from '@fusai/ui/components/table';
 import { KeyRound, Plus } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';

@@ -1,10 +1,10 @@
 'use client';
 
-import { brlToMicros, formatBRL } from '@fuseai/shared';
-import { Button } from '@fuseai/ui/components/button';
-import { Input } from '@fuseai/ui/components/input';
-import { Textarea } from '@fuseai/ui/components/textarea';
-import { cn } from '@fuseai/ui/lib/utils';
+import { brlToMicros, formatBRL } from '@fusai/shared';
+import { Button } from '@fusai/ui/components/button';
+import { Input } from '@fusai/ui/components/input';
+import { Textarea } from '@fusai/ui/components/textarea';
+import { cn } from '@fusai/ui/lib/utils';
 import { Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -70,7 +70,7 @@ export function WalletAdjustForm({ orgId, orgName }: { orgId: string; orgName: s
             key={value}
             className={cn(
               'flex cursor-pointer items-center gap-2 rounded-xl border p-3 text-sm hover:bg-accent/50',
-              direction === value && 'border-fuse-pink/60 bg-accent/40 font-medium',
+              direction === value && 'border-fusai-accent/60 bg-accent/40 font-medium',
             )}
           >
             <input
@@ -79,7 +79,7 @@ export function WalletAdjustForm({ orgId, orgName }: { orgId: string; orgName: s
               value={value}
               checked={direction === value}
               onChange={() => setDirection(value)}
-              className="accent-[var(--fuse-pink)]"
+              className="accent-[var(--fusai-accent)]"
             />
             {label}
           </label>

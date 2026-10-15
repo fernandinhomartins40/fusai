@@ -1,6 +1,6 @@
 'use client';
 
-import { formatBRL } from '@fuseai/shared';
+import { formatBRL } from '@fusai/shared';
 import { Bar, BarChart, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import type { ModelUsage } from '@/lib/dashboard-types';
 import { ChartCard } from './chart-card';

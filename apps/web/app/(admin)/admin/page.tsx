@@ -1,4 +1,4 @@
-import { Card, CardDescription, CardHeader, CardTitle } from '@fuseai/ui/components/card';
+import { Card, CardDescription, CardHeader, CardTitle } from '@fusai/ui/components/card';
 import type { Metadata } from 'next';
 import { serverApi } from '@/lib/session';
 

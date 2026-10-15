@@ -1,4 +1,4 @@
-name: Deploy FuseAI to VPS
+name: Deploy fusai to VPS
 
 # Push na main = testes -> imagens no GHCR (por digest) -> deploy na VPS -> verificação pública.
 # O deploy acontece SÓ por aqui; nada é feito direto na VPS. Pull requests rodam só os testes.
@@ -325,7 +325,7 @@ jobs:
           ok=0
           check "$PUBLIC_API_URL/health" '"fuseai-api"' || ok=1
           check "$PUBLIC_WEB_URL/docs" 'Documentação' || ok=1
-          check "$PUBLIC_WEB_URL/llms.txt" '# FuseAI' || ok=1
+          check "$PUBLIC_WEB_URL/llms.txt" '# fusai' || ok=1
           # Arquivos de public/ (o standalone do Next não os copia sozinho).
           ctype=$(curl -fsS -o /dev/null -w '%{content_type}' --max-time 10 "$PUBLIC_WEB_URL/brand/logo-fusai.png" || true)
           [ "$ctype" = "image/png" ] && echo "OK  $PUBLIC_WEB_URL/brand/logo-fusai.png" || { echo "::error::logo em /brand não servido (content-type: ${ctype:-erro})"; ok=1; }

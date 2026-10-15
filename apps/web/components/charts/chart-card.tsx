@@ -1,13 +1,13 @@
 'use client';
 
-import { Button } from '@fuseai/ui/components/button';
+import { Button } from '@fusai/ui/components/button';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@fuseai/ui/components/card';
+} from '@fusai/ui/components/card';
 import { BarChart3, Table2 } from 'lucide-react';
 import { type ReactNode, useState } from 'react';
 

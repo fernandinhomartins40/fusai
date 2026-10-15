@@ -1,4 +1,4 @@
-import { Prisma } from '@fuseai/db';
+import { Prisma } from '@fusai/db';
 
 /** Display time zone (PRD §16). Brazil has had no DST since 2019: a fixed UTC-3 offset. */
 export const TZ = 'America/Sao_Paulo';

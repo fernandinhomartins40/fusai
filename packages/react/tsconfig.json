@@ -1,5 +1,5 @@
 {
-  "extends": "@fuseai/config/tsconfig.library.json",
+  "extends": "@fusai/config/tsconfig.library.json",
   "compilerOptions": {
     "jsx": "react-jsx"
   },

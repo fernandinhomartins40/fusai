@@ -1,4 +1,4 @@
-import { llmsFullTxt } from '@fuseai/docs';
+import { llmsFullTxt } from '@fusai/docs';
 import { DOC_URLS } from '@/lib/docs';
 
 export const dynamic = 'force-static';

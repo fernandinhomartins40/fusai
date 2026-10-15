@@ -1,5 +1,5 @@
 // Turns content/NN-slug.md into src/content.generated.ts, so the same Markdown is bundled by
-// the API (tsup), the web (Next) and tests (Vitest) without loaders. Run: pnpm --filter @fuseai/docs generate
+// the API (tsup), the web (Next) and tests (Vitest) without loaders. Run: pnpm --filter @fusai/docs generate
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 
 const dir = new URL('../content/', import.meta.url);

@@ -30,7 +30,7 @@ export function docMarkdown(page: DocPage, urls: DocUrls): string {
 export function llmsTxt(urls: DocUrls): string {
   const app = urls.app.replace(/\/+$/, '');
   const lines = [
-    '# FuseAI',
+    '# fusai',
     '',
     '> Gateway de IA compatível com a API da OpenAI, voltado ao Brasil: vários modelos (DeepSeek, Kimi, GLM, Qwen, MiniMax) com uma chave, créditos pré-pagos em reais, recarga via Pix e cobrança dos usuários finais do seu app via Pix.',
     '',
@@ -52,7 +52,7 @@ export function llmsFullTxt(urls: DocUrls): string {
   return DOC_PAGES.map((p) => docMarkdown(p, urls)).join('\n\n---\n\n');
 }
 
-/** Bundles for the MCP resources fuseai://docs/{api,sdk,checkout}. */
+/** Bundles for the MCP resources fusai://docs/{api,sdk,checkout}. */
 export const DOC_BUNDLES = {
   api: ['inicio-rapido', 'autenticacao', 'chat', 'modelos', 'erros', 'limites'],
   sdk: ['sdks', 'usuarios-finais'],

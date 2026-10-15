@@ -1,5 +1,5 @@
-import { centsToMicros, formatBRL } from '@fuseai/shared';
-import { Badge } from '@fuseai/ui/components/badge';
+import { centsToMicros, formatBRL } from '@fusai/shared';
+import { Badge } from '@fusai/ui/components/badge';
 import {
   Table,
   TableBody,
@@ -7,7 +7,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@fuseai/ui/components/table';
+} from '@fusai/ui/components/table';
 import type { ReactNode } from 'react';
 import { dateTimeBR } from '@/lib/format';
 import { type PaymentInfo, paymentStatusLabel } from '@/lib/payment-types';

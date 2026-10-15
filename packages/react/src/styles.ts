@@ -2,12 +2,12 @@ import type { CSSProperties } from 'react';
 
 /**
  * Inline styles with CSS variables, so the components need no CSS framework. Override in your
- * app: `--fuse-accent`, `--fuse-fg`, `--fuse-muted`, `--fuse-border`, `--fuse-bg`, `--fuse-radius`.
+ * app: `--fusai-accent`, `--fusai-fg`, `--fusai-muted`, `--fusai-border`, `--fusai-bg`, `--fusai-radius`.
  */
-const v = (name: string, fallback: string) => `var(--fuse-${name}, ${fallback})`;
+const v = (name: string, fallback: string) => `var(--fusai-${name}, ${fallback})`;
 
 export const theme = {
-  accent: v('accent', '#db2777'),
+  accent: v('accent', '#0066fe'),
   fg: v('fg', 'currentColor'),
   muted: v('muted', 'color-mix(in srgb, currentColor 65%, transparent)'),
   border: v('border', 'color-mix(in srgb, currentColor 18%, transparent)'),

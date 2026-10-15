@@ -1,5 +1,5 @@
 {
-  "name": "@fuseai/web",
+  "name": "@fusai/web",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -10,9 +10,9 @@
     "typecheck": "next typegen && tsc --noEmit"
   },
   "dependencies": {
-    "@fuseai/docs": "workspace:*",
-    "@fuseai/shared": "workspace:*",
-    "@fuseai/ui": "workspace:*",
+    "@fusai/docs": "workspace:*",
+    "@fusai/shared": "workspace:*",
+    "@fusai/ui": "workspace:*",
     "@hookform/resolvers": "5.9.1",
     "@tanstack/react-query": "^5.104.2",
     "better-auth": "1.7.7",
@@ -30,7 +30,7 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
-    "@fuseai/config": "workspace:*",
+    "@fusai/config": "workspace:*",
     "@tailwindcss/postcss": "4.3.3",
     "@types/node": "22.20.5",
     "@types/react": "^19.1.0",

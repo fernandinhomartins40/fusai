@@ -1,18 +1,18 @@
-import { mcpSnippets, SUGGESTED_PROMPT } from '@fuseai/docs/kit';
-import { Button } from '@fuseai/ui/components/button';
+import { mcpSnippets, SUGGESTED_PROMPT } from '@fusai/docs/kit';
+import { Button } from '@fusai/ui/components/button';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@fuseai/ui/components/card';
+} from '@fusai/ui/components/card';
 import { BookOpen, KeyRound } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { CodeBlock } from '@/components/copy-button';
-import { DownloadFuseaiMd } from '@/components/integration/download-fuseai-md';
+import { DownloadFusaiMd } from '@/components/integration/download-fusai-md';
 import { McpCommands } from '@/components/integration/mcp-commands';
 import { API_URL } from '@/lib/config';
 import type { ProjectDetail } from '@/lib/dashboard-types';
@@ -22,7 +22,7 @@ export const metadata: Metadata = { title: 'Kit de Integração' };
 
 const KEY_PLACEHOLDER = 'fai_live_SUA_CHAVE';
 
-/** PRD §10.2: everything the customer's coding AI needs to integrate FuseAI on its own. */
+/** PRD §10.2: everything the customer's coding AI needs to integrate fusai on its own. */
 export default async function IntegrationKitPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { data: project } = await serverApi<ProjectDetail>(`/internal/projects/${id}`);
@@ -34,7 +34,7 @@ export default async function IntegrationKitPage({ params }: { params: Promise<{
       <div className="grid gap-1">
         <h2 className="font-semibold text-lg">Kit de Integração</h2>
         <p className="text-muted-foreground text-sm">
-          Conecte a FuseAI à sua IA de programação (Claude Code, Cursor, VS Code…) e deixe ela fazer
+          Conecte a fusai à sua IA de programação (Claude Code, Cursor, VS Code…) e deixe ela fazer
           a integração. Troque <code className="font-mono">{KEY_PLACEHOLDER}</code> por uma chave
           deste projeto: ela aparece completa só ao ser criada.
         </p>
@@ -74,12 +74,12 @@ export default async function IntegrationKitPage({ params }: { params: Promise<{
         <CardHeader>
           <CardTitle className="text-base">3. Instruções para a IA</CardTitle>
           <CardDescription>
-            Coloque o FUSEAI.md na raiz do seu projeto. Ele é gerado com os dados atuais de “
+            Coloque o FUSAI.md na raiz do seu projeto. Ele é gerado com os dados atuais de “
             {project.name}” (modo de cobrança, modelos, pacotes, origens e webhook), sem a chave.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4">
-          <DownloadFuseaiMd projectId={id} />
+          <DownloadFusaiMd projectId={id} />
           <CodeBlock label="Prompt sugerido" code={SUGGESTED_PROMPT} wrap />
         </CardContent>
       </Card>
@@ -94,7 +94,7 @@ export default async function IntegrationKitPage({ params }: { params: Promise<{
             label="Node.js"
             code={`const client = new OpenAI({
 -  apiKey: process.env.OPENAI_API_KEY,
-+  apiKey: process.env.FUSEAI_API_KEY,
++  apiKey: process.env.FUSAI_API_KEY,
 +  baseURL: '${API_URL}/v1',
 });`}
           />

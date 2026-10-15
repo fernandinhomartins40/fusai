@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto';
-import type { PrismaClient, Project } from '@fuseai/db';
-import { fuseaiMd } from '@fuseai/docs';
-import { microsToBrl, orgUpdateSchema, projectUpdateSchema } from '@fuseai/shared';
+import type { PrismaClient, Project } from '@fusai/db';
+import { fusaiMd } from '@fusai/docs';
+import { microsToBrl, orgUpdateSchema, projectUpdateSchema } from '@fusai/shared';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import { audit } from '../../lib/audit';
@@ -174,9 +174,9 @@ export const dashboardProjectRoutes: FastifyPluginAsyncZod<Options> = async (app
     },
   );
 
-  // Kit de Integração: FUSEAI.md for the customer's coding AI (PRD §10.2). No secrets inside.
+  // Kit de Integração: FUSAI.md for the customer's coding AI (PRD §10.2). No secrets inside.
   app.get(
-    '/internal/projects/:projectId/fuseai-md',
+    '/internal/projects/:projectId/fusai-md',
     { schema: { params: projectParams } },
     async (req, reply) => {
       const { project } = await projectFor(currentUser(req).id, req.params.projectId);
@@ -184,9 +184,9 @@ export const dashboardProjectRoutes: FastifyPluginAsyncZod<Options> = async (app
       const snap = await projectSnapshot(prisma, catalog, settings, project, org);
       return reply
         .header('content-type', 'text/markdown; charset=utf-8')
-        .header('content-disposition', 'attachment; filename="FUSEAI.md"')
+        .header('content-disposition', 'attachment; filename="FUSAI.md"')
         .header('cache-control', 'no-store')
-        .send(fuseaiMd(snap, { api: env.API_URL, app: env.APP_URL }));
+        .send(fusaiMd(snap, { api: env.API_URL, app: env.APP_URL }));
     },
   );
 

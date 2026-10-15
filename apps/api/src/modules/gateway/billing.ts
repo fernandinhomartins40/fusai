@@ -1,5 +1,5 @@
-import type { PrismaClient, UsageStatus } from '@fuseai/db';
-import type { ModelPrices, Settings } from '@fuseai/shared';
+import type { PrismaClient, UsageStatus } from '@fusai/db';
+import type { ModelPrices, Settings } from '@fusai/shared';
 import { settle, type Tx } from '../billing/wallet';
 import type { GatewayContext } from './auth';
 import type { CatalogEntry } from './catalog';

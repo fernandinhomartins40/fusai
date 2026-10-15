@@ -1,7 +1,7 @@
 'use client';
 
-import { Select } from '@fuseai/ui/components/select';
-import { cn } from '@fuseai/ui/lib/utils';
+import { Select } from '@fusai/ui/components/select';
+import { cn } from '@fusai/ui/lib/utils';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { type ReactNode, useTransition } from 'react';
 

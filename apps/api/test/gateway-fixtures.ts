@@ -1,4 +1,4 @@
-import { prisma } from '@fuseai/db';
+import { prisma } from '@fusai/db';
 import { encryptSecret, parseEncryptionKey } from '../src/lib/crypto';
 import type { Env } from '../src/lib/env';
 import { generateApiKey, hashApiKey, keyDisplayPrefix } from '../src/modules/api-keys/keys';

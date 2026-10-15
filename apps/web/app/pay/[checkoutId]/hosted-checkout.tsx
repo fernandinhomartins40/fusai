@@ -1,8 +1,8 @@
 'use client';
 
-import { centsToMicros, formatBRL, safeReturnUrl } from '@fuseai/shared';
-import { Button } from '@fuseai/ui/components/button';
-import { Card, CardContent } from '@fuseai/ui/components/card';
+import { centsToMicros, formatBRL, safeReturnUrl } from '@fusai/shared';
+import { Button } from '@fusai/ui/components/button';
+import { Card, CardContent } from '@fusai/ui/components/card';
 import { AlertCircle, ArrowLeft, CheckCircle2, Clock, Loader2 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { CopyButton } from '@/components/copy-button';
@@ -58,7 +58,7 @@ export function HostedCheckout({
     return (
       <Card>
         <CardContent className="grid justify-items-center gap-3 py-16" aria-busy="true">
-          <Loader2 className="size-6 animate-spin text-fuse-pink" aria-hidden />
+          <Loader2 className="size-6 animate-spin text-fusai-accent" aria-hidden />
           <span className="text-muted-foreground text-sm">Carregando pagamento…</span>
         </CardContent>
       </Card>
@@ -161,7 +161,7 @@ function PendingView({ checkout: c }: { checkout: PublicCheckout }) {
         aria-live="polite"
       >
         <span className="flex items-center gap-2">
-          <Loader2 className="size-4 animate-spin text-fuse-pink" aria-hidden />
+          <Loader2 className="size-4 animate-spin text-fusai-accent" aria-hidden />
           Aguardando pagamento…
         </span>
         {countdown ? (

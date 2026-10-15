@@ -1,4 +1,4 @@
-import type { Model, PrismaClient, Provider } from '@fuseai/db';
+import type { Model, PrismaClient, Provider } from '@fusai/db';
 import { decryptSecret } from '../../lib/crypto';
 
 export type CatalogEntry = { model: Model; provider: Provider; apiKey: string | null };

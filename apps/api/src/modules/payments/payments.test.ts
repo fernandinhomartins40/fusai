@@ -1,4 +1,4 @@
-import { prisma } from '@fuseai/db';
+import { prisma } from '@fusai/db';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { startFakeAsaas } from '../../../test/fake-asaas';
 import { APP_URL, createTestApp, createUserSession, resetDb } from '../../../test/helpers';
@@ -99,7 +99,7 @@ describe('Pix top-ups (Asaas)', () => {
 
     const createCustomer = asaas.requests.find((r) => r.path === '/customers');
     expect(createCustomer?.headers.access_token).toBe('$aact_hmlg_test');
-    expect(createCustomer?.headers['user-agent']).toContain('FuseAI');
+    expect(createCustomer?.headers['user-agent']).toContain('fusai');
     expect(createCustomer?.body).toMatchObject({
       cpfCnpj: '11222333000181',
       notificationDisabled: true,

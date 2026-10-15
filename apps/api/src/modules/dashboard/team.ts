@@ -1,6 +1,6 @@
 import { createHash, randomBytes } from 'node:crypto';
-import type { OrgRole, PrismaClient } from '@fuseai/db';
-import { inviteSchema, memberRoleSchema } from '@fuseai/shared';
+import type { OrgRole, PrismaClient } from '@fusai/db';
+import { inviteSchema, memberRoleSchema } from '@fusai/shared';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import { audit } from '../../lib/audit';

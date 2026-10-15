@@ -1,7 +1,7 @@
 {
-  "name": "@fuseai/sdk",
+  "name": "@fusai/sdk",
   "version": "0.1.0",
-  "description": "Cliente TypeScript da FuseAI: chat, saldo e checkout Pix (browser, Node e React Native).",
+  "description": "Cliente TypeScript da fusai: chat, saldo e checkout Pix (browser, Node e React Native).",
   "type": "module",
   "sideEffects": false,
   "exports": {
@@ -13,7 +13,7 @@
     "test": "vitest run"
   },
   "devDependencies": {
-    "@fuseai/config": "workspace:*",
+    "@fusai/config": "workspace:*",
     "@types/node": "22.20.5",
     "typescript": "5.9.3",
     "vitest": "3.2.7"

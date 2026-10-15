@@ -1,8 +1,8 @@
 'use client';
 
-import { resetPasswordSchema } from '@fuseai/shared';
-import { Button } from '@fuseai/ui/components/button';
-import { Input } from '@fuseai/ui/components/input';
+import { resetPasswordSchema } from '@fusai/shared';
+import { Button } from '@fusai/ui/components/button';
+import { Input } from '@fusai/ui/components/input';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Loader2 } from 'lucide-react';
 import Link from 'next/link';

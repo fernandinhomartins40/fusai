@@ -1,13 +1,13 @@
-import { Badge } from '@fuseai/ui/components/badge';
-import { Button } from '@fuseai/ui/components/button';
+import { Badge } from '@fusai/ui/components/badge';
+import { Button } from '@fusai/ui/components/button';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@fuseai/ui/components/card';
-import { Logo } from '@fuseai/ui/logo';
+} from '@fusai/ui/components/card';
+import { Logo } from '@fusai/ui/logo';
 import { ArrowRight, Code2, QrCode, Zap } from 'lucide-react';
 import Link from 'next/link';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -40,7 +40,7 @@ export default function HomePage() {
       />
       <div
         aria-hidden
-        className="bg-fuse-gradient absolute top-[-12rem] left-1/2 -z-10 h-[24rem] w-[48rem] -translate-x-1/2 rounded-full opacity-20 blur-3xl"
+        className="bg-fusai-gradient absolute top-[-12rem] left-1/2 -z-10 h-[24rem] w-[48rem] -translate-x-1/2 rounded-full opacity-20 blur-3xl"
       />
 
       <header className="mx-auto flex max-w-6xl items-center justify-between px-4 py-5 sm:px-6">
@@ -60,7 +60,7 @@ export default function HomePage() {
           </Badge>
           <h1 className="text-balance font-semibold text-4xl tracking-tight sm:text-6xl">
             Uma API. Os melhores modelos de IA.{' '}
-            <span className="text-fuse-gradient">Pague com Pix.</span>
+            <span className="text-fusai-gradient">Pague com Pix.</span>
           </h1>
           <p className="mx-auto mt-6 max-w-2xl text-pretty text-lg text-muted-foreground">
             DeepSeek, Kimi, GLM, Qwen e MiniMax numa única API compatível com OpenAI, com créditos
@@ -82,7 +82,7 @@ export default function HomePage() {
           {highlights.map(({ icon: Icon, title, description }) => (
             <Card key={title}>
               <CardHeader>
-                <Icon className="mb-2 size-5 text-fuse-pink" aria-hidden />
+                <Icon className="mb-2 size-5 text-fusai-accent" aria-hidden />
                 <CardTitle>{title}</CardTitle>
                 <CardDescription>{description}</CardDescription>
               </CardHeader>

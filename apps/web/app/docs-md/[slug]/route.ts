@@ -1,4 +1,4 @@
-import { DOC_PAGES, docMarkdown, getDoc } from '@fuseai/docs';
+import { DOC_PAGES, docMarkdown, getDoc } from '@fusai/docs';
 import { DOC_URLS } from '@/lib/docs';
 
 export const dynamicParams = false;

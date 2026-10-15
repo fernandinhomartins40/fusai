@@ -1,4 +1,4 @@
 {
-  "extends": "@fuseai/config/tsconfig.node.json",
+  "extends": "@fusai/config/tsconfig.node.json",
   "include": ["src"]
 }

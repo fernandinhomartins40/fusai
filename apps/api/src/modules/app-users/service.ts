@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
-import { Prisma, type PrismaClient, type Project } from '@fuseai/db';
-import { onlyDigits } from '@fuseai/shared';
+import { Prisma, type PrismaClient, type Project } from '@fusai/db';
+import { onlyDigits } from '@fusai/shared';
 import { signJwt, verifyJwt } from '../../lib/jwt';
 import { applyLedger } from '../billing/wallet';
 

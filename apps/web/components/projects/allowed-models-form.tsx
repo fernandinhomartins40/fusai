@@ -1,8 +1,8 @@
 'use client';
 
-import { formatBRL } from '@fuseai/shared';
-import { Button } from '@fuseai/ui/components/button';
-import { Switch } from '@fuseai/ui/components/switch';
+import { formatBRL } from '@fusai/shared';
+import { Button } from '@fusai/ui/components/button';
+import { Switch } from '@fusai/ui/components/switch';
 import {
   Table,
   TableBody,
@@ -10,7 +10,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@fuseai/ui/components/table';
+} from '@fusai/ui/components/table';
 import { Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -104,7 +104,7 @@ export function AllowedModelsForm({
                         e.target.checked ? [...prev, m.id] : prev.filter((id) => id !== m.id),
                       )
                     }
-                    className="size-4 accent-[var(--fuse-pink)]"
+                    className="size-4 accent-[var(--fusai-accent)]"
                   />
                 </TableCell>
                 <TableCell>
@@ -127,7 +127,7 @@ export function AllowedModelsForm({
                     checked={defaultId === m.id}
                     disabled={!isAllowed(m.id)}
                     onChange={() => setDefaultId(m.id)}
-                    className="size-4 accent-[var(--fuse-pink)]"
+                    className="size-4 accent-[var(--fusai-accent)]"
                   />
                 </TableCell>
               </TableRow>

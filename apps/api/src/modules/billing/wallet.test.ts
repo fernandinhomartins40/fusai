@@ -1,4 +1,4 @@
-import { prisma } from '@fuseai/db';
+import { prisma } from '@fusai/db';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createFundedOrg, resetDb } from '../../../test/helpers';
 import { ledgerSum, releaseExpiredHolds, reserve, settle } from './wallet';

@@ -1,4 +1,4 @@
-import { Card, CardContent } from '@fuseai/ui/components/card';
+import { Card, CardContent } from '@fusai/ui/components/card';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { PageHeader } from '@/components/admin/page-header';

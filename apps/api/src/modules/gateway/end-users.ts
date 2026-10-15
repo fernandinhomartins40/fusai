@@ -1,5 +1,5 @@
-import type { Payment, PrismaClient } from '@fuseai/db';
-import { safeReturnUrl } from '@fuseai/shared';
+import type { Payment, PrismaClient } from '@fusai/db';
+import { safeReturnUrl } from '@fusai/shared';
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 import type { PaymentProvider } from '../../payments/types';

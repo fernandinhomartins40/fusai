@@ -1,4 +1,4 @@
-import { DOC_PAGES } from '@fuseai/docs';
+import { DOC_PAGES } from '@fusai/docs';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 

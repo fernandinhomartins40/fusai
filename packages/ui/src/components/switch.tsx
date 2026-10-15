@@ -19,7 +19,7 @@ export function Switch({ checked, onCheckedChange, className, disabled, ...props
       onClick={() => onCheckedChange(!checked)}
       className={cn(
         'inline-flex h-6 w-11 shrink-0 items-center rounded-full border border-transparent transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50',
-        checked ? 'bg-fuse-gradient' : 'bg-input',
+        checked ? 'bg-fusai-gradient' : 'bg-input',
         className,
       )}
       {...props}

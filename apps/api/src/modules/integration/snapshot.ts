@@ -1,10 +1,10 @@
-import type { Organization, PrismaClient, Project } from '@fuseai/db';
-import type { ProjectSnapshot } from '@fuseai/docs';
+import type { Organization, PrismaClient, Project } from '@fusai/db';
+import type { ProjectSnapshot } from '@fusai/docs';
 import type { SettingsStore } from '../../lib/settings';
 import type { CatalogStore } from '../gateway/catalog';
 import { listModelsFor } from '../gateway/queries';
 
-/** Everything the integration guide / FUSEAI.md need about a project. Never secrets. */
+/** Everything the integration guide / FUSAI.md need about a project. Never secrets. */
 export async function projectSnapshot(
   prisma: PrismaClient,
   catalog: CatalogStore,

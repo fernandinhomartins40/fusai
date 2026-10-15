@@ -50,7 +50,7 @@ pnpm lint && pnpm typecheck && pnpm test
 
 ### Feito
 - **Schema Prisma completo** (PRD §6): 20 tabelas, incluindo as do Better Auth 1.7 (`user`, `session`, `account`, `verification`) com `role` (`PlatformRole`). Migração `init`.
-- **Seed idempotente** (`pnpm db:seed`): super admin (`SEED_ADMIN_EMAIL`/`SEED_ADMIN_PASSWORD`, email já verificado); org `FuseAI Interno` (`INTERNAL`, carteira, admin como OWNER); settings (câmbio 5,50, margem 4,0, taxa 0, mínimo R$ 10, alerta R$ 5, bônus 0); 6 provedores `DISABLED` sem chave; 6 modelos de exemplo **inativos** com preço “verificar”; 4 pacotes globais (R$ 20, 50 +5%, 100 +10%, 300 +15%). Rodar de novo não sobrescreve alterações do admin.
+- **Seed idempotente** (`pnpm db:seed`): super admin (`SEED_ADMIN_EMAIL`/`SEED_ADMIN_PASSWORD`, email já verificado); org `fusai Interno` (`INTERNAL`, carteira, admin como OWNER); settings (câmbio 5,50, margem 4,0, taxa 0, mínimo R$ 10, alerta R$ 5, bônus 0); 6 provedores `DISABLED` sem chave; 6 modelos de exemplo **inativos** com preço “verificar”; 4 pacotes globais (R$ 20, 50 +5%, 100 +10%, 300 +15%). Rodar de novo não sobrescreve alterações do admin.
 - **Better Auth na API** em `/api/auth/*`: email+senha com verificação obrigatória (reenvio ao tentar logar), reset de senha (1 h, revoga sessões), Google opcional, rate limit (login/cadastro 5/min; reset e reenvio 3 a cada 5 min), cookies `httpOnly`/`lax`/`secure` em prod e cross-subdomain via `COOKIE_DOMAIN`. `role` nunca é aceito do cliente.
 - **Emails** (nodemailer): Mailpit via `SMTP_URL` em dev; SMTP do Resend quando há `RESEND_API_KEY`. Templates pt-BR de verificação e reset.
 - **Rotas do painel** (`/internal/*`, sessão por cookie + checagem de `Origin` contra CSRF): `GET /internal/me`, `POST /internal/onboarding/organization` (org + carteira + OWNER + bônus de boas-vindas no ledger), `POST /internal/organizations/:orgId/projects`. Admin: `GET /internal/admin/overview` (só `SUPER_ADMIN`; 401 sem sessão, 403 para usuário comum).
@@ -87,14 +87,14 @@ pnpm lint && pnpm typecheck && pnpm test   # testes da API usam o banco fuseai_t
 ## Fase 2 — Provedores, modelos e preços (admin)
 
 ### Feito
-- **`@fuseai/shared/pricing`**: fórmula do PRD §7.5 com aritmética decimal exata em BigInt (`decimal.ts`, sem float), sempre arredondando para cima; precedência de margem org > modelo > global; modo FIXED; custo em R$ e margem em basis points. Mesmo código roda na API e no preview do admin.
+- **`@fusai/shared/pricing`**: fórmula do PRD §7.5 com aritmética decimal exata em BigInt (`decimal.ts`, sem float), sempre arredondando para cima; precedência de margem org > modelo > global; modo FIXED; custo em R$ e margem em basis points. Mesmo código roda na API e no preview do admin.
 - **Criptografia** das chaves de provedor com AES-256-GCM (`v1.iv.tag.ciphertext`, IV aleatório), máscara `sk-…abcd`; `ENCRYPTION_KEY` obrigatório e validado no boot.
 - **API admin** (só `SUPER_ADMIN`, guarda em `onRequest`, antes da validação do corpo):
   - Provedores: listar/detalhar (chave só mascarada), criar, editar (chave nova substitui; em branco mantém), excluir (bloqueado se houver modelos), **testar conexão** (`GET {baseUrl}/models`, lista os modelos do upstream, latência, erro com a chave apagada da mensagem). Não ativa sem chave. Em produção exige `https`.
   - Modelos: CRUD com preço calculado (entrada, cache, saída, custo em R$, margem); valida provedor, slug único, fallbacks (existem, não é ele mesmo, até 5) e preço fixo; exclusão bloqueada se houver consumo (e limpa referências de fallback).
   - Preços globais: câmbio, margem padrão, taxa de recarga, recarga mínima, alerta de saldo baixo, bônus de boas-vindas. Cache de 60 s por instância, invalidado em toda alteração.
   - Toda alteração gera `AuditLog` (sem segredos; o de settings guarda “de → para”).
-- **Web admin**: abas Visão geral · Provedores · Modelos · Preços. Provedores em cards com teste de conexão inline; tabela de modelos com preço R$/1M, margem e toggle de ativação; formulário de modelo com **preço final ao vivo** e **simulador de margem** (receita, custo, lucro, margem para um consumo mensal); formulário de preços globais. Toasts (sonner), componentes novos em `@fuseai/ui`: Table, Switch, Select, Textarea.
+- **Web admin**: abas Visão geral · Provedores · Modelos · Preços. Provedores em cards com teste de conexão inline; tabela de modelos com preço R$/1M, margem e toggle de ativação; formulário de modelo com **preço final ao vivo** e **simulador de margem** (receita, custo, lucro, margem para um consumo mensal); formulário de preços globais. Toasts (sonner), componentes novos em `@fusai/ui`: Table, Switch, Select, Textarea.
 - API aceita corpo JSON vazio com `content-type: application/json` (parser seguro contra prototype poisoning).
 
 ### Como testar
@@ -127,7 +127,7 @@ pnpm test   # pricing (shared) + admin (API, com upstream falso)
   - `reserve`: exatamente o `UPDATE … WHERE balance - reserved + creditLimit >= hold` do PRD §7.4, na mesma transação que cria a `WalletHold` (TTL 15 min). Hold zero ainda exige saldo disponível ≥ 0 (carteira negativa por estorno fica bloqueada).
   - `settle`: libera a hold e debita o custo real (`USAGE`), idempotente por `requestId` (inclusive em liquidações simultâneas); se a hold já expirou, cobra sem mexer no reservado. `release` = liquidar com custo 0.
   - `releaseExpiredHolds`: uma única instrução SQL (CTE) libera holds órfãs.
-  - Estimativa de reserva `estimateHoldMicros` em `@fuseai/shared` (entrada estimada + min(max_tokens ?? 4096, máx. do modelo) de saída).
+  - Estimativa de reserva `estimateHoldMicros` em `@fusai/shared` (entrada estimada + min(max_tokens ?? 4096, máx. do modelo) de saída).
 - **Worker** `src/worker.ts` (`dev:worker` / `node dist/worker.js`): limpeza de holds a cada 5 min.
 - **API**: carteira e extrato paginado por cursor para membros da organização; admin com lista de clientes (busca por nome, slug, CPF/CNPJ, email), detalhe (carteira, holds ativas, conferência ledger × saldo, membros, projetos), extrato e **ajuste manual** (motivo obrigatório, limite de R$ 1.000.000, ledger `ADJUSTMENT` com `actorId` + `AuditLog wallet.adjust`).
 - **Web**: abas no painel do cliente (Visão geral · Carteira); `/app/carteira` com saldo/reservado/disponível e extrato com “Carregar mais”; admin `/admin/clientes` (busca e paginação) e `/admin/clientes/[id]` com formulário de crédito/débito.
@@ -138,7 +138,7 @@ pnpm test   # pricing (shared) + admin (API, com upstream falso)
 docker compose up -d && pnpm db:migrate && pnpm db:seed && pnpm dev
 # admin: /admin/clientes -> abra um cliente -> lance um crédito com motivo
 # cliente: /app/carteira mostra o lançamento; /admin/clientes/[id] mostra "Ledger confere com o saldo"
-pnpm --filter @fuseai/api dev:worker   # limpeza de reservas órfãs
+pnpm --filter @fusai/api dev:worker   # limpeza de reservas órfãs
 pnpm test   # inclui o teste de 50 reservas concorrentes
 ```
 
@@ -166,12 +166,12 @@ pnpm test   # inclui o teste de 50 reservas concorrentes
   - Org `INTERNAL`: sem reserva nem débito, `UsageLog` com cobrança virtual.
 - **Redis**: rate limit do Better Auth migrado para o Redis (`customStorage.consume`); worker em **BullMQ** (job `release-holds` a cada 5 min + execução ao iniciar).
 - **Configuração** `test_key_max_output_micros` (padrão R$ 50/1M), editável em Admin → Preços.
-- **Web**: aba Projetos; página do projeto com tabela de chaves (criar em diálogo, chave exibida uma vez com `.env` e exemplo do SDK OpenAI, revogar); o onboarding termina gerando a primeira chave. Novo `Dialog` em `@fuseai/ui` (sobre `<dialog>` nativo).
+- **Web**: aba Projetos; página do projeto com tabela de chaves (criar em diálogo, chave exibida uma vez com `.env` e exemplo do SDK OpenAI, revogar); o onboarding termina gerando a primeira chave. Novo `Dialog` em `@fusai/ui` (sobre `<dialog>` nativo).
 
 ### Como testar
 ```bash
 docker compose up -d && pnpm db:migrate && pnpm db:seed && pnpm dev
-pnpm --filter @fuseai/api dev:worker
+pnpm --filter @fusai/api dev:worker
 # Admin: Provedores -> DeepSeek -> cole a chave real e ative; Modelos -> ative fuse/deepseek-chat
 # Cliente: Projetos -> projeto -> Nova chave (copie)
 ```
@@ -277,7 +277,7 @@ docker compose up -d && pnpm db:migrate && pnpm db:seed && pnpm dev
 ```bash
 docker compose up -d && pnpm db:migrate && pnpm db:seed
 pnpm dev                                   # API + web
-pnpm --filter @fuseai/api dev:worker       # processa webhooks, expiração e emails
+pnpm --filter @fusai/api dev:worker       # processa webhooks, expiração e emails
 ```
 **No sandbox real do Asaas** (critério de aceite da fase):
 1. Crie a conta em https://sandbox.asaas.com, cadastre uma chave Pix (Minha conta → Pix) e gere a chave de API (Integrações). Coloque em `.env`: `ASAAS_ENV=sandbox`, `ASAAS_API_KEY=$aact_hmlg_...`, `ASAAS_WEBHOOK_TOKEN=<um token longo>`.
@@ -352,27 +352,27 @@ pnpm --filter @fuseai/api dev:worker       # processa webhooks, expiração e em
 - **Painel**:
   - abas do projeto **Usuários finais** (busca, saldo, ajuste manual de bônus/remoção por dono e admin, com auditoria) e **Pacotes de créditos** (CRUD; pacote já vendido é desativado, não apagado);
   - **Webhooks** com histórico de entregas (status, tentativas, HTTP, corpo), reenvio e evento de teste.
-- **`@fuseai/sdk`** (TS, sem dependências; browser, Node 18+, React Native):
+- **`@fusai/sdk`** (TS, sem dependências; browser, Node 18+, React Native):
   - chat (com stream), models, balance, packages, `checkout.createPix/get/waitForPayment` e `appUsers`;
-  - `FuseAIError`;
+  - `FusaiError`;
   - token renovável (função) com **uma** busca compartilhada entre chamadas simultâneas;
-  - `@fuseai/sdk/server` com `verifyWebhook` (WebCrypto, tolerância de 5 min).
-- **`@fuseai/react`**: `<FuseProvider>`, `<FuseCheckout/>` (pacotes → CPF na 1ª vez → QR + copiar + contagem → sucesso, `onPaid`) e `<FuseBalance/>`, com estilos inline em variáveis CSS `--fuse-*` (sem Tailwind).
+  - `@fusai/sdk/server` com `verifyWebhook` (WebCrypto, tolerância de 5 min).
+- **`@fusai/react`**: `<FusaiProvider>`, `<FusaiCheckout/>` (pacotes → CPF na 1ª vez → QR + copiar + contagem → sucesso, `onPaid`) e `<FusaiBalance/>`, com estilos inline em variáveis CSS `--fusai-*` (sem Tailwind).
 - **`examples/next-pwa`** (porta 3001):
   - backend com `/api/session` (upsert + session token, chave secreta só no servidor) e `/api/webhooks/fuse` (verifica a assinatura e é idempotente);
-  - front com saldo, `<FuseCheckout/>`, chat em stream e lista de webhooks;
+  - front com saldo, `<FusaiCheckout/>`, chat em stream e lista de webhooks;
   - manifest e service worker mínimos (instalável).
 
 ### Como testar
 ```bash
 docker compose up -d && pnpm db:migrate && pnpm db:seed
-pnpm dev && pnpm --filter @fuseai/api dev:worker
+pnpm dev && pnpm --filter @fusai/api dev:worker
 ```
 1. No painel, crie um projeto em **Cobrar do usuário final**. Em Configurações:
    - origem permitida `http://localhost:3001`;
    - webhook `http://localhost:3001/api/webhooks/fuse`.
    - Crie uma chave e um pacote (aba Pacotes de créditos).
-2. `cp examples/next-pwa/.env.example examples/next-pwa/.env.local`. Preencha a chave e o segredo do webhook (Configurações → Revelar). Depois rode `pnpm --filter @fuseai/example-next-pwa dev`.
+2. `cp examples/next-pwa/.env.example examples/next-pwa/.env.local`. Preencha a chave e o segredo do webhook (Configurações → Revelar). Depois rode `pnpm --filter @fusai/example-next-pwa dev`.
 3. Abra http://localhost:3001 → Pagar com Pix → CPF → pague no sandbox do Asaas (ou com o Asaas falso). O saldo sobe, os webhooks aparecem como verificados e o chat debita o saldo do usuário.
 
 ### Verificado
@@ -389,7 +389,7 @@ pnpm dev && pnpm --filter @fuseai/api dev:worker
   - CRUD de pacotes, lista e ajuste de usuários.
 - **Aceite no navegador**: 28/28 a 375px, com API, worker BullMQ, web, app de exemplo, Asaas falso e LLM falso reais.
   - Configuração feita só pela API do painel.
-  - O app de exemplo cria o AppUser (R$ 0,50 grátis) e compra o pacote pelo `<FuseCheckout/>`: pede o CPF, mostra QR, copiar e contagem.
+  - O app de exemplo cria o AppUser (R$ 0,50 grátis) e compra o pacote pelo `<FusaiCheckout/>`: pede o CPF, mostra QR, copiar e contagem.
   - O webhook do Asaas chega 3× e a tela vira "Pagamento confirmado". O saldo vai a R$ 10,50 (R$ 9 + R$ 1 de bônus + R$ 0,50).
   - `payment.received` e `app_user.credited` chegam ao app 1× cada, com assinatura verificada.
   - O chat em stream com session token debita a carteira do usuário final (R$ 10,48).
@@ -403,8 +403,8 @@ pnpm dev && pnpm --filter @fuseai/api dev:worker
 ### Pendências
 - Sandbox real do Asaas ainda não validado (igual à Fase 6).
 - SSE `GET /v1/checkout/:id/events` (o PRD dá como alternativa ao polling): ficou só o polling de 3 s.
-- `@fuseai/sdk` e `@fuseai/react` exportam TypeScript (padrão do monorepo); o build para publicar no npm fica para a Fase 10.
-- Sem nota fiscal nem split: o valor das vendas aos usuários finais entra na conta Asaas da FuseAI (ver D-085).
+- `@fusai/sdk` e `@fusai/react` exportam TypeScript (padrão do monorepo); o build para publicar no npm fica para a Fase 10.
+- Sem nota fiscal nem split: o valor das vendas aos usuários finais entra na conta Asaas da fusai (ver D-085).
 
 ## Fase 8 — MCP e Kit de Integração
 
@@ -423,32 +423,32 @@ pnpm dev && pnpm --filter @fuseai/api dev:worker
   - `create_test_checkout` (só com chave `fai_test_` e Asaas em sandbox);
   - `send_test_webhook`.
   - Todas têm anotações MCP (`readOnlyHint`, `destructiveHint`…).
-- **Recursos**: `fuseai://docs/api`, `fuseai://docs/sdk`, `fuseai://docs/checkout` e `fuseai://project` (o FUSEAI.md). **Prompts**: `integrar_chat`, `integrar_compra_pix` e `migrar_de_openai`.
+- **Recursos**: `fusai://docs/api`, `fusai://docs/sdk`, `fusai://docs/checkout` e `fusai://project` (o FUSAI.md). **Prompts**: `integrar_chat`, `integrar_compra_pix` e `migrar_de_openai`.
 - **Auditoria**: toda chamada de tool ou leitura de recurso gera um `AuditLog` `mcp.<tool>` com a chave e a organização.
-- **`@fuseai/docs`** (pacote novo), fonte única das docs em Markdown (`content/NN-slug.md`):
+- **`@fusai/docs`** (pacote novo), fonte única das docs em Markdown (`content/NN-slug.md`):
   - um script gera `src/content.generated.ts`; um teste falha se ele estiver desatualizado;
   - as URLs da instalação são trocadas na renderização (`{{V1}}`, `{{MCP}}`…);
-  - também gera o guia de integração, o `FUSEAI.md`, o `llms.txt` e os snippets de MCP.
+  - também gera o guia de integração, o `FUSAI.md`, o `llms.txt` e os snippets de MCP.
 - **Docs públicas** em `/docs` com as 11 páginas do PRD §10.3:
   - Markdown renderizado no servidor com `marked`, headings com âncora, navegação lateral (menu recolhível no celular) e anterior/próxima;
   - cada página também em Markdown em `/docs/<slug>.md`;
   - `/llms.txt` (formato llmstxt.org) e `/llms-full.txt`.
 - **Kit de Integração** (aba nova do projeto, `/app/projetos/[id]/integracao`):
   - comandos MCP para Claude Code, Cursor/Claude Desktop e VS Code;
-  - `.env` pronto, botão **Baixar FUSEAI.md** (gerado pela API com os dados atuais do projeto, sem a chave), prompt sugerido e exemplo de migração da OpenAI.
+  - `.env` pronto, botão **Baixar FUSAI.md** (gerado pela API com os dados atuais do projeto, sem a chave), prompt sugerido e exemplo de migração da OpenAI.
   - Ao **criar uma chave** (no painel e no onboarding), os comandos MCP já aparecem com a chave real.
 - Refatoração: a lista de modelos e o resumo de consumo saíram de `gateway/routes.ts` para `gateway/queries.ts`, e são usados por `/v1` e pelo MCP.
 
 ### Como testar
 ```bash
-pnpm dev && pnpm --filter @fuseai/api dev:worker
+pnpm dev && pnpm --filter @fusai/api dev:worker
 # Painel → Projetos → (projeto) → Chaves de API → Nova chave: copie o comando MCP mostrado
-claude mcp add --transport http fuseai http://localhost:4000/mcp --header "Authorization: Bearer fai_live_..."
-claude mcp list                                   # fuseai ... ✔ Connected
+claude mcp add --transport http fusai http://localhost:4000/mcp --header "Authorization: Bearer fai_live_..."
+claude mcp list                                   # fusai ... ✔ Connected
 npx @modelcontextprotocol/inspector --cli http://localhost:4000/mcp --transport http \
   --header "Authorization: Bearer fai_live_..." --method tools/list
 # Docs: http://localhost:3000/docs · /llms.txt · /llms-full.txt · /docs/chat.md
-pnpm --filter @fuseai/docs generate               # depois de editar packages/docs/content/*.md
+pnpm --filter @fusai/docs generate               # depois de editar packages/docs/content/*.md
 ```
 
 ### Verificado
@@ -460,13 +460,13 @@ pnpm --filter @fuseai/docs generate               # depois de editar packages/do
   - `test_chat` cobrado, `get_balance`, `get_usage` e auditoria;
   - `update_project_settings` (prévia → confirmação → webhook de teste entregue);
   - `create_package` e `create_test_checkout` (recusado com chave live, ok com chave de teste).
-  - Também há teste do download do FUSEAI.md, que não contém a chave.
+  - Também há teste do download do FUSAI.md, que não contém a chave.
 - **Critérios de aceite do PRD**, contra a API real em dev:
-  - `claude mcp add --transport http fuseai http://localhost:4000/mcp --header "Authorization: Bearer …"` seguido de `claude mcp list` → **`fuseai: http://localhost:4000/mcp (HTTP) - ✔ Connected`** (entrada de teste removida depois);
+  - `claude mcp add --transport http fusai http://localhost:4000/mcp --header "Authorization: Bearer …"` seguido de `claude mcp list` → **`fuseai: http://localhost:4000/mcp (HTTP) - ✔ Connected`** (entrada de teste removida depois);
   - **MCP Inspector** (CLI 2.7.0) `tools/list` → as **11 tools**; `--strict` sem avisos de portabilidade de schema;
   - `get_integration_guide` (stack `nextjs`) pelo Inspector → guia personalizado do projeto "App PWA": modo `END_USER_WALLET`, origem `http://localhost:3001`, webhook do app de exemplo, modelo com preço real e o pacote "100 mensagens".
 - **Aceite no navegador**: 23/23 a 375px.
-  - Kit: aba, os 3 clientes MCP, `.env`, prompt, migração da OpenAI e download do FUSEAI.md (8 KB, com os dados do projeto e sem chave).
+  - Kit: aba, os 3 clientes MCP, `.env`, prompt, migração da OpenAI e download do FUSAI.md (8 KB, com os dados do projeto e sem chave).
   - Criar chave mostra o comando MCP com a chave real, e essa chave conecta no MCP.
   - Docs: índice com 11 páginas, âncoras, código e tabelas sem estouro horizontal, navegação móvel e anterior/próxima.
   - `.md`, `llms.txt` e `llms-full.txt` sem placeholders; sem erros de JS.

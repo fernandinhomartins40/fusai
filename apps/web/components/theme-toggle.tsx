@@ -1,6 +1,6 @@
 'use client';
 
-import { Button } from '@fuseai/ui/components/button';
+import { Button } from '@fusai/ui/components/button';
 import { Moon, Sun } from 'lucide-react';
 import { useTheme } from 'next-themes';
 

@@ -9,7 +9,7 @@
  *   A PREPAID wallet (limit 0) can never have `balance - reserved < 0` from holds.
  * - LedgerEntry has UNIQUE(type, referenceType, referenceId): a request is charged at most once.
  */
-import { type LedgerType, Prisma, type PrismaClient } from '@fuseai/db';
+import { type LedgerType, Prisma, type PrismaClient } from '@fusai/db';
 import { notFound } from '../../lib/errors';
 
 export type Tx = Prisma.TransactionClient;

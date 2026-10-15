@@ -1,20 +1,20 @@
-# Prompt para o Claude Code — FuseAI
+# Prompt para o Claude Code — fusai
 
 > **Como usar:** crie uma pasta vazia `fuseai/`, coloque nela este `PROMPT.md` e o `PRD.md`, abra no VS Code, inicie o Claude Code e cole o bloco abaixo (tudo entre as linhas `---`). Depois de cada fase, revise, teste e mande “continue para a próxima fase”.
 
 ---
 
-Você é um engenheiro de software sênior full-stack (TypeScript, Next.js, Fastify, Prisma, Docker) e designer de produto. Vamos construir do zero a **FuseAI** (www.fusai.com.br), um hub/gateway de IA multi-provedor com cobrança pré-paga por tokens e recarga via Pix.
+Você é um engenheiro de software sênior full-stack (TypeScript, Next.js, Fastify, Prisma, Docker) e designer de produto. Vamos construir do zero a **fusai** (www.fusai.com.br), um hub/gateway de IA multi-provedor com cobrança pré-paga por tokens e recarga via Pix.
 
 ## Fonte da verdade
 Leia **todo** o arquivo `PRD.md` antes de escrever qualquer código. Ele define produto, stack, modelo de dados, endpoints, fluxos de cobrança, Pix, MCP, telas, segurança e o plano por fases. Siga-o à risca. Quando algo não estiver especificado, escolha a solução mais simples e registre em `docs/DECISIONS.md`.
 
 ## Resumo do que estamos construindo
 - **Landing page** de vendas com cadastro (Next.js).
-- **Painel do cliente**: organizações, projetos, chaves de API, carteira de créditos, recarga via Pix, consumo, logs, webhooks e **Kit de Integração** (comandos MCP + arquivo `FUSEAI.md` para a IA do cliente implementar a integração sozinha).
+- **Painel do cliente**: organizações, projetos, chaves de API, carteira de créditos, recarga via Pix, consumo, logs, webhooks e **Kit de Integração** (comandos MCP + arquivo `FUSAI.md` para a IA do cliente implementar a integração sozinha).
 - **Gateway compatível com OpenAI** (`/v1/chat/completions` com streaming) que roteia para provedores baratos (DeepSeek, Kimi, GLM, Qwen, MiniMax, OpenRouter como fallback) e cobra por token com margem configurável.
 - **Carteiras** de organização e de **usuário final** com ledger imutável e reserva de saldo.
-- **Compra de créditos dentro dos apps dos clientes** (web, PWA, nativo) via Pix: session tokens, checkout hospedado `/pay/[id]`, `@fuseai/sdk` e `@fuseai/react`.
+- **Compra de créditos dentro dos apps dos clientes** (web, PWA, nativo) via Pix: session tokens, checkout hospedado `/pay/[id]`, `@fusai/sdk` e `@fusai/react`.
 - **Servidor MCP remoto** (Streamable HTTP) autenticado pela chave de API.
 - **Painel super admin**: provedores e chaves, modelos e preços, câmbio e margem, clientes, ajuste de saldo, pagamentos, dashboard de receita × custo × margem, auditoria, impersonate.
 
@@ -32,7 +32,7 @@ Turborepo + pnpm · TypeScript strict · Next.js 15 App Router · Tailwind v4 + 
 3. **Dinheiro**: sempre inteiro em micro-reais (`BigInt`); pagamentos em centavos. Arredondamento de cobrança sempre para cima. Escreva testes para isso.
 4. **Segurança**: nenhuma chave real no código; chaves de cliente só como hash com pepper; chaves de provedor criptografadas (AES-256-GCM); secret key nunca no front; webhooks idempotentes; zod em toda entrada; nunca logar segredos nem conteúdo de mensagens.
 5. **Concorrência no saldo**: use exatamente o padrão reserva → liquidação do PRD (7.4) com `UPDATE ... WHERE saldo disponível >= reserva`. Escreva o teste de concorrência da Fase 3.
-6. **Design**: moderno, limpo, dark-first com modo claro, fonte Geist, gradiente da marca âmbar → rosa → violeta usado com parcimônia, shadcn/ui, mobile-first, acessível. Antes de construir a landing e os painéis, crie em `packages/ui` o tema (tokens CSS), o logo SVG “fuseai” e os componentes base, e use-os de forma consistente.
+6. **Design**: moderno, limpo, dark-first com modo claro, fonte Geist, gradiente da marca azul-marinho → azul → ciano (logo oficial) usado com parcimônia, shadcn/ui, mobile-first, acessível. Antes de construir a landing e os painéis, crie em `packages/ui` o tema (tokens CSS), o logo SVG “fuseai” e os componentes base, e use-os de forma consistente.
 7. **Provedores**: todos são compatíveis com OpenAI; implemente um `OpenAICompatibleProvider` genérico. Não invente preços: o seed usa valores de exemplo marcados “verificar” e o admin confirma no site oficial de cada provedor.
 8. **Asaas**: implemente atrás da interface `PaymentProvider`. Use o ambiente sandbox em dev. Antes de codar, consulte a documentação oficial atual do Asaas (cobrança Pix, QR Code, webhooks e autenticação do webhook) e ajuste se algo divergir do PRD; registre a diferença em `docs/DECISIONS.md`.
 9. **MCP**: use o SDK oficial TypeScript com transporte Streamable HTTP stateless, auth por Bearer com a chave do projeto. Teste com o MCP Inspector.

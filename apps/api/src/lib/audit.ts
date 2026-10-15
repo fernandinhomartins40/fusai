@@ -1,4 +1,4 @@
-import type { Prisma, PrismaClient } from '@fuseai/db';
+import type { Prisma, PrismaClient } from '@fusai/db';
 import type { FastifyRequest } from 'fastify';
 
 /** Records an administrative action. Never pass secrets in `metadata`. */

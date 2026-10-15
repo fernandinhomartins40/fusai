@@ -1,9 +1,9 @@
 'use client';
 
-import { brlToMicros } from '@fuseai/shared';
-import { Button } from '@fuseai/ui/components/button';
-import { Input } from '@fuseai/ui/components/input';
-import { cn } from '@fuseai/ui/lib/utils';
+import { brlToMicros } from '@fusai/shared';
+import { Button } from '@fusai/ui/components/button';
+import { Input } from '@fusai/ui/components/input';
+import { cn } from '@fusai/ui/lib/utils';
 import { Loader2 } from 'lucide-react';
 import { useState } from 'react';
 import { Field, FormAlert } from '@/components/form-field';
@@ -72,7 +72,7 @@ export function CreateKeyForm({ projectId, onCreated, defaultName = '' }: Props)
             key={value}
             className={cn(
               'flex cursor-pointer gap-2 rounded-xl border p-3 hover:bg-accent/50',
-              env === value && 'border-fuse-pink/60 bg-accent/40',
+              env === value && 'border-fusai-accent/60 bg-accent/40',
             )}
           >
             <input
@@ -81,7 +81,7 @@ export function CreateKeyForm({ projectId, onCreated, defaultName = '' }: Props)
               value={value}
               checked={env === value}
               onChange={() => setEnv(value)}
-              className="mt-1 accent-[var(--fuse-pink)]"
+              className="mt-1 accent-[var(--fusai-accent)]"
             />
             <span className="grid">
               <span className="font-medium text-sm">{title}</span>

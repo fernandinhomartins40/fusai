@@ -1,8 +1,8 @@
 'use client';
 
-import { Button } from '@fuseai/ui/components/button';
-import { Input } from '@fuseai/ui/components/input';
-import { Switch } from '@fuseai/ui/components/switch';
+import { Button } from '@fusai/ui/components/button';
+import { Input } from '@fusai/ui/components/input';
+import { Switch } from '@fusai/ui/components/switch';
 import { Loader2, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';

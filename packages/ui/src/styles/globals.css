@@ -1,8 +1,8 @@
 /*
- * FuseAI design tokens (Tailwind v4). Dark-first: the `dark` class is the default theme,
+ * fusai design tokens (Tailwind v4). Dark-first: the `dark` class is the default theme,
  * `:root` holds the light theme. Import from the app's CSS entry:
  *   @import "tailwindcss";
- *   @import "@fuseai/ui/styles.css";
+ *   @import "@fusai/ui/styles.css";
  */
 
 @source "../";
@@ -12,70 +12,82 @@
 :root {
   --radius: 1rem;
 
-  /* Brand */
-  --fuse-amber: #f59e0b;
-  --fuse-pink: #ec4899;
-  --fuse-violet: #8b5cf6;
-  --fuse-gradient: linear-gradient(90deg, var(--fuse-amber), var(--fuse-pink), var(--fuse-violet));
+  /* Brand: cores tiradas do logo oficial (packages/ui/assets). */
+  --fusai-navy: #162a9e;
+  --fusai-blue: #0066fe;
+  --fusai-cyan: #00d2ff;
+  --fusai-ink: #0a0e1a;
+  /* Decorativo (brilhos, interruptores, confete): o gradiente completo do símbolo. */
+  --fusai-gradient: linear-gradient(90deg, var(--fusai-navy), var(--fusai-blue), var(--fusai-cyan));
+  /* Preenchimento com texto branco (botões, selos): sem o ciano, que não dá contraste. */
+  --fusai-gradient-fill: linear-gradient(90deg, var(--fusai-navy), var(--fusai-blue));
+  /* Texto em gradiente sobre fundo claro (contraste >= 3 em títulos grandes). */
+  --fusai-gradient-text: linear-gradient(90deg, var(--fusai-navy), var(--fusai-blue) 60%, #0089c7);
+  /* Destaque (ícones, abas ativas, bordas, opções marcadas): AA sobre o fundo. */
+  --fusai-accent: var(--fusai-blue);
 
   /* Light theme */
-  --background: oklch(0.99 0.002 286);
-  --foreground: oklch(0.18 0.01 286);
+  --background: oklch(0.99 0.004 262);
+  --foreground: oklch(0.17 0.025 266);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.18 0.01 286);
+  --card-foreground: oklch(0.17 0.025 266);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.18 0.01 286);
-  --primary: oklch(0.21 0.01 286);
+  --popover-foreground: oklch(0.17 0.025 266);
+  --primary: oklch(0.17 0.025 266);
   --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.96 0.004 286);
-  --secondary-foreground: oklch(0.21 0.01 286);
-  --muted: oklch(0.96 0.004 286);
-  --muted-foreground: oklch(0.5 0.015 286);
-  --accent: oklch(0.96 0.004 286);
-  --accent-foreground: oklch(0.21 0.01 286);
+  --secondary: oklch(0.96 0.008 262);
+  --secondary-foreground: oklch(0.2 0.025 266);
+  --muted: oklch(0.96 0.008 262);
+  --muted-foreground: oklch(0.5 0.025 264);
+  --accent: oklch(0.955 0.012 262);
+  --accent-foreground: oklch(0.2 0.025 266);
   --destructive: oklch(0.58 0.22 27);
   --destructive-foreground: oklch(0.985 0 0);
   --success: oklch(0.6 0.15 155);
   --warning: oklch(0.72 0.16 70);
-  --border: oklch(0.91 0.005 286);
-  --input: oklch(0.91 0.005 286);
-  --ring: oklch(0.63 0.2 330);
-  --chart-1: var(--fuse-amber);
-  --chart-2: var(--fuse-pink);
-  --chart-3: var(--fuse-violet);
+  --border: oklch(0.91 0.01 262);
+  --input: oklch(0.91 0.01 262);
+  --ring: var(--fusai-blue);
+  --chart-1: var(--fusai-blue);
+  --chart-2: var(--fusai-cyan);
+  --chart-3: var(--fusai-navy);
   --chart-4: oklch(0.65 0.12 200);
-  --chart-5: oklch(0.6 0.02 286);
+  --chart-5: oklch(0.6 0.02 264);
   /* Single-series data color, validated (dataviz validator) against the card surface. */
-  --chart-series: #7c3aed;
-  --chart-grid: #ececf0;
-  --chart-axis: #8b8a93;
+  --chart-series: #0066fe;
+  --chart-grid: #e8eaf1;
+  --chart-axis: #828799;
 }
 
 .dark {
-  --background: oklch(0.145 0.006 286);
-  --foreground: oklch(0.97 0.003 286);
-  --card: oklch(0.18 0.007 286);
-  --card-foreground: oklch(0.97 0.003 286);
-  --popover: oklch(0.18 0.007 286);
-  --popover-foreground: oklch(0.97 0.003 286);
-  --primary: oklch(0.97 0.003 286);
-  --primary-foreground: oklch(0.18 0.007 286);
-  --secondary: oklch(0.24 0.008 286);
-  --secondary-foreground: oklch(0.97 0.003 286);
-  --muted: oklch(0.24 0.008 286);
-  --muted-foreground: oklch(0.7 0.012 286);
-  --accent: oklch(0.26 0.01 286);
-  --accent-foreground: oklch(0.97 0.003 286);
+  /* Fundo no tom do ícone oficial (#0a0e1a). */
+  --background: oklch(0.155 0.022 266);
+  --foreground: oklch(0.97 0.006 262);
+  --card: oklch(0.19 0.026 266);
+  --card-foreground: oklch(0.97 0.006 262);
+  --popover: oklch(0.19 0.026 266);
+  --popover-foreground: oklch(0.97 0.006 262);
+  --primary: oklch(0.97 0.006 262);
+  --primary-foreground: oklch(0.19 0.026 266);
+  --secondary: oklch(0.25 0.028 266);
+  --secondary-foreground: oklch(0.97 0.006 262);
+  --muted: oklch(0.25 0.028 266);
+  --muted-foreground: oklch(0.72 0.02 262);
+  --accent: oklch(0.27 0.032 266);
+  --accent-foreground: oklch(0.97 0.006 262);
   --destructive: oklch(0.65 0.2 25);
   --destructive-foreground: oklch(0.985 0 0);
   --success: oklch(0.72 0.15 155);
   --warning: oklch(0.8 0.15 75);
   --border: oklch(1 0 0 / 0.09);
   --input: oklch(1 0 0 / 0.13);
-  --ring: oklch(0.7 0.18 330);
-  --chart-series: #8b5cf6;
-  --chart-grid: #26252b;
-  --chart-axis: #8b8a93;
+  --ring: #3d9bff;
+  /* No escuro, destaque e texto em gradiente mais claros (contraste sobre #0a0e1a). */
+  --fusai-accent: #3d9bff;
+  --fusai-gradient-text: linear-gradient(90deg, #3d8bff, var(--fusai-cyan));
+  --chart-series: #2f86f5;
+  --chart-grid: #222a3d;
+  --chart-axis: #8a91a6;
 }
 
 @theme inline {
@@ -111,9 +123,11 @@
   --color-chart-series: var(--chart-series);
   --color-chart-grid: var(--chart-grid);
   --color-chart-axis: var(--chart-axis);
-  --color-fuse-amber: var(--fuse-amber);
-  --color-fuse-pink: var(--fuse-pink);
-  --color-fuse-violet: var(--fuse-violet);
+  --color-fusai-navy: var(--fusai-navy);
+  --color-fusai-blue: var(--fusai-blue);
+  --color-fusai-cyan: var(--fusai-cyan);
+  --color-fusai-ink: var(--fusai-ink);
+  --color-fusai-accent: var(--fusai-accent);
 
   --radius-sm: calc(var(--radius) - 8px);
   --radius-md: calc(var(--radius) - 6px);
@@ -122,13 +136,18 @@
   --radius-2xl: calc(var(--radius) + 4px);
 }
 
-/* Brand gradient helpers — use sparingly (logo, primary CTAs, chart highlights). */
-@utility bg-fuse-gradient {
-  background-image: var(--fuse-gradient);
+/* Brand gradient helpers — use sparingly (CTAs, glows, highlights). */
+@utility bg-fusai-gradient {
+  background-image: var(--fusai-gradient);
 }
 
-@utility text-fuse-gradient {
-  background-image: var(--fuse-gradient);
+/* Fill with white text on top (buttons, badges, steps). */
+@utility bg-fusai-fill {
+  background-image: var(--fusai-gradient-fill);
+}
+
+@utility text-fusai-gradient {
+  background-image: var(--fusai-gradient-text);
   background-clip: text;
   -webkit-background-clip: text;
   color: transparent;

@@ -5,7 +5,7 @@
 ## Listar
 
 ```bash
-curl {{V1}}/models -H "Authorization: Bearer $FUSEAI_API_KEY"
+curl {{V1}}/models -H "Authorization: Bearer $FUSAI_API_KEY"
 ```
 
 Exemplo (preços ilustrativos):

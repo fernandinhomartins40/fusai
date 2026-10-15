@@ -1,9 +1,9 @@
 'use client';
 
-import { Badge } from '@fuseai/ui/components/badge';
-import { Button } from '@fuseai/ui/components/button';
-import { Input } from '@fuseai/ui/components/input';
-import { Select } from '@fuseai/ui/components/select';
+import { Badge } from '@fusai/ui/components/badge';
+import { Button } from '@fusai/ui/components/button';
+import { Input } from '@fusai/ui/components/input';
+import { Select } from '@fusai/ui/components/select';
 import {
   Table,
   TableBody,
@@ -11,7 +11,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@fuseai/ui/components/table';
+} from '@fusai/ui/components/table';
 import { Loader2, Send } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';

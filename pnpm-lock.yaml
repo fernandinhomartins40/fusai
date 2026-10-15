@@ -26,13 +26,13 @@ importers:
       '@fastify/helmet':
         specifier: 13.2.0
         version: 13.2.0
-      '@fuseai/db':
+      '@fusai/db':
         specifier: workspace:*
         version: link:../../packages/db
-      '@fuseai/docs':
+      '@fusai/docs':
         specifier: workspace:*
         version: link:../../packages/docs
-      '@fuseai/shared':
+      '@fusai/shared':
         specifier: workspace:*
         version: link:../../packages/shared
       '@modelcontextprotocol/sdk':
@@ -72,7 +72,7 @@ importers:
         specifier: ^4.1.0
         version: 4.6.7
     devDependencies:
-      '@fuseai/config':
+      '@fusai/config':
         specifier: workspace:*
         version: link:../../packages/config
       '@types/node':
@@ -105,13 +105,13 @@ importers:
 
   apps/web:
     dependencies:
-      '@fuseai/docs':
+      '@fusai/docs':
         specifier: workspace:*
         version: link:../../packages/docs
-      '@fuseai/shared':
+      '@fusai/shared':
         specifier: workspace:*
         version: link:../../packages/shared
-      '@fuseai/ui':
+      '@fusai/ui':
         specifier: workspace:*
         version: link:../../packages/ui
       '@hookform/resolvers':
@@ -160,7 +160,7 @@ importers:
         specifier: ^4.6.7
         version: 4.6.7
     devDependencies:
-      '@fuseai/config':
+      '@fusai/config':
         specifier: workspace:*
         version: link:../../packages/config
       '@tailwindcss/postcss':
@@ -184,10 +184,10 @@ importers:
 
   examples/next-pwa:
     dependencies:
-      '@fuseai/react':
+      '@fusai/react':
         specifier: workspace:*
         version: link:../../packages/react
-      '@fuseai/sdk':
+      '@fusai/sdk':
         specifier: workspace:*
         version: link:../../packages/sdk
       next:
@@ -203,7 +203,7 @@ importers:
         specifier: ^0.0.1
         version: 0.0.1
     devDependencies:
-      '@fuseai/config':
+      '@fusai/config':
         specifier: workspace:*
         version: link:../../packages/config
       '@types/node':
@@ -230,7 +230,7 @@ importers:
         specifier: 1.7.7
         version: 1.7.7(@prisma/client@6.19.3(prisma@6.19.3(typescript@5.9.3))(typescript@5.9.3))(next@15.5.27(@types/node@22.20.5)(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(prisma@6.19.3(typescript@5.9.3))(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(vitest@3.2.7(@types/node@22.20.5)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.23.15)(yaml@2.9.1))
     devDependencies:
-      '@fuseai/config':
+      '@fusai/config':
         specifier: workspace:*
         version: link:../config
       '@types/node':
@@ -251,7 +251,7 @@ importers:
 
   packages/docs:
     devDependencies:
-      '@fuseai/config':
+      '@fusai/config':
         specifier: workspace:*
         version: link:../config
       '@types/node':
@@ -266,11 +266,11 @@ importers:
 
   packages/react:
     dependencies:
-      '@fuseai/sdk':
+      '@fusai/sdk':
         specifier: workspace:*
         version: link:../sdk
     devDependencies:
-      '@fuseai/config':
+      '@fusai/config':
         specifier: workspace:*
         version: link:../config
       '@types/react':
@@ -285,7 +285,7 @@ importers:
 
   packages/sdk:
     devDependencies:
-      '@fuseai/config':
+      '@fusai/config':
         specifier: workspace:*
         version: link:../config
       '@types/node':
@@ -304,7 +304,7 @@ importers:
         specifier: ^4.1.0
         version: 4.6.7
     devDependencies:
-      '@fuseai/config':
+      '@fusai/config':
         specifier: workspace:*
         version: link:../config
       '@types/node':
@@ -335,7 +335,7 @@ importers:
         specifier: ^3.3.1
         version: 3.7.0
     devDependencies:
-      '@fuseai/config':
+      '@fusai/config':
         specifier: workspace:*
         version: link:../config
       '@types/react':

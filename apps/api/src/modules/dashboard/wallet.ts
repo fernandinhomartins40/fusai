@@ -1,5 +1,5 @@
-import type { PrismaClient } from '@fuseai/db';
-import { ledgerQuerySchema } from '@fuseai/shared';
+import type { PrismaClient } from '@fusai/db';
+import { ledgerQuerySchema } from '@fusai/shared';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import { notFound } from '../../lib/errors';

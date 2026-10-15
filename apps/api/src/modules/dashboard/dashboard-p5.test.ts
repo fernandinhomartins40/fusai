@@ -1,4 +1,4 @@
-import { prisma } from '@fuseai/db';
+import { prisma } from '@fusai/db';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
   APP_URL,

@@ -1,6 +1,6 @@
 # MCP
 
-> Conecte a FuseAI à sua IA de programação (Claude Code, Cursor, VS Code, Claude Desktop) e deixe ela fazer a integração.
+> Conecte a fusai à sua IA de programação (Claude Code, Cursor, VS Code, Claude Desktop) e deixe ela fazer a integração.
 
 O servidor MCP remoto fica em `{{MCP}}` (transporte Streamable HTTP). Autentique com uma chave do projeto que tenha o escopo `mcp`.
 
@@ -9,7 +9,7 @@ O servidor MCP remoto fica em `{{MCP}}` (transporte Streamable HTTP). Autentique
 Claude Code:
 
 ```bash
-claude mcp add --transport http fuseai {{MCP}} --header "Authorization: Bearer fai_live_..."
+claude mcp add --transport http fusai {{MCP}} --header "Authorization: Bearer fai_live_..."
 ```
 
 Cursor (`.cursor/mcp.json`), Claude Desktop e outros clientes com `mcpServers`:
@@ -17,7 +17,7 @@ Cursor (`.cursor/mcp.json`), Claude Desktop e outros clientes com `mcpServers`:
 ```json
 {
   "mcpServers": {
-    "fuseai": {
+    "fusai": {
       "type": "http",
       "url": "{{MCP}}",
       "headers": { "Authorization": "Bearer fai_live_..." }
@@ -31,17 +31,17 @@ VS Code (`.vscode/mcp.json`):
 ```json
 {
   "servers": {
-    "fuseai": {
+    "fusai": {
       "type": "http",
       "url": "{{MCP}}",
-      "headers": { "Authorization": "Bearer ${input:fuseai-key}" }
+      "headers": { "Authorization": "Bearer ${input:fusai-key}" }
     }
   },
-  "inputs": [{ "id": "fuseai-key", "type": "promptString", "description": "Chave FuseAI", "password": true }]
+  "inputs": [{ "id": "fusai-key", "type": "promptString", "description": "Chave fusai", "password": true }]
 }
 ```
 
-Depois peça à IA: *“Leia o FUSEAI.md e use o MCP fuseai para integrar chat com IA e compra de créditos via Pix neste projeto.”* O `FUSEAI.md` é baixado em **Projetos → Kit de Integração**.
+Depois peça à IA: *“Leia o FUSAI.md e use o MCP fusai para integrar chat com IA e compra de créditos via Pix neste projeto.”* O `FUSAI.md` é baixado em **Projetos → Kit de Integração**.
 
 ## Ferramentas
 
@@ -60,7 +60,7 @@ Depois peça à IA: *“Leia o FUSEAI.md e use o MCP fuseai para integrar chat c
 
 ## Recursos e prompts
 
-- Recursos: `fuseai://docs/api`, `fuseai://docs/sdk`, `fuseai://docs/checkout`, `fuseai://project`.
+- Recursos: `fusai://docs/api`, `fusai://docs/sdk`, `fusai://docs/checkout`, `fusai://project`.
 - Prompts: `integrar_chat`, `integrar_compra_pix`, `migrar_de_openai`.
 
 Toda chamada ao MCP fica registrada no log de auditoria da organização. Ferramentas que alteram o projeto ou geram custo avisam isso na descrição.

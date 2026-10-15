@@ -1,5 +1,5 @@
-import { Prisma, type PrismaClient } from '@fuseai/db';
-import { logsQuerySchema, microsToBrl, usageFilterSchema } from '@fuseai/shared';
+import { Prisma, type PrismaClient } from '@fusai/db';
+import { logsQuerySchema, microsToBrl, usageFilterSchema } from '@fusai/shared';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import { toCsv } from '../../lib/csv';

@@ -11,15 +11,15 @@
 Guarde a chave numa variável de ambiente do **servidor**:
 
 ```bash
-FUSEAI_API_KEY=fai_live_...
-FUSEAI_BASE_URL={{V1}}
+FUSAI_API_KEY=fai_live_...
+FUSAI_BASE_URL={{V1}}
 ```
 
 ## 2. Faça a primeira chamada
 
 ```bash
 curl {{V1}}/chat/completions \
-  -H "Authorization: Bearer $FUSEAI_API_KEY" \
+  -H "Authorization: Bearer $FUSAI_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"model": "fuse/deepseek-chat", "messages": [{"role": "user", "content": "Olá!"}]}'
 ```
@@ -30,8 +30,8 @@ Com o SDK oficial da OpenAI, troque só `baseURL` e `apiKey`:
 import OpenAI from 'openai';
 
 const client = new OpenAI({
-  apiKey: process.env.FUSEAI_API_KEY,
-  baseURL: process.env.FUSEAI_BASE_URL, // {{V1}}
+  apiKey: process.env.FUSAI_API_KEY,
+  baseURL: process.env.FUSAI_BASE_URL, // {{V1}}
 });
 
 const res = await client.chat.completions.create({
@@ -45,7 +45,7 @@ console.log(res.choices[0].message.content);
 from openai import OpenAI
 import os
 
-client = OpenAI(api_key=os.environ["FUSEAI_API_KEY"], base_url="{{V1}}")
+client = OpenAI(api_key=os.environ["FUSAI_API_KEY"], base_url="{{V1}}")
 res = client.chat.completions.create(
     model="fuse/deepseek-chat",
     messages=[{"role": "user", "content": "Olá!"}],

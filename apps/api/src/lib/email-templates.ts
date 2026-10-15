@@ -14,7 +14,7 @@ function layout(title: string, body: string, cta: { label: string; url: string }
 <tr><td style="padding-bottom:20px"><img src="${logo}" alt="fusai" width="119" height="28" style="display:block;border:0;height:28px;width:auto"></td></tr>
 <tr><td style="font-size:18px;font-weight:600;padding-bottom:8px">${escapeHtml(title)}</td></tr>
 <tr><td style="font-size:15px;line-height:1.6;color:#52525b;padding-bottom:24px">${body}</td></tr>
-<tr><td><a href="${url}" style="display:inline-block;background:linear-gradient(90deg,#f59e0b,#ec4899,#8b5cf6);color:#fff;text-decoration:none;font-weight:600;padding:12px 20px;border-radius:12px">${escapeHtml(cta.label)}</a></td></tr>
+<tr><td><a href="${url}" style="display:inline-block;background:#0066fe;background:linear-gradient(90deg,#162a9e,#0066fe);color:#fff;text-decoration:none;font-weight:600;padding:12px 20px;border-radius:12px">${escapeHtml(cta.label)}</a></td></tr>
 <tr><td style="font-size:12px;color:#a1a1aa;padding-top:24px">Se o botão não funcionar, copie e cole este link no navegador:<br>${url}</td></tr>
 </table></td></tr></table></body></html>`;
 }
@@ -22,11 +22,11 @@ function layout(title: string, body: string, cta: { label: string; url: string }
 export function verificationEmail(to: string, name: string, url: string): Email {
   return {
     to,
-    subject: 'Confirme seu email na FuseAI',
-    text: `Olá, ${name}! Confirme seu email para ativar sua conta na FuseAI:\n\n${url}\n`,
+    subject: 'Confirme seu email na fusai',
+    text: `Olá, ${name}! Confirme seu email para ativar sua conta na fusai:\n\n${url}\n`,
     html: layout(
       'Confirme seu email',
-      `Olá, ${escapeHtml(name)}! Clique no botão abaixo para confirmar seu email e ativar sua conta na FuseAI.`,
+      `Olá, ${escapeHtml(name)}! Clique no botão abaixo para confirmar seu email e ativar sua conta na fusai.`,
       { label: 'Confirmar email', url },
     ),
   };
@@ -35,7 +35,7 @@ export function verificationEmail(to: string, name: string, url: string): Email 
 export function resetPasswordEmail(to: string, name: string, url: string): Email {
   return {
     to,
-    subject: 'Redefina sua senha da FuseAI',
+    subject: 'Redefina sua senha da fusai',
     text: `Olá, ${name}! Se você não pediu uma nova senha, ignore este email. Para criar uma nova senha, acesse:\n\n${url}\n`,
     html: layout(
       'Redefinir senha',
@@ -48,11 +48,11 @@ export function resetPasswordEmail(to: string, name: string, url: string): Email
 export function invitationEmail(to: string, inviter: string, orgName: string, url: string): Email {
   return {
     to,
-    subject: `Convite para ${orgName} na FuseAI`,
-    text: `${inviter} convidou você para a organização ${orgName} na FuseAI. O convite vale por 7 dias:\n\n${url}\n`,
+    subject: `Convite para ${orgName} na fusai`,
+    text: `${inviter} convidou você para a organização ${orgName} na fusai. O convite vale por 7 dias:\n\n${url}\n`,
     html: layout(
       `Convite para ${orgName}`,
-      `${escapeHtml(inviter)} convidou você para fazer parte de <strong>${escapeHtml(orgName)}</strong> na FuseAI. O convite vale por 7 dias.`,
+      `${escapeHtml(inviter)} convidou você para fazer parte de <strong>${escapeHtml(orgName)}</strong> na fusai. O convite vale por 7 dias.`,
       { label: 'Aceitar convite', url },
     ),
   };

@@ -1,6 +1,6 @@
 import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
-import { prisma } from '@fuseai/db';
+import { prisma } from '@fusai/db';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
@@ -98,10 +98,10 @@ describe('MCP server (Phase 8)', () => {
     expect(tools.find((t) => t.name === 'list_models')?.annotations?.readOnlyHint).toBe(true);
     const { resources } = await client.listResources();
     expect(resources.map((r) => r.uri).sort()).toEqual([
-      'fuseai://docs/api',
-      'fuseai://docs/checkout',
-      'fuseai://docs/sdk',
-      'fuseai://project',
+      'fusai://docs/api',
+      'fusai://docs/checkout',
+      'fusai://docs/sdk',
+      'fusai://project',
     ]);
     const { prompts } = await client.listPrompts();
     expect(prompts.map((p) => p.name).sort()).toEqual([
@@ -162,7 +162,7 @@ describe('MCP server (Phase 8)', () => {
     });
     const client = await connect(g.plain);
     const guide = textOf(await call(client, 'get_integration_guide', { stack: 'react-native' }));
-    expect(guide).toContain('# Integração FuseAI — App');
+    expect(guide).toContain('# Integração fusai — App');
     expect(guide).toContain(`\`${ctx.env.API_URL}/v1\``);
     expect(guide).toContain('Cobrar do usuário final');
     expect(guide).toContain('`fuse/echo`');
@@ -170,12 +170,12 @@ describe('MCP server (Phase 8)', () => {
     expect(guide).toContain('expo-web-browser');
     expect(guide).not.toContain(g.plain);
 
-    const project = await client.readResource({ uri: 'fuseai://project' });
-    expect((project.contents[0] as { text: string }).text).toContain('# FUSEAI.md');
+    const project = await client.readResource({ uri: 'fusai://project' });
+    expect((project.contents[0] as { text: string }).text).toContain('# FUSAI.md');
     // Same content as the dashboard download (Kit de Integração).
     const md = await ctx.app.inject({
       method: 'GET',
-      url: `/internal/projects/${g.project.id}/fuseai-md`,
+      url: `/internal/projects/${g.project.id}/fusai-md`,
     });
     expect(md.statusCode).toBe(401); // dashboard route: needs a session cookie
     const prompt = await client.getPrompt({
@@ -190,7 +190,7 @@ describe('MCP server (Phase 8)', () => {
     const g = await setup();
     const client = await connect(g.plain);
     const res = jsonOf(await call(client, 'test_chat', { model: 'fuse/echo' }));
-    expect(res.answer).toBe('Olá do FuseAI!');
+    expect(res.answer).toBe('Olá do fusai!');
     const balance = jsonOf(await call(client, 'get_balance'));
     expect(balance.balance_micros).toBe(String(5_000_000n - ECHO_CHARGE));
     const usage = jsonOf(await call(client, 'get_usage'));

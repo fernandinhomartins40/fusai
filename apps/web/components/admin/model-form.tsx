@@ -1,13 +1,13 @@
 'use client';
 
-import { brlToMicros } from '@fuseai/shared';
-import { Button } from '@fuseai/ui/components/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@fuseai/ui/components/card';
-import { Input } from '@fuseai/ui/components/input';
-import { Select } from '@fuseai/ui/components/select';
-import { Switch } from '@fuseai/ui/components/switch';
-import { Textarea } from '@fuseai/ui/components/textarea';
-import { cn } from '@fuseai/ui/lib/utils';
+import { brlToMicros } from '@fusai/shared';
+import { Button } from '@fusai/ui/components/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@fusai/ui/components/card';
+import { Input } from '@fusai/ui/components/input';
+import { Select } from '@fusai/ui/components/select';
+import { Switch } from '@fusai/ui/components/switch';
+import { Textarea } from '@fusai/ui/components/textarea';
+import { cn } from '@fusai/ui/lib/utils';
 import { Loader2, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { type ReactNode, useState } from 'react';
@@ -280,7 +280,7 @@ export function ModelForm({ model, providers, models, settings }: Props) {
                 key={value}
                 className={cn(
                   'flex cursor-pointer gap-3 rounded-xl border p-3 hover:bg-accent/50',
-                  draft.priceMode === value && 'border-fuse-pink/60 bg-accent/40',
+                  draft.priceMode === value && 'border-fusai-accent/60 bg-accent/40',
                 )}
               >
                 <input
@@ -289,7 +289,7 @@ export function ModelForm({ model, providers, models, settings }: Props) {
                   value={value}
                   checked={draft.priceMode === value}
                   onChange={() => set('priceMode', value)}
-                  className="mt-1 accent-[var(--fuse-pink)]"
+                  className="mt-1 accent-[var(--fusai-accent)]"
                 />
                 <span className="grid gap-0.5">
                   <span className="font-medium text-sm">{title}</span>
@@ -380,7 +380,7 @@ export function ModelForm({ model, providers, models, settings }: Props) {
                               : draft.fallbackModelIds.filter((id) => id !== m.id),
                           )
                         }
-                        className="accent-[var(--fuse-pink)]"
+                        className="accent-[var(--fusai-accent)]"
                       />
                       <span className="font-mono text-xs">{m.slug}</span>
                       {index >= 0 ? (

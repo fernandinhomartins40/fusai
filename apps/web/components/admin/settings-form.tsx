@@ -1,8 +1,8 @@
 'use client';
 
-import { brlToMicros } from '@fuseai/shared';
-import { Button } from '@fuseai/ui/components/button';
-import { Input } from '@fuseai/ui/components/input';
+import { brlToMicros } from '@fusai/shared';
+import { Button } from '@fusai/ui/components/button';
+import { Input } from '@fusai/ui/components/input';
 import { Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';

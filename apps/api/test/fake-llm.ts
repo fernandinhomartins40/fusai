@@ -3,7 +3,7 @@ import type { AddressInfo } from 'node:net';
 
 /**
  * Fake OpenAI-compatible provider. Behavior is chosen by the upstream model name:
- * - `echo`         normal answer "Olá do FuseAI!" with usage {12, 8}
+ * - `echo`         normal answer "Olá do fusai!" with usage {12, 8}
  * - `no-usage`     answer without usage (forces estimation)
  * - `fail-500`     HTTP 500 (retryable -> fallback)
  * - `bad-request`  HTTP 400 (client error -> no fallback)
@@ -39,7 +39,7 @@ export async function startFakeLlm(validKey: string) {
     const words =
       model === 'slow'
         ? Array.from({ length: 200 }, (_, i) => `t${i} `)
-        : ['Olá ', 'do ', 'FuseAI!'];
+        : ['Olá ', 'do ', 'fusai!'];
     const usage = { prompt_tokens: 12, completion_tokens: 8, total_tokens: 20 };
     const base = {
       id: 'upstream-123',

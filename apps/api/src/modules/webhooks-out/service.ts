@@ -1,5 +1,5 @@
 import { createHmac, randomUUID } from 'node:crypto';
-import type { Prisma, PrismaClient } from '@fuseai/db';
+import type { Prisma, PrismaClient } from '@fusai/db';
 import { decryptSecret } from '../../lib/crypto';
 import { assertPublicUrl } from '../../lib/ssrf';
 
@@ -94,7 +94,7 @@ export async function deliverWebhook(prisma: PrismaClient, id: string, opts: Del
         redirect: 'manual', // a redirect could point into our network
         headers: {
           'content-type': 'application/json',
-          'user-agent': 'FuseAI-Webhooks/1.0',
+          'user-agent': 'fusai-Webhooks/1.0',
           'x-fuse-event': hook.event,
           'x-fuse-delivery': hook.id,
           'x-fuse-signature': signPayload(secret, body),

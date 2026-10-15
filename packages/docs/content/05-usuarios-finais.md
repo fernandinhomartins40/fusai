@@ -18,7 +18,7 @@ Você pode dar **crédito grátis inicial** a cada usuário novo (Configuraçõe
 
 ```bash
 curl -X POST {{V1}}/app-users \
-  -H "Authorization: Bearer $FUSEAI_API_KEY" \
+  -H "Authorization: Bearer $FUSAI_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"externalId": "usuario-123", "name": "Maria", "email": "maria@exemplo.com"}'
 ```
@@ -35,9 +35,9 @@ Valores em **micro-reais** (1 real = 1.000.000) e em texto.
 
 ```ts
 // Rota do SEU backend, ex.: POST /api/fuse-session (usuário já autenticado no seu app)
-import { FuseAI } from '@fuseai/sdk';
+import { Fusai } from '@fusai/sdk';
 
-const fuse = new FuseAI({ apiKey: process.env.FUSEAI_API_KEY!, baseUrl: '{{V1}}' });
+const fuse = new Fusai({ apiKey: process.env.FUSAI_API_KEY!, baseUrl: '{{V1}}' });
 
 export async function POST() {
   const user = await getCurrentUser(); // sua autenticação
@@ -50,9 +50,9 @@ export async function POST() {
 ## 3. Use no navegador ou no app
 
 ```ts
-import { FuseAI } from '@fuseai/sdk';
+import { Fusai } from '@fusai/sdk';
 
-const fuse = new FuseAI({
+const fuse = new Fusai({
   baseUrl: '{{V1}}',
   // Função: o SDK pede um token novo sozinho quando o atual expira.
   sessionToken: () => fetch('/api/fuse-session', { method: 'POST' }).then((r) => r.json()).then((d) => d.token),

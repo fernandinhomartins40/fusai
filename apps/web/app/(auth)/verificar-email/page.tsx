@@ -26,7 +26,7 @@ export default async function VerifyEmailPage({ searchParams }: Props) {
       description={
         error ? undefined : (
           <span className="flex items-start gap-2">
-            <MailCheck className="mt-0.5 size-4 shrink-0 text-fuse-pink" aria-hidden />
+            <MailCheck className="mt-0.5 size-4 shrink-0 text-fusai-accent" aria-hidden />
             <span>
               Enviamos um link de confirmação{email ? ` para ${email}` : ''}. Abra o email e clique
               no botão para ativar sua conta.

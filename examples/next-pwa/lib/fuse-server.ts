@@ -1,13 +1,13 @@
 import 'server-only';
-import { FuseAI } from '@fuseai/sdk';
+import { Fusai } from '@fusai/sdk';
 
 /** Server-side client with the SECRET key. Never import this file from a client component. */
 export function fuseServer() {
-  const apiKey = process.env.FUSE_API_KEY;
-  if (!apiKey) throw new Error('Defina FUSE_API_KEY em .env.local');
-  return new FuseAI({
+  const apiKey = process.env.FUSAI_API_KEY;
+  if (!apiKey) throw new Error('Defina FUSAI_API_KEY em .env.local');
+  return new Fusai({
     apiKey,
-    baseUrl: process.env.FUSE_BASE_URL ?? 'http://localhost:4000/v1',
+    baseUrl: process.env.FUSAI_BASE_URL ?? 'http://localhost:4000/v1',
   });
 }
 

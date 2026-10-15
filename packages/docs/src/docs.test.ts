@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { buildContent } from '../scripts/generate.mjs';
 import {
   DOC_PAGES,
-  fuseaiMd,
+  fusaiMd,
   integrationGuide,
   llmsTxt,
   type ProjectSnapshot,
@@ -35,7 +35,7 @@ const project: ProjectSnapshot = {
 };
 
 describe('docs content', () => {
-  it('content.generated.ts is in sync with content/*.md (run `pnpm --filter @fuseai/docs generate`)', () => {
+  it('content.generated.ts is in sync with content/*.md (run `pnpm --filter @fusai/docs generate`)', () => {
     const current = readFileSync(new URL('./content.generated.ts', import.meta.url), 'utf8');
     expect(current).toBe(buildContent());
   });
@@ -62,7 +62,7 @@ describe('docs content', () => {
 
   it('llms.txt follows the llmstxt.org shape', () => {
     const txt = llmsTxt(urls);
-    expect(txt.startsWith('# FuseAI\n\n> ')).toBe(true);
+    expect(txt.startsWith('# fusai\n\n> ')).toBe(true);
     expect(txt).toContain('- [Checkout Pix](https://www.fusai.com.br/docs/checkout-pix.md):');
   });
 });
@@ -70,7 +70,7 @@ describe('docs content', () => {
 describe('integration guide', () => {
   it('is personalized for the project and never contains a key', () => {
     const guide = integrationGuide(project, urls, 'flutter');
-    expect(guide).toContain('# Integração FuseAI — Meu App');
+    expect(guide).toContain('# Integração fusai — Meu App');
     expect(guide).toContain('`https://api.fusai.com.br/v1`');
     expect(guide).toContain('| `fuse/deepseek-chat` | DeepSeek Chat | R$ 1,54 | R$ 6,16 |');
     expect(guide).toContain('| `fuse/mini` | Mini | R$ 0,154 | R$ 12,00 |');
@@ -97,8 +97,8 @@ describe('integration guide', () => {
     expect(org).not.toContain('fuse-session');
   });
 
-  it('FUSEAI.md has rules, endpoints, webhooks and checklist', () => {
-    const md = fuseaiMd(project, urls);
+  it('FUSAI.md has rules, endpoints, webhooks and checklist', () => {
+    const md = fusaiMd(project, urls);
     for (const part of [
       '## Regras',
       '## Endpoints',

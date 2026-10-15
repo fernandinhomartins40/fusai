@@ -1,4 +1,4 @@
-import type { ApiKey, AppUser, Organization, PrismaClient, Project, Wallet } from '@fuseai/db';
+import type { ApiKey, AppUser, Organization, PrismaClient, Project, Wallet } from '@fusai/db';
 import type { FastifyRequest } from 'fastify';
 import { type ApiKeyScope, hashApiKey, hashesEqual, looksLikeApiKey } from '../api-keys/keys';
 import { SESSION_TOKEN_PREFIX, verifySessionToken } from '../app-users/service';
@@ -39,7 +39,7 @@ function assertActive(org: Organization) {
     throw new GatewayError(
       403,
       'account_suspended',
-      'Conta suspensa. Fale com o suporte da FuseAI.',
+      'Conta suspensa. Fale com o suporte da fusai.',
     );
   }
 }

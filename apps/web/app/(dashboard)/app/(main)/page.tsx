@@ -1,12 +1,12 @@
-import { formatBRL } from '@fuseai/shared';
-import { Button } from '@fuseai/ui/components/button';
+import { formatBRL } from '@fusai/shared';
+import { Button } from '@fusai/ui/components/button';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@fuseai/ui/components/card';
+} from '@fusai/ui/components/card';
 import { AlertTriangle, ArrowRight, Plus } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';

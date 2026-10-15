@@ -1,8 +1,8 @@
-import { type Balance, formatMicros } from '@fuseai/sdk';
+import { type Balance, formatMicros } from '@fusai/sdk';
 import { type CSSProperties, useEffect, useState } from 'react';
-import { type FuseClientProps, useFuseClient } from './context';
+import { type FusaiClientProps, useFusaiClient } from './context';
 
-type Props = FuseClientProps & {
+type Props = FusaiClientProps & {
   /** Change it (e.g. after a purchase or a chat) to reload the balance. */
   refreshKey?: unknown;
   /** Also reload every N ms (default: off). */
@@ -13,7 +13,7 @@ type Props = FuseClientProps & {
 };
 
 /** The end user's available credits, e.g. "R$ 12,34". */
-export function FuseBalance({
+export function FusaiBalance({
   refreshKey,
   refreshIntervalMs,
   className,
@@ -21,7 +21,7 @@ export function FuseBalance({
   onLoad,
   ...client
 }: Props) {
-  const fuse = useFuseClient(client);
+  const fuse = useFusaiClient(client);
   const [balance, setBalance] = useState<Balance | null>(null);
   const [failed, setFailed] = useState(false);
 

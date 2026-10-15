@@ -1,4 +1,4 @@
-import { SUGGESTED_PROMPT } from '@fuseai/docs/kit';
+import { SUGGESTED_PROMPT } from '@fusai/docs/kit';
 import { AlertTriangle } from 'lucide-react';
 import { CodeBlock, CopyButton } from '@/components/copy-button';
 import { McpCommands } from '@/components/integration/mcp-commands';
@@ -26,12 +26,12 @@ export function KeyReveal({ created }: { created: CreatedApiKey }) {
           <CopyButton value={created.key} />
         </div>
       </div>
-      <CodeBlock label=".env" code={`FUSEAI_API_KEY=${created.key}\nFUSEAI_BASE_URL=${baseUrl}`} />
+      <CodeBlock label=".env" code={`FUSAI_API_KEY=${created.key}\nFUSAI_BASE_URL=${baseUrl}`} />
       <div className="grid gap-2">
         <span className="font-medium text-sm">Conecte sua IA de programação (MCP)</span>
         <McpCommands apiKey={created.key} />
         <p className="text-muted-foreground text-xs">
-          Depois peça: “{SUGGESTED_PROMPT}” O FUSEAI.md fica no Kit de Integração do projeto.
+          Depois peça: “{SUGGESTED_PROMPT}” O FUSAI.md fica no Kit de Integração do projeto.
         </p>
       </div>
       <CodeBlock
@@ -39,8 +39,8 @@ export function KeyReveal({ created }: { created: CreatedApiKey }) {
         code={`import OpenAI from 'openai';
 
 const client = new OpenAI({
-  apiKey: process.env.FUSEAI_API_KEY,
-  baseURL: process.env.FUSEAI_BASE_URL,
+  apiKey: process.env.FUSAI_API_KEY,
+  baseURL: process.env.FUSAI_BASE_URL,
 });
 
 const res = await client.chat.completions.create({

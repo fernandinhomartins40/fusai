@@ -1,4 +1,4 @@
-import { formatBRL } from '@fuseai/shared';
+import { formatBRL } from '@fusai/shared';
 import type { Metadata } from 'next';
 import { DailySpendChart } from '@/components/charts/daily-spend-chart';
 import { CodeBlock } from '@/components/copy-button';
@@ -44,7 +44,7 @@ export default async function ProjectOverviewPage({ params }: { params: Promise<
         <CodeBlock
           label="curl"
           code={`curl ${API_URL}/v1/chat/completions \\
-  -H "Authorization: Bearer $FUSEAI_API_KEY" \\
+  -H "Authorization: Bearer $FUSAI_API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{"model":"fuse/deepseek-chat","messages":[{"role":"user","content":"Olá!"}]}'`}
         />

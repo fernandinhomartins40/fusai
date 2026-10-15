@@ -1,5 +1,5 @@
 {
-  "name": "@fuseai/shared",
+  "name": "@fusai/shared",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -15,7 +15,7 @@
     "zod": "^4.1.0"
   },
   "devDependencies": {
-    "@fuseai/config": "workspace:*",
+    "@fusai/config": "workspace:*",
     "@types/node": "22.20.5",
     "typescript": "5.9.3",
     "vitest": "3.2.7"

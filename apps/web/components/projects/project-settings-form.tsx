@@ -1,10 +1,10 @@
 'use client';
 
-import { brlToMicros } from '@fuseai/shared';
-import { Button } from '@fuseai/ui/components/button';
-import { Input } from '@fuseai/ui/components/input';
-import { Textarea } from '@fuseai/ui/components/textarea';
-import { cn } from '@fuseai/ui/lib/utils';
+import { brlToMicros } from '@fusai/shared';
+import { Button } from '@fusai/ui/components/button';
+import { Input } from '@fusai/ui/components/input';
+import { Textarea } from '@fusai/ui/components/textarea';
+import { cn } from '@fusai/ui/lib/utils';
 import { Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -105,7 +105,7 @@ export function ProjectSettingsForm({
               key={m.value}
               className={cn(
                 'flex cursor-pointer gap-2 rounded-xl border p-3 hover:bg-accent/50',
-                billingMode === m.value && 'border-fuse-pink/60 bg-accent/40',
+                billingMode === m.value && 'border-fusai-accent/60 bg-accent/40',
                 !canChangeBilling && 'cursor-not-allowed opacity-70',
               )}
             >
@@ -115,7 +115,7 @@ export function ProjectSettingsForm({
                 value={m.value}
                 checked={billingMode === m.value}
                 onChange={() => setBillingMode(m.value)}
-                className="mt-1 accent-[var(--fuse-pink)]"
+                className="mt-1 accent-[var(--fusai-accent)]"
               />
               <span className="grid gap-0.5">
                 <span className="font-medium text-sm">{m.title}</span>
@@ -128,7 +128,7 @@ export function ProjectSettingsForm({
       <Field
         id="p-origins"
         label="Origens permitidas (CORS)"
-        hint="Uma por linha, ex.: https://app.seusite.com. Usadas quando o navegador chama a FuseAI com session token."
+        hint="Uma por linha, ex.: https://app.seusite.com. Usadas quando o navegador chama a fusai com session token."
       >
         <Textarea
           id="p-origins"
@@ -162,7 +162,7 @@ export function ProjectSettingsForm({
             type="url"
             value={webhookUrl}
             onChange={(e) => setWebhookUrl(e.target.value)}
-            placeholder="https://seusite.com/webhooks/fuseai"
+            placeholder="https://seusite.com/webhooks/fusai"
           />
         </Field>
       </div>

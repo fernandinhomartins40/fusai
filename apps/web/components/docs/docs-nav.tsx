@@ -1,6 +1,6 @@
 'use client';
 
-import { cn } from '@fuseai/ui/lib/utils';
+import { cn } from '@fusai/ui/lib/utils';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 

@@ -1,17 +1,17 @@
 import { createHmac } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
-import { FuseAI, FuseAIError } from './client';
+import { Fusai, FusaiError } from './client';
 import { formatMicros } from './format';
 import { verifyWebhook } from './server';
 
 const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
 
-describe('FuseAI client', () => {
+describe('fusai client', () => {
   it('renews a session token once on 401', async () => {
     const seen: string[] = [];
     let issued = 0;
-    const fuse = new FuseAI({
+    const fuse = new Fusai({
       baseUrl: 'https://api.test/v1',
       sessionToken: async () => `fai_st_${++issued}`,
       fetch: async (_url, init) => {
@@ -29,7 +29,7 @@ describe('FuseAI client', () => {
 
   it('shares one token request between concurrent calls', async () => {
     let issued = 0;
-    const fuse = new FuseAI({
+    const fuse = new Fusai({
       sessionToken: async () => {
         await new Promise((r) => setTimeout(r, 10));
         return `fai_st_${++issued}`;
@@ -40,8 +40,8 @@ describe('FuseAI client', () => {
     expect(issued).toBe(1);
   });
 
-  it('throws FuseAIError with the API code', async () => {
-    const fuse = new FuseAI({
+  it('throws FusaiError with the API code', async () => {
+    const fuse = new Fusai({
       apiKey: 'fai_live_x',
       fetch: async () =>
         json(402, {
@@ -53,7 +53,7 @@ describe('FuseAI client', () => {
         }),
     });
     const err = await fuse.balance().catch((e) => e);
-    expect(err).toBeInstanceOf(FuseAIError);
+    expect(err).toBeInstanceOf(FusaiError);
     expect(err).toMatchObject({ status: 402, code: 'insufficient_funds' });
   });
 
@@ -61,7 +61,7 @@ describe('FuseAI client', () => {
     const sse =
       'data: {"id":"c","choices":[{"index":0,"delta":{"content":"Olá"}}]}\n\n' +
       'data: {"id":"c","choices":[{"index":0,"delta":{"content":"!"}}]}\n\ndata: [DONE]\n\n';
-    const fuse = new FuseAI({ apiKey: 'k', fetch: async () => new Response(sse) });
+    const fuse = new Fusai({ apiKey: 'k', fetch: async () => new Response(sse) });
     let text = '';
     for await (const chunk of fuse.chat.completions.stream({ model: 'm', messages: [] })) {
       text += chunk.choices[0]?.delta.content ?? '';

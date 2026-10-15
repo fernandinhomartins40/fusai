@@ -24,7 +24,7 @@ RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store pnpm install --offline -
 
 # ---- API (also runs the worker, `prisma migrate deploy` and the seed) ----
 FROM deps AS build-api
-RUN pnpm --filter @fuseai/api build
+RUN pnpm --filter @fusai/api build
 
 FROM base AS api
 ENV NODE_ENV=production HOST=0.0.0.0 PORT=4000
@@ -38,7 +38,7 @@ FROM deps AS build-web
 # Public URLs are baked into the client bundle (NEXT_PUBLIC_*) at build time.
 ARG API_URL=https://api.fusai.com.br
 ARG APP_URL=https://www.fusai.com.br
-RUN API_URL=$API_URL APP_URL=$APP_URL pnpm --filter @fuseai/web build
+RUN API_URL=$API_URL APP_URL=$APP_URL pnpm --filter @fusai/web build
 
 FROM base AS web
 ENV NODE_ENV=production HOSTNAME=0.0.0.0 PORT=3000

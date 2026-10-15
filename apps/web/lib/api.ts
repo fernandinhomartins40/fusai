@@ -10,7 +10,7 @@ export class ApiError extends Error {
   }
 }
 
-/** Browser-side call to the FuseAI API using the session cookie. */
+/** Browser-side call to the fusai API using the session cookie. */
 export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
   const res = await fetch(`${API_URL}${path}`, {
     ...init,

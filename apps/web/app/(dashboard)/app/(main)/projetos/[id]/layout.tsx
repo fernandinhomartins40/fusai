@@ -1,4 +1,4 @@
-import { Badge } from '@fuseai/ui/components/badge';
+import { Badge } from '@fusai/ui/components/badge';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import type { ReactNode } from 'react';

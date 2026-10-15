@@ -1,5 +1,5 @@
 {
-  "name": "@fuseai/docs",
+  "name": "@fusai/docs",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -13,7 +13,7 @@
     "test": "vitest run"
   },
   "devDependencies": {
-    "@fuseai/config": "workspace:*",
+    "@fusai/config": "workspace:*",
     "@types/node": "22.20.5",
     "typescript": "5.9.3",
     "vitest": "3.2.7"

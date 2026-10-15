@@ -1,4 +1,4 @@
-import type { OrgRole, PrismaClient } from '@fuseai/db';
+import type { OrgRole, PrismaClient } from '@fusai/db';
 import { forbidden, notFound } from '../../lib/errors';
 
 /**

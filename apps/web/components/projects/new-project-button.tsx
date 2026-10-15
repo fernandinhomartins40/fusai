@@ -1,7 +1,7 @@
 'use client';
 
-import { Button } from '@fuseai/ui/components/button';
-import { Dialog } from '@fuseai/ui/components/dialog';
+import { Button } from '@fusai/ui/components/button';
+import { Dialog } from '@fusai/ui/components/dialog';
 import { Plus } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
