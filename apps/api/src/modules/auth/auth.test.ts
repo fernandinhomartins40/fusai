@@ -62,7 +62,7 @@ describe('auth flow', () => {
       payload: {
         name: 'X',
         email: 'hacker@example.com',
-        password: 'senha-forte-123',
+        password: 'Senha-Forte-123',
         role: 'SUPER_ADMIN',
       },
     });
@@ -100,10 +100,10 @@ describe('auth flow', () => {
       method: 'POST',
       url: '/api/auth/reset-password',
       headers: { origin: APP_URL },
-      payload: { newPassword: 'nova-senha-456', token },
+      payload: { newPassword: 'Nova-Senha-456', token },
     });
     expect(reset.statusCode).toBe(200);
-    expect((await signIn(ctx.app, email, 'nova-senha-456')).res.statusCode).toBe(200);
+    expect((await signIn(ctx.app, email, 'Nova-Senha-456')).res.statusCode).toBe(200);
   });
 
   it('email links always lead back to the site, even without callbackURL', async () => {
@@ -114,7 +114,7 @@ describe('auth flow', () => {
       method: 'POST',
       url: '/api/auth/sign-up/email',
       headers: { origin: APP_URL },
-      payload: { name: 'Sem Callback', email, password: 'senha-forte-123' },
+      payload: { name: 'Sem Callback', email, password: 'Senha-Forte-123' },
     });
     const verifyLink = ctx.mailer.sent
       .filter((m) => m.to === email)
@@ -157,6 +157,50 @@ describe('auth flow', () => {
     const target = new URL(reset.headers.location as string);
     expect(`${target.origin}${target.pathname}`).toBe(`${APP_URL}/redefinir-senha`);
     expect(target.searchParams.get('token')).toBeTruthy();
+  });
+
+  it('rejects weak passwords on the server (sign-up and reset)', async () => {
+    const res = await ctx.app.inject({
+      method: 'POST',
+      url: '/api/auth/sign-up/email',
+      headers: { origin: APP_URL },
+      payload: { name: 'Fraca', email: 'fraca@example.com', password: 'senhafraca123' },
+    });
+    expect(res.statusCode).toBe(400);
+    expect(res.json().message).toMatch(/maiúscula/);
+    expect(await ctx.prisma.user.count({ where: { email: 'fraca@example.com' } })).toBe(0);
+
+    const reset = await ctx.app.inject({
+      method: 'POST',
+      url: '/api/auth/reset-password',
+      headers: { origin: APP_URL },
+      payload: { newPassword: 'curta', token: 'qualquer' },
+    });
+    expect(reset.statusCode).toBe(400);
+    expect(reset.json().code).toBe('WEAK_PASSWORD');
+  });
+
+  it('keeps the session only for the browser session without "manter conectado"', async () => {
+    await signUp(ctx.app, 'lembrar@example.com');
+    await ctx.prisma.user.update({
+      where: { email: 'lembrar@example.com' },
+      data: { emailVerified: true },
+    });
+    const login = (rememberMe: boolean) =>
+      ctx.app.inject({
+        method: 'POST',
+        url: '/api/auth/sign-in/email',
+        headers: { origin: APP_URL },
+        payload: { email: 'lembrar@example.com', password: 'Senha-Forte-123', rememberMe },
+      });
+    const sessionCookie = (r: Awaited<ReturnType<typeof login>>) =>
+      ([] as string[])
+        .concat(r.headers['set-cookie'] ?? [])
+        .find((c) => c.includes('session_token=')) ?? '';
+    const persistent = sessionCookie(await login(true));
+    expect(persistent).toMatch(/Max-Age=\d+/i); // survives closing the browser (30 days)
+    const browserOnly = sessionCookie(await login(false));
+    expect(browserOnly).not.toMatch(/Max-Age|Expires/i); // gone when the browser closes
   });
 
   it('restricts admin routes to SUPER_ADMIN', async () => {

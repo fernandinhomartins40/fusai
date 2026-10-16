@@ -77,7 +77,7 @@ export function cookieHeader(setCookie: string | string[] | undefined): string {
   return list.map((c) => c.split(';')[0]).join('; ');
 }
 
-export async function signUp(app: TestApp, email: string, password = 'senha-forte-123') {
+export async function signUp(app: TestApp, email: string, password = 'Senha-Forte-123') {
   return app.inject({
     method: 'POST',
     url: '/api/auth/sign-up/email',
@@ -97,7 +97,7 @@ export async function createUserSession(
   return (await signIn(app, email)).cookie;
 }
 
-export async function signIn(app: TestApp, email: string, password = 'senha-forte-123') {
+export async function signIn(app: TestApp, email: string, password = 'Senha-Forte-123') {
   const res = await app.inject({
     method: 'POST',
     url: '/api/auth/sign-in/email',

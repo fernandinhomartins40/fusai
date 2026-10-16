@@ -1,14 +1,15 @@
 'use client';
 
-import { resetPasswordSchema } from '@fusai/shared';
+import { passwordStrength, resetPasswordSchema } from '@fusai/shared';
 import { Button } from '@fusai/ui/components/button';
-import { Input } from '@fusai/ui/components/input';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import type { z } from 'zod';
+import { PasswordInput } from '@/components/auth/password-input';
+import { PasswordMatch, PasswordStrengthMeter } from '@/components/auth/password-strength';
 import { StatusPanel } from '@/components/auth/status-panel';
 import { Field, FormAlert } from '@/components/form-field';
 import { authClient, authErrorMessage } from '@/lib/auth-client';
@@ -18,8 +19,11 @@ type Values = z.input<typeof resetPasswordSchema>;
 export function ResetPasswordForm({ token }: { token: string }) {
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
-  const form = useForm<Values>({ resolver: zodResolver(resetPasswordSchema) });
+  const form = useForm<Values>({ resolver: zodResolver(resetPasswordSchema), mode: 'onTouched' });
   const { errors, isSubmitting } = form.formState;
+  const password = form.watch('password') ?? '';
+  const confirm = form.watch('confirm') ?? '';
+  const ready = passwordStrength(password).valid && password === confirm;
 
   const onSubmit = form.handleSubmit(async ({ password }) => {
     setError(null);
@@ -47,27 +51,31 @@ export function ResetPasswordForm({ token }: { token: string }) {
   return (
     <form onSubmit={onSubmit} noValidate className="grid gap-4">
       {error ? <FormAlert>{error}</FormAlert> : null}
-      <Field id="password" label="Nova senha" error={errors.password?.message}>
-        <Input
-          id="password"
-          type="password"
-          autoComplete="new-password"
-          aria-invalid={!!errors.password}
-          aria-describedby={errors.password ? 'password-error' : undefined}
-          {...form.register('password')}
-        />
-      </Field>
-      <Field id="confirm" label="Confirme a nova senha" error={errors.confirm?.message}>
-        <Input
-          id="confirm"
-          type="password"
-          autoComplete="new-password"
-          aria-invalid={!!errors.confirm}
-          aria-describedby={errors.confirm ? 'confirm-error' : undefined}
-          {...form.register('confirm')}
-        />
-      </Field>
-      <Button type="submit" variant="brand" disabled={isSubmitting}>
+      <div className="grid gap-2">
+        <Field id="password" label="Nova senha" error={errors.password?.message}>
+          <PasswordInput
+            id="password"
+            autoComplete="new-password"
+            aria-invalid={!!errors.password}
+            aria-describedby={errors.password ? 'password-error password-rules' : 'password-rules'}
+            {...form.register('password')}
+          />
+        </Field>
+        <PasswordStrengthMeter password={password} id="password-rules" />
+      </div>
+      <div className="grid gap-2">
+        <Field id="confirm" label="Confirme a nova senha" error={errors.confirm?.message}>
+          <PasswordInput
+            id="confirm"
+            autoComplete="new-password"
+            aria-invalid={!!errors.confirm}
+            aria-describedby={errors.confirm ? 'confirm-error' : undefined}
+            {...form.register('confirm')}
+          />
+        </Field>
+        {errors.confirm ? null : <PasswordMatch password={password} confirm={confirm} />}
+      </div>
+      <Button type="submit" variant="brand" disabled={isSubmitting || !ready}>
         {isSubmitting ? <Loader2 className="animate-spin" /> : null}
         Salvar nova senha
       </Button>

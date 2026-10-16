@@ -159,3 +159,11 @@ Documentação do Asaas consultada em out/2026 (docs.asaas.com: cobranças via P
   - **Webhook** `POST /webhooks/velomail`: corpo **bruto** (parser Buffer só nessa rota), HMAC SHA256 em `X-Webhook-Signature: sha256=<hex>` comparado em tempo constante e `VELOMAIL_WEBHOOK_SECRET`. Cada evento é gravado uma vez em `InboundWebhookEvent` (chave `velomail:evento:message_id:timestamp`, porque há reenvios). Falhas de entrega vão para o log sem endereço nem conteúdo. Sem segredo configurado, a rota responde 503.
   - **Segredos:** chegam à VPS pelos secrets `VELOMAIL_API_KEY` e `VELOMAIL_WEBHOOK_SECRET` do GitHub; o `deploy.sh` grava no `.env` só quando informados.
   - **`.mcp.json`:** fica no `.gitignore`, porque guarda a chave `uai_` do agente.
+- **D-117 — Senha forte, olho, "lembrar email" e "manter conectado".**
+  - **Senha forte:** no mínimo 8 caracteres, com minúscula, maiúscula, número e símbolo. A regra é a mesma no site (medidor ao vivo e lista de requisitos, `@fusai/shared/password`) e no servidor (hook `before` do Better Auth no cadastro, na redefinição e na troca de senha → 400 `WEAK_PASSWORD`). O cadastro pede confirmação da senha e só libera o botão com os requisitos atendidos e as senhas iguais.
+  - **Campos de senha:** têm botão de olho; o `type` volta a `password` ao ocultar, para os gerenciadores reconhecerem o campo.
+  - **Login:**
+    - **"Lembrar meu email"** guarda só o email no `localStorage` deste navegador (nunca a senha).
+    - **Salvar a senha** é tarefa do navegador: os campos usam `autocomplete="username"`/`current-password`. No Chrome, Edge, Opera e Brave, a Credential Management API pede para salvar. Firefox e Safari detectam pelos atributos.
+    - **"Manter conectado"** vira `rememberMe`: com a opção, a sessão dura 30 dias, renovada diariamente; sem ela, o cookie é de sessão do navegador.
+  - **Testado:** Chromium, Firefox e WebKit (20/20 cada).

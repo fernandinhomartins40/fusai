@@ -1,6 +1,7 @@
 export * from './decimal';
 export * from './document';
 export * from './money';
+export * from './password';
 export * from './pricing';
 export * from './return-url';
 export * from './schemas/admin';

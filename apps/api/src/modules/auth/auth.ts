@@ -1,7 +1,8 @@
 import type { PrismaClient } from '@fusai/db';
-import { PASSWORD_MIN_LENGTH } from '@fusai/shared';
+import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH, passwordProblem } from '@fusai/shared';
 import { betterAuth } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
+import { APIError, createAuthMiddleware } from 'better-auth/api';
 import { resetPasswordEmail, verificationEmail } from '../../lib/email-templates';
 import type { Env } from '../../lib/env';
 import type { Mailer } from '../../lib/mailer';
@@ -35,6 +36,30 @@ export function createAuth(env: Env, prisma: PrismaClient, mailer: Mailer, redis
     basePath: '/api/auth',
     secret: env.BETTER_AUTH_SECRET,
     trustedOrigins: [env.APP_URL],
+    /**
+     * "Manter conectado": signIn.email({ rememberMe: true }) gets a persistent 30-day cookie,
+     * renewed daily while in use. With rememberMe false, Better Auth sets a browser-session
+     * cookie (gone when the browser closes) and the server session ends within a day.
+     */
+    session: {
+      expiresIn: 60 * 60 * 24 * 30,
+      updateAge: 60 * 60 * 24,
+    },
+    hooks: {
+      // Strong password enforced on the server too (the web form shows the same rules live).
+      before: createAuthMiddleware(async (ctx) => {
+        const field =
+          ctx.path === '/sign-up/email'
+            ? 'password'
+            : ctx.path === '/reset-password' || ctx.path === '/change-password'
+              ? 'newPassword'
+              : null;
+        if (!field) return;
+        const value = (ctx.body as Record<string, unknown> | undefined)?.[field];
+        const problem = typeof value === 'string' ? passwordProblem(value) : null;
+        if (problem) throw new APIError('BAD_REQUEST', { message: problem, code: 'WEAK_PASSWORD' });
+      }),
+    },
     database: prismaAdapter(prisma, { provider: 'postgresql' }),
     user: {
       additionalFields: {
@@ -46,6 +71,7 @@ export function createAuth(env: Env, prisma: PrismaClient, mailer: Mailer, redis
       enabled: true,
       requireEmailVerification: true,
       minPasswordLength: PASSWORD_MIN_LENGTH,
+      maxPasswordLength: PASSWORD_MAX_LENGTH,
       resetPasswordTokenExpiresIn: 60 * 60,
       revokeSessionsOnPasswordReset: true,
       sendResetPassword: async ({ user, url }) => {
