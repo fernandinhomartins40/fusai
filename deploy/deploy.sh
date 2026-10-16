@@ -52,14 +52,15 @@ ASAAS_ENV=sandbox
 ASAAS_API_KEY=
 ASAAS_WEBHOOK_TOKEN=$(openssl rand -hex 32)
 EMAIL_FROM=fusai <nao-responda@fusai.com.br>
-RESEND_API_KEY=
+VELOMAIL_API_KEY=
+VELOMAIL_WEBHOOK_SECRET=
 SMTP_URL=smtp://localhost:1025
 SEED_ADMIN_EMAIL=admin@fusai.com.br
 SEED_ADMIN_PASSWORD=${admin_password}
 EOF
   chmod 600 .env
   echo "Segredos gerados em $APP_DIR/.env (permissão 600). A senha do admin está lá;"
-  echo "leia por SSH, não pelo log. Preencha ASAAS_API_KEY e RESEND_API_KEY quando tiver."
+  echo "leia por SSH, não pelo log. A chave da VeloMail vem dos secrets do GitHub."
 fi
 chmod 600 .env
 
@@ -78,6 +79,12 @@ set_env API_URL https://api.fusai.com.br
 set_env BETTER_AUTH_URL https://api.fusai.com.br
 set_env COOKIE_DOMAIN fusai.com.br
 set_env EMAIL_FROM 'fusai <nao-responda@fusai.com.br>'
+
+# Segredos que chegam dos secrets do GitHub Actions: gravados só quando informados; vazio
+# mantém o valor atual (um deploy sem o secret não desliga o e-mail que já funcionava).
+if [ -n "${VELOMAIL_API_KEY:-}" ]; then set_env VELOMAIL_API_KEY "$VELOMAIL_API_KEY"; fi
+if [ -n "${VELOMAIL_WEBHOOK_SECRET:-}" ]; then set_env VELOMAIL_WEBHOOK_SECRET "$VELOMAIL_WEBHOOK_SECRET"; fi
+grep -q '^VELOMAIL_API_KEY=re_' .env && echo "E-mail: VeloMail configurada" || echo "AVISO: VELOMAIL_API_KEY ausente; e-mails da aplicação não serão enviados" >&2
 
 compose() { docker compose -f docker-compose.vps.yml --env-file .env --env-file "$1" "${@:2}"; }
 

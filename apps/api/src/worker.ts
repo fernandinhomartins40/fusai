@@ -14,7 +14,7 @@ import pino from 'pino';
 import { parseEncryptionKey } from './lib/crypto';
 import { loadEnv } from './lib/env';
 import { BULL_PREFIX, JOBS_QUEUE } from './lib/jobs';
-import { createSmtpMailer } from './lib/mailer';
+import { createMailer } from './lib/mailer';
 import { releaseExpiredHolds } from './modules/billing/wallet';
 import { notifyPaymentCredited } from './modules/payments/notify';
 import {
@@ -28,7 +28,7 @@ import { createPaymentProvider } from './payments';
 const env = loadEnv();
 const log = pino({ name: 'fuseai-worker', level: env.LOG_LEVEL });
 const provider = createPaymentProvider(env);
-const mailer = createSmtpMailer(env);
+const mailer = createMailer(env);
 const deliverOpts = {
   encryptionKey: parseEncryptionKey(env.ENCRYPTION_KEY),
   production: env.NODE_ENV === 'production',

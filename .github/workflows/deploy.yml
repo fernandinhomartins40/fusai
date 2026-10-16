@@ -261,6 +261,9 @@ jobs:
         env:
           GHCR_USERNAME: ${{ github.actor }}
           GHCR_TOKEN: ${{ github.token }}
+          # Secrets ausentes viram texto vazio: o deploy.sh mantém o que já está no .env.
+          VELOMAIL_API_KEY: ${{ secrets.VELOMAIL_API_KEY }}
+          VELOMAIL_WEBHOOK_SECRET: ${{ secrets.VELOMAIL_WEBHOOK_SECRET }}
         run: |
           set -euo pipefail
           # Delimitador sem aspas: as variáveis abaixo são expandidas AQUI, no runner.
@@ -273,6 +276,8 @@ jobs:
           APP_DIR='${VPS_APP_DIR}' \
           FUSEAI_API_IMAGE='${FUSEAI_API_IMAGE}' \
           FUSEAI_WEB_IMAGE='${FUSEAI_WEB_IMAGE}' \
+          VELOMAIL_API_KEY='${VELOMAIL_API_KEY}' \
+          VELOMAIL_WEBHOOK_SECRET='${VELOMAIL_WEBHOOK_SECRET}' \
             '${VPS_APP_DIR}/deploy.sh'
           EOF
 

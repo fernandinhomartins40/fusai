@@ -15,7 +15,7 @@ import type { Env } from './lib/env';
 import { HttpError } from './lib/errors';
 import { createJobQueue, type JobQueue } from './lib/jobs';
 import { loggerOptions } from './lib/logger';
-import { createSmtpMailer, type Mailer } from './lib/mailer';
+import { createMailer, type Mailer } from './lib/mailer';
 import { createRedis, type RedisClient } from './lib/redis';
 import { sessionGuards } from './lib/session';
 import { createSettingsStore } from './lib/settings';
@@ -23,6 +23,7 @@ import { adminRoutes } from './modules/admin/routes';
 import { createAuth } from './modules/auth/auth';
 import { authRoutes } from './modules/auth/routes';
 import { dashboardRoutes } from './modules/dashboard/routes';
+import { emailWebhookRoutes } from './modules/email-webhooks/routes';
 import { createCatalog } from './modules/gateway/catalog';
 import { createCircuitBreaker } from './modules/gateway/circuit-breaker';
 import { gatewayRoutes } from './modules/gateway/routes';
@@ -47,7 +48,7 @@ export type AppDeps = {
 
 export async function buildApp(env: Env, deps: AppDeps = {}) {
   const prisma = deps.prisma ?? defaultPrisma;
-  const mailer = deps.mailer ?? createSmtpMailer(env);
+  const mailer = deps.mailer ?? createMailer(env);
   const redis = deps.redis ?? createRedis(env.REDIS_URL);
   const auth = createAuth(env, prisma, mailer, redis);
   const guards = sessionGuards(env, auth);
@@ -167,6 +168,7 @@ export async function buildApp(env: Env, deps: AppDeps = {}) {
     provider,
   });
   await app.register(paymentWebhookRoutes, { prisma, provider, jobs });
+  await app.register(emailWebhookRoutes, { prisma, secret: env.VELOMAIL_WEBHOOK_SECRET });
   await app.register(gatewayRoutes, {
     prefix: '/v1',
     prisma,

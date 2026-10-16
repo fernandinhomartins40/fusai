@@ -21,7 +21,7 @@
     "SESSION_TOKEN_SECRET",
     "ASAAS_*",
     "EMAIL_FROM",
-    "RESEND_API_KEY",
+    "VELOMAIL_*",
     "SMTP_URL",
     "SEED_*",
     "FUSAI_*"

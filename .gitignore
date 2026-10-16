@@ -16,3 +16,6 @@ playwright-report/
 test-results/
 .DS_Store
 Thumbs.db
+
+# Configuração local de MCP (pode conter chaves, ex.: VeloMail uai_...). Nunca versionar.
+.mcp.json

@@ -41,7 +41,13 @@ const envSchema = z.object({
   ASAAS_WEBHOOK_TOKEN: z.string().min(8),
 
   EMAIL_FROM: z.string().default('fusai <nao-responda@fusai.com.br>'),
-  RESEND_API_KEY: optional,
+  /** VeloMail transactional key `re_...` (scope email:send). The `uai_` AI Agent Key is for MCP only. */
+  VELOMAIL_API_KEY: optional.refine((v) => !v || v.startsWith('re_'), {
+    message: 'VELOMAIL_API_KEY deve ser uma API key padrão re_... (a uai_ é só para o MCP)',
+  }),
+  VELOMAIL_API_URL: z.url().default('https://www.velomail.com.br/api'),
+  /** HMAC secret of the VeloMail webhook endpoint (X-Webhook-Signature). */
+  VELOMAIL_WEBHOOK_SECRET: optional,
   SMTP_URL: z.string().default('smtp://localhost:1025'),
 });
 

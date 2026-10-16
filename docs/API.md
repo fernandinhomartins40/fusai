@@ -183,3 +183,6 @@ Recursos: `fusai://docs/api`, `fusai://docs/sdk`, `fusai://docs/checkout`, `fusa
 
 ### Web (público)
 `/docs`, `/docs/<slug>` (HTML), `/docs/<slug>.md` (Markdown), `/llms.txt`, `/llms-full.txt`.
+
+## Webhook da VeloMail (e-mail)
+`POST /webhooks/velomail` (público): eventos de entrega da VeloMail (`email.sent`, `email.delivered`, `email.opened`, `email.clicked`, `email.failed`). Exige `X-Webhook-Signature: sha256=<hex hmac_sha256(VELOMAIL_WEBHOOK_SECRET, corpo bruto)>`. Respostas: 200 `{received: true}` (ou `duplicate: true`), 401 assinatura inválida, 400 evento inválido, 503 sem segredo configurado.
