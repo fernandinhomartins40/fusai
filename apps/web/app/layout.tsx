@@ -17,6 +17,8 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
+  // Lets the mobile bottom bar use env(safe-area-inset-bottom) (iPhone home indicator).
+  viewportFit: 'cover',
   themeColor: [
     { media: '(prefers-color-scheme: dark)', color: '#0a0e1a' },
     { media: '(prefers-color-scheme: light)', color: '#fbfcfe' },

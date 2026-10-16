@@ -167,3 +167,9 @@ Documentação do Asaas consultada em out/2026 (docs.asaas.com: cobranças via P
     - **Salvar a senha** é tarefa do navegador: os campos usam `autocomplete="username"`/`current-password`. No Chrome, Edge, Opera e Brave, a Credential Management API pede para salvar. Firefox e Safari detectam pelos atributos.
     - **"Manter conectado"** vira `rememberMe`: com a opção, a sessão dura 30 dias, renovada diariamente; sem ela, o cookie é de sessão do navegador.
   - **Testado:** Chromium, Firefox e WebKit (20/20 cada).
+- **D-118 — Layout do painel: barra lateral no computador, menu inferior estilo app no celular.**
+  - **Computador (md+):** barra lateral fixa de 256 px com logo, seletor de organização, todos os menus, link para o outro painel (super admin), nome/email, tema e Sair; conteúdo à direita.
+  - **Celular:** barra superior só com logo e seletor; menu inferior fixo com 5 posições: 2 itens, o item principal **em destaque no centro** (círculo elevado com o gradiente da marca), 1 item e **"Mais"**. Cliente: Início, Projetos, **Carteira**, Consumo, Mais. Admin: Início, Clientes, **Pagamentos**, Modelos, Mais.
+  - **"Mais":** folha inferior no `<dialog>` nativo (foco preso, Esc e toque fora fecham) com os demais menus, tema e Sair; fecha ao navegar e fica destacado quando a página atual está nele.
+  - Respeita a área segura do iPhone (`viewport-fit=cover` + `env(safe-area-inset-bottom)`); o conteúdo tem folga inferior para não ficar atrás do menu.
+  - Configuração única em `components/shell/nav-config.ts`; o onboarding mantém o cabeçalho simples.
