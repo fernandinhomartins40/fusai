@@ -8,6 +8,20 @@ import type { Mailer } from '../../lib/mailer';
 import { betterAuthRateLimitStorage } from '../../lib/rate-limit';
 import type { RedisClient } from '../../lib/redis';
 
+/**
+ * E-mail links hit the API (Better Auth), which only redirects back to the site when the link
+ * carries `callbackURL`. Without it the user lands on raw JSON. Requests that do not pass one
+ * (sign-in resend, API clients, old links) get the right page of the web app as the default.
+ */
+export function withCallback(url: string, fallback: string): string {
+  const link = new URL(url);
+  // Better Auth puts `callbackURL=/` when none is given: relative to the API host, i.e. raw JSON.
+  // Only an absolute URL (already checked against trustedOrigins) is kept.
+  const current = link.searchParams.get('callbackURL') ?? '';
+  if (!/^https?:\/\//i.test(current)) link.searchParams.set('callbackURL', fallback);
+  return link.toString();
+}
+
 export function createAuth(env: Env, prisma: PrismaClient, mailer: Mailer, redis: RedisClient) {
   const isProd = env.NODE_ENV === 'production';
   const google =
@@ -35,7 +49,8 @@ export function createAuth(env: Env, prisma: PrismaClient, mailer: Mailer, redis
       resetPasswordTokenExpiresIn: 60 * 60,
       revokeSessionsOnPasswordReset: true,
       sendResetPassword: async ({ user, url }) => {
-        await mailer.send(resetPasswordEmail(user.email, user.name, url));
+        const link = withCallback(url, `${env.APP_URL}/redefinir-senha`);
+        await mailer.send(resetPasswordEmail(user.email, user.name, link));
       },
     },
     emailVerification: {
@@ -43,7 +58,8 @@ export function createAuth(env: Env, prisma: PrismaClient, mailer: Mailer, redis
       sendOnSignIn: true,
       autoSignInAfterVerification: true,
       sendVerificationEmail: async ({ user, url }) => {
-        await mailer.send(verificationEmail(user.email, user.name, url));
+        const link = withCallback(url, `${env.APP_URL}/verificar-email?confirmado=1`);
+        await mailer.send(verificationEmail(user.email, user.name, link));
       },
     },
     socialProviders: google,

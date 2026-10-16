@@ -9,6 +9,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import type { z } from 'zod';
+import { StatusPanel } from '@/components/auth/status-panel';
 import { Field, FormAlert } from '@/components/form-field';
 import { authClient, authErrorMessage } from '@/lib/auth-client';
 
@@ -29,12 +30,17 @@ export function ResetPasswordForm({ token }: { token: string }) {
 
   if (done) {
     return (
-      <div className="grid gap-4">
-        <FormAlert tone="success">Senha alterada. Entre com a nova senha.</FormAlert>
-        <Button asChild variant="brand">
-          <Link href="/entrar">Entrar</Link>
-        </Button>
-      </div>
+      <StatusPanel
+        tone="success"
+        actions={
+          <Button asChild variant="brand">
+            <Link href="/entrar">Entrar com a nova senha</Link>
+          </Button>
+        }
+      >
+        <p className="font-medium text-base text-foreground">Senha alterada!</p>
+        <p>Por segurança, encerramos as sessões abertas. Entre de novo com a nova senha.</p>
+      </StatusPanel>
     );
   }
 

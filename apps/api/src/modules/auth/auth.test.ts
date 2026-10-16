@@ -106,6 +106,59 @@ describe('auth flow', () => {
     expect((await signIn(ctx.app, email, 'nova-senha-456')).res.statusCode).toBe(200);
   });
 
+  it('email links always lead back to the site, even without callbackURL', async () => {
+    // Sign-up without callbackURL (API clients, sign-in resend): the link still redirects to the
+    // site's confirmation page instead of showing raw JSON.
+    const email = 'semcallback@example.com';
+    await ctx.app.inject({
+      method: 'POST',
+      url: '/api/auth/sign-up/email',
+      headers: { origin: APP_URL },
+      payload: { name: 'Sem Callback', email, password: 'senha-forte-123' },
+    });
+    const verifyLink = ctx.mailer.sent
+      .filter((m) => m.to === email)
+      .at(-1)
+      ?.text.match(/https?:\/\/\S+/)?.[0] as string;
+    expect(new URL(verifyLink).searchParams.get('callbackURL')).toBe(
+      `${APP_URL}/verificar-email?confirmado=1`,
+    );
+    const verified = await ctx.app.inject({
+      method: 'GET',
+      url: new URL(verifyLink).pathname + new URL(verifyLink).search,
+    });
+    expect(verified.statusCode).toBe(302);
+    expect(verified.headers.location).toBe(`${APP_URL}/verificar-email?confirmado=1`);
+
+    // A tampered token goes to the same page with ?error=..., which shows "Link inválido".
+    const bad = new URL(verifyLink);
+    bad.searchParams.set('token', 'token-invalido');
+    const invalid = await ctx.app.inject({ method: 'GET', url: bad.pathname + bad.search });
+    expect(invalid.statusCode).toBe(302);
+    const loc = new URL(invalid.headers.location as string);
+    expect(loc.pathname).toBe('/verificar-email');
+    expect(loc.searchParams.get('error')).toBeTruthy();
+
+    // Password reset without redirectTo: the link opens the site's "new password" page.
+    await ctx.app.inject({
+      method: 'POST',
+      url: '/api/auth/request-password-reset',
+      headers: { origin: APP_URL },
+      payload: { email },
+    });
+    const resetLink = ctx.mailer.sent
+      .filter((m) => m.to === email && m.subject.includes('senha'))
+      .at(-1)
+      ?.text.match(/https?:\/\/\S+/)?.[0] as string;
+    const reset = await ctx.app.inject({
+      method: 'GET',
+      url: new URL(resetLink).pathname + new URL(resetLink).search,
+    });
+    const target = new URL(reset.headers.location as string);
+    expect(`${target.origin}${target.pathname}`).toBe(`${APP_URL}/redefinir-senha`);
+    expect(target.searchParams.get('token')).toBeTruthy();
+  });
+
   it('restricts admin routes to SUPER_ADMIN', async () => {
     const userEmail = 'comum@example.com';
     await signUp(ctx.app, userEmail);
