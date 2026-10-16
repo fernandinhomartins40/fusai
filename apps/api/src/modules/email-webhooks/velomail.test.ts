@@ -54,7 +54,8 @@ describe('VeloMail mailer', () => {
     await mailer().send(email);
     expect(calls).toHaveLength(1);
     expect(calls[0]?.headers['x-api-key']).toBe('re_test_key');
-    expect(calls[0]?.body).toEqual({ from: 'fusai <nao-responda@fusai.com.br>', ...email });
+    // VeloMail rejects "Name <address>" (400 invalid_string): only the bare address is sent.
+    expect(calls[0]?.body).toEqual({ from: 'nao-responda@fusai.com.br', ...email });
   });
 
   it('retries 429 respecting retryAfter, then succeeds', async () => {
@@ -64,6 +65,18 @@ describe('VeloMail mailer', () => {
     });
     await mailer().send(email);
     expect(calls).toHaveLength(2);
+  });
+
+  it('does not retry policy blocks that VeloMail answers with 429', async () => {
+    replies.push({
+      status: 429,
+      body: { error: 'Domínio fusai.com.br não está verificado', code: 'TENANT_POLICY_BLOCKED' },
+    });
+    const err = await mailer()
+      .send(email)
+      .catch((e) => e);
+    expect(err).toMatchObject({ status: 429, code: 'TENANT_POLICY_BLOCKED' });
+    expect(calls).toHaveLength(1);
   });
 
   it('throws MailerError with the VeloMail code (no retry on 4xx)', async () => {
