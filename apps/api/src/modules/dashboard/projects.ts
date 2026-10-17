@@ -13,6 +13,7 @@ import { currentUser } from '../../lib/session';
 import type { SettingsStore } from '../../lib/settings';
 import { type CatalogStore, isServable } from '../gateway/catalog';
 import { projectSnapshot } from '../integration/snapshot';
+import { minTopupCents } from '../payments/service';
 import { requireMembership } from './membership';
 
 type Options = {
@@ -208,7 +209,7 @@ export const dashboardProjectRoutes: FastifyPluginAsyncZod<Options> = async (app
       lowBalanceAlertMicros: org.lowBalanceAlertMicros?.toString() ?? null,
       defaultLowBalanceMicros: s.low_balance_threshold_micros,
       suggestedTopupCents: org.suggestedTopupCents,
-      minTopupCents: s.min_topup_cents,
+      minTopupCents: minTopupCents(s),
       defaultLowBalance: microsToBrl(BigInt(s.low_balance_threshold_micros)),
     };
   });

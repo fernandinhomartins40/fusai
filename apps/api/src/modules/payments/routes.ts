@@ -11,7 +11,7 @@ import type { SettingsStore } from '../../lib/settings';
 import type { PaymentProvider } from '../../payments/types';
 import { PaymentProviderError } from '../../payments/types';
 import { requireMembership } from '../dashboard/membership';
-import { createOrgTopup, MAX_TOPUP_CENTS, serializePayment } from './service';
+import { createOrgTopup, MAX_TOPUP_CENTS, minTopupCents, serializePayment } from './service';
 
 /** Public: Asaas → fusai. Persist + 200 immediately, process in the worker (PRD §9.1 step 6). */
 export const paymentWebhookRoutes: FastifyPluginAsyncZod<{
@@ -93,7 +93,7 @@ export const dashboardPaymentRoutes: FastifyPluginAsyncZod<{
         canTopup:
           BILLING_ROLES.includes(membership.role as never) && org.billingType !== 'INTERNAL',
         hasDocument: !!org.document,
-        minTopupCents: s.min_topup_cents,
+        minTopupCents: minTopupCents(s),
         maxTopupCents: MAX_TOPUP_CENTS,
         feePct: s.topup_fee_pct,
         suggestedTopupCents: org.suggestedTopupCents,

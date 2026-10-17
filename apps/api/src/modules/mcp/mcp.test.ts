@@ -261,7 +261,7 @@ describe('MCP server (Phase 8)', () => {
       bonusMicros: '5000000',
     });
     expect(
-      (await call(live, 'create_package', { name: 'Barato', price_brl: '0.00', credits_brl: '1' }))
+      (await call(live, 'create_package', { name: 'Barato', price_brl: '4.99', credits_brl: '1' }))
         .isError,
     ).toBe(true);
     expect((await call(live, 'list_packages')).content[0]?.text).toContain('Grande');

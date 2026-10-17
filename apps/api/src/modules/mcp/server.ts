@@ -298,7 +298,7 @@ export function buildMcpServer(ctx: GatewayContext, deps: McpDeps) {
     {
       title: 'Criar pacote de créditos',
       description:
-        'Cria um pacote para os usuários finais comprarem via Pix. Valores em reais como texto ("9.90"). Preço mínimo R$ 0,01. Altera o projeto.',
+        'Cria um pacote para os usuários finais comprarem via Pix. Valores em reais como texto ("9.90"). Preço mínimo R$ 5,00. Altera o projeto.',
       inputSchema: {
         name: z.string().min(2).max(60),
         price_brl: z.string().describe('Preço cobrado no Pix, ex.: "9.90"'),

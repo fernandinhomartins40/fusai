@@ -15,6 +15,7 @@ import {
   isValidDocument,
   mulDecimalsCeil,
   onlyDigits,
+  PIX_MIN_CENTS,
   type Settings,
 } from '@fusai/shared';
 import { HttpError } from '../../lib/errors';
@@ -26,6 +27,11 @@ import { emitEvent } from '../webhooks-out/service';
 export const PIX_TTL_MS = 60 * 60 * 1000;
 /** Upper bound for a single top-up (typo guard; Pix itself allows more). */
 export const MAX_TOPUP_CENTS = 1_000_000; // R$ 10.000
+
+/** Global minimum, never below what the Asaas accepts for Pix (an old setting may be lower). */
+export function minTopupCents(settings: Pick<Settings, 'min_topup_cents'>): number {
+  return Math.max(settings.min_topup_cents, PIX_MIN_CENTS);
+}
 
 export type PaymentMeta = {
   baseMicros: string;
@@ -106,11 +112,12 @@ export async function createOrgTopup(
     packageName = pkg.name;
   } else {
     baseCents = input.amountCents ?? 0;
-    if (baseCents < settings.min_topup_cents) {
+    const minCents = minTopupCents(settings);
+    if (baseCents < minCents) {
       throw new HttpError(
         400,
         'amount_too_low',
-        `A recarga mínima é ${formatBRL(centsToMicros(settings.min_topup_cents))}.`,
+        `A recarga mínima é ${formatBRL(centsToMicros(minCents))}.`,
       );
     }
     if (baseCents > MAX_TOPUP_CENTS) {

@@ -80,3 +80,6 @@ function numberToPlainString(value: number): string {
   // 7 digits keep a guard digit so values past 6 decimals still round up.
   return value.toFixed(7);
 }
+
+/** The Asaas does not create Pix charges below R$ 5,00 (checked in production, D-122). */
+export const PIX_MIN_CENTS = 500;

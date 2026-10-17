@@ -286,9 +286,25 @@ describe('Pix top-ups (Asaas)', () => {
     );
   });
 
+  it('never goes below the Asaas Pix minimum, even with an older lower setting', async () => {
+    await ctx.prisma.setting.upsert({
+      where: { key: 'min_topup_cents' },
+      update: { value: 1 },
+      create: { key: 'min_topup_cents', value: 1 },
+    });
+    ctx.app.caches.invalidate();
+    const low = await call('POST', `/internal/organizations/${orgId}/topups`, owner, {
+      amountCents: 499,
+    });
+    expect(low.statusCode).toBe(400);
+    expect(low.json().error.message).toBe('A recarga mínima é R$ 5,00.');
+    const options = await call('GET', `/internal/organizations/${orgId}/topup-options`, owner);
+    expect(options.json().minTopupCents).toBe(500);
+  });
+
   it('validates amounts, applies the top-up fee and honours the Idempotency-Key', async () => {
     expect(
-      (await call('POST', `/internal/organizations/${orgId}/topups`, owner, { amountCents: 0 }))
+      (await call('POST', `/internal/organizations/${orgId}/topups`, owner, { amountCents: 499 }))
         .statusCode,
     ).toBe(400);
     expect(
@@ -342,7 +358,7 @@ describe('Pix top-ups (Asaas)', () => {
     const options = (
       await call('GET', `/internal/organizations/${orgId}/topup-options`, owner)
     ).json();
-    expect(options).toMatchObject({ canTopup: true, hasDocument: true, minTopupCents: 1 });
+    expect(options).toMatchObject({ canTopup: true, hasDocument: true, minTopupCents: 500 });
     expect(options.packages).toHaveLength(1);
 
     await prisma.membership.updateMany({ where: { orgId }, data: { role: 'DEVELOPER' } });
