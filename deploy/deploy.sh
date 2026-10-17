@@ -103,7 +103,13 @@ if [ -n "${ASAAS_API_KEY:-}" ]; then
     set_env ASAAS_ENV "$asaas_env"
   fi
 fi
-if [ -n "${ASAAS_WEBHOOK_EMAIL:-}" ]; then set_env ASAAS_WEBHOOK_EMAIL "$ASAAS_WEBHOOK_EMAIL"; fi
+# Email que o Asaas avisa quando o webhook falha. Texto provisório (sem formato de email) é ignorado.
+email_re='^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+[.][A-Za-z]{2,}$'
+if [[ "${ASAAS_WEBHOOK_EMAIL:-}" =~ $email_re ]]; then
+  set_env ASAAS_WEBHOOK_EMAIL "$ASAAS_WEBHOOK_EMAIL"
+elif [ -n "${ASAAS_WEBHOOK_EMAIL:-}" ]; then
+  echo "AVISO: o secret ASAAS_WEBHOOK_EMAIL não é um email; ignorado" >&2
+fi
 if grep -q "^ASAAS_API_KEY='\$aact_" .env; then
   echo "Pix: Asaas configurado ($(grep '^ASAAS_ENV=' .env | cut -d= -f2))"
 else
