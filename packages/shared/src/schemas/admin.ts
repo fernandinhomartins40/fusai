@@ -117,7 +117,7 @@ export const settingsSchema = z.object({
   usd_brl_rate: positiveDecimal(6),
   default_markup: positiveDecimal(3),
   topup_fee_pct: decimal(2).refine((v) => compareDecimals(v, '100') <= 0, 'Máximo de 100%'),
-  min_topup_cents: z.coerce.number().int().min(100, 'Mínimo de R$ 1,00'),
+  min_topup_cents: z.coerce.number().int().min(1, 'Mínimo de R$ 0,01'),
   low_balance_threshold_micros: microsString,
   welcome_bonus_micros: microsString,
   /** TEST keys only reach models whose output price per 1M tokens is at most this. */
@@ -130,7 +130,7 @@ export const DEFAULT_SETTINGS: Settings = {
   usd_brl_rate: '5.50',
   default_markup: '4.0',
   topup_fee_pct: '0',
-  min_topup_cents: 1000,
+  min_topup_cents: 1,
   low_balance_threshold_micros: '5000000',
   welcome_bonus_micros: '0',
   test_key_max_output_micros: '50000000',

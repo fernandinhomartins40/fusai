@@ -366,6 +366,6 @@ describe('super admin panel', () => {
       queue: { waiting: 0 },
       pendingInboundWebhooks: 0,
     });
-    expect(res.json().lastMigration).toMatch(/admin_panel/);
+    expect(res.json().lastMigration).toMatch(/^[0-9]{14}_/);
   });
 });

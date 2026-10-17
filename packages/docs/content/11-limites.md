@@ -25,7 +25,7 @@ Acima do limite: `429 rate_limited` com o header `retry-after`. As respostas do 
 | Saída por resposta | `max_output_tokens` do modelo (veja `/v1/models`) |
 | Session token | 15 minutos |
 | Pix (checkout e recarga) | 60 minutos para pagar |
-| Pacote de créditos | de R$ 5,00 a R$ 10.000,00 |
+| Pacote de créditos | de R$ 0,01 a R$ 10.000,00 |
 | Recarga da organização | até R$ 10.000,00 por Pix |
 | Página pública de checkout | 30 consultas/min por IP |
 | Webhook | resposta em até 10 s; 6 tentativas |

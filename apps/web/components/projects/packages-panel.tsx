@@ -238,7 +238,7 @@ function PackageForm({
         />
       </Field>
       <div className="grid gap-4 sm:grid-cols-3">
-        <Field id="pkg-price" label="Preço (R$)" hint="Mínimo R$ 5,00">
+        <Field id="pkg-price" label="Preço (R$)" hint="Mínimo R$ 0,01">
           <Input
             id="pkg-price"
             inputMode="decimal"

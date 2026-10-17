@@ -51,7 +51,7 @@ export const orgUpdateSchema = z
       .transform(onlyDigits)
       .refine((v) => v.length >= 10 && v.length <= 13, 'Telefone inválido'),
     lowBalanceAlertMicros: micros(1_000_000_000_000n, 'Valor muito alto').nullable(),
-    suggestedTopupCents: z.coerce.number().int().min(100).max(10_000_000).nullable(),
+    suggestedTopupCents: z.coerce.number().int().min(1).max(10_000_000).nullable(),
   })
   .partial();
 export type OrgUpdateInput = z.input<typeof orgUpdateSchema>;
@@ -85,13 +85,13 @@ export const logsQuerySchema = usageFilterSchema.extend({
   limit: z.coerce.number().int().min(1).max(100).optional(),
 });
 
-/** Credit package a project sells to its end users (PRD §9.3). Pix at Asaas starts at R$ 5. */
+/** Credit package a project sells to its end users (PRD §9.3). Any price from R$ 0,01. */
 export const projectPackageSchema = z.object({
   name: z.string().trim().min(2, 'Nome muito curto').max(60),
   priceCents: z.coerce
     .number()
     .int()
-    .min(500, 'O preço mínimo é R$ 5,00')
+    .min(1, 'O preço mínimo é R$ 0,01')
     .max(1_000_000, 'O preço máximo é R$ 10.000,00'),
   creditMicros: micros(10_000_000_000n, 'Máximo de R$ 10.000 em créditos').refine(
     (v) => !INTEGER_RE.test(v) || BigInt(v) > 0n,

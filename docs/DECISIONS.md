@@ -187,3 +187,7 @@ Documentação do Asaas consultada em out/2026 (docs.asaas.com: cobranças via P
   - O ambiente segue o prefixo da chave: `$aact_prod_` = produção, `$aact_hmlg_` = sandbox. Um valor que não é chave do Asaas gera aviso e mantém a configuração anterior, sem quebrar o deploy.
   - Depois de cada deploy saudável, `deploy/asaas-webhook.mjs` (na imagem da API) confere a conta e cria ou atualiza o webhook `https://api.fusai.com.br/webhooks/asaas`: eventos de pagamento, envio sequencial, fila reativada se estava pausada, `authToken` = `ASAAS_WEBHOOK_TOKEN` (gerado na VPS). Também avisa se a conta não tem chave Pix ativa.
   - O email de aviso de falhas do webhook usa o secret opcional `ASAAS_WEBHOOK_EMAIL` ou, sem ele, o `SEED_ADMIN_EMAIL`.
+- **D-121 — Recarga e pacotes a partir de R$ 0,01 (decisão do dono).**
+  - Mínimo global de recarga (`min_topup_cents`) passa a 1 centavo: no padrão, no seed e em produção (migração `20261017120000_min_topup_one_cent`). O admin ainda pode subir o mínimo em Preços globais, que agora aceita a partir de R$ 0,01.
+  - Pacotes (globais e de projeto), valor sugerido de recarga e a tool `create_package` do MCP também aceitam a partir de R$ 0,01.
+  - Se o Asaas recusar um valor baixo para Pix, a mensagem dele chega ao cliente (502 `payment_provider_error`) e o pagamento fica como "Falhou", sem crédito.

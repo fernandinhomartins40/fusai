@@ -16,7 +16,7 @@ const settings: Record<string, unknown> = {
   usd_brl_rate: '5.50',
   default_markup: '4.0',
   topup_fee_pct: '0',
-  min_topup_cents: 1000,
+  min_topup_cents: 1,
   low_balance_threshold_micros: '5000000',
   welcome_bonus_micros: '0',
   test_key_max_output_micros: '50000000',

@@ -288,7 +288,7 @@ describe('Pix top-ups (Asaas)', () => {
 
   it('validates amounts, applies the top-up fee and honours the Idempotency-Key', async () => {
     expect(
-      (await call('POST', `/internal/organizations/${orgId}/topups`, owner, { amountCents: 500 }))
+      (await call('POST', `/internal/organizations/${orgId}/topups`, owner, { amountCents: 0 }))
         .statusCode,
     ).toBe(400);
     expect(
@@ -342,7 +342,7 @@ describe('Pix top-ups (Asaas)', () => {
     const options = (
       await call('GET', `/internal/organizations/${orgId}/topup-options`, owner)
     ).json();
-    expect(options).toMatchObject({ canTopup: true, hasDocument: true, minTopupCents: 1000 });
+    expect(options).toMatchObject({ canTopup: true, hasDocument: true, minTopupCents: 1 });
     expect(options.packages).toHaveLength(1);
 
     await prisma.membership.updateMany({ where: { orgId }, data: { role: 'DEVELOPER' } });

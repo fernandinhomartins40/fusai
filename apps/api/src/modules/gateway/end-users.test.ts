@@ -491,7 +491,7 @@ describe('end users, session tokens and Pix checkout (Phase 7)', () => {
     expect(created.statusCode).toBe(201);
     const cheap = await dash('POST', `${base}/packages`, owner, {
       name: 'Barato',
-      priceCents: 100,
+      priceCents: 0,
       creditMicros: '1000000',
       bonusMicros: '0',
       highlight: false,
