@@ -1,10 +1,17 @@
 import type { Prisma, PrismaClient } from '@fusai/db';
-import { ledgerQuerySchema, onlyDigits, orgSearchSchema, walletAdjustSchema } from '@fusai/shared';
+import {
+  ledgerQuerySchema,
+  onlyDigits,
+  orgAdminUpdateSchema,
+  orgSearchSchema,
+  walletAdjustSchema,
+} from '@fusai/shared';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import { audit } from '../../lib/audit';
-import { notFound } from '../../lib/errors';
+import { HttpError, notFound } from '../../lib/errors';
 import { currentUser } from '../../lib/session';
+import { addDays, startOfSpDay } from '../../lib/time';
 import {
   applyLedger,
   creditLimitFor,
@@ -15,7 +22,10 @@ import {
 
 const idParams = z.object({ id: z.string().min(1) });
 
-/** Customers (organizations): list, detail, statement and manual balance adjustment. */
+/**
+ * Customers (organizations): list, detail, statement, manual balance adjustment, account
+ * settings (status, billing type, credit limit, special markup) and their API keys.
+ */
 export const adminOrganizationRoutes: FastifyPluginAsyncZod<{ prisma: PrismaClient }> = async (
   app,
   { prisma },
@@ -91,7 +101,15 @@ export const adminOrganizationRoutes: FastifyPluginAsyncZod<{ prisma: PrismaClie
   app.get('/internal/admin/organizations/:id', { schema: { params: idParams } }, async (req) => {
     const org = await findOrg(req.params.id);
     const wallet = org.wallet ?? (await ensureWallet(org.id));
-    const sum = await ledgerSum(prisma, wallet.id);
+    const since = addDays(startOfSpDay(), -29);
+    const [sum, usage] = await Promise.all([
+      ledgerSum(prisma, wallet.id),
+      prisma.usageLog.aggregate({
+        where: { orgId: org.id, createdAt: { gte: since } },
+        _count: { _all: true },
+        _sum: { chargedMicros: true, costBrlMicros: true },
+      }),
+    ]);
     return {
       id: org.id,
       name: org.name,
@@ -103,6 +121,11 @@ export const adminOrganizationRoutes: FastifyPluginAsyncZod<{ prisma: PrismaClie
       creditLimitMicros: creditLimitFor(org).toString(),
       markupOverride: org.markupOverride?.toFixed() ?? null,
       createdAt: org.createdAt.toISOString(),
+      usage30d: {
+        requests: usage._count._all,
+        chargedMicros: (usage._sum.chargedMicros ?? 0n).toString(),
+        costMicros: (usage._sum.costBrlMicros ?? 0n).toString(),
+      },
       members: org.members.map((m) => ({ role: m.role, ...m.user })),
       projects: org.projects.map((p) => ({ ...p, createdAt: p.createdAt.toISOString() })),
       wallet: {
@@ -158,4 +181,97 @@ export const adminOrganizationRoutes: FastifyPluginAsyncZod<{ prisma: PrismaClie
       });
     },
   );
+
+  app.patch(
+    '/internal/admin/organizations/:id',
+    { schema: { params: idParams, body: orgAdminUpdateSchema } },
+    async (req) => {
+      const org = await findOrg(req.params.id);
+      const { reason, creditLimitMicros, markupOverride, ...rest } = req.body;
+      const data: Prisma.OrganizationUpdateInput = {
+        ...rest,
+        ...(creditLimitMicros !== undefined
+          ? { creditLimitMicros: BigInt(creditLimitMicros) }
+          : {}),
+        ...(markupOverride !== undefined ? { markupOverride } : {}),
+      };
+      if (Object.keys(data).length === 0) {
+        throw new HttpError(400, 'invalid_request', 'Nada para alterar');
+      }
+      const updated = await prisma.organization.update({ where: { id: org.id }, data });
+      const changes = {
+        ...rest,
+        ...(creditLimitMicros !== undefined ? { creditLimitMicros } : {}),
+        ...(markupOverride !== undefined ? { markupOverride } : {}),
+      };
+      const action =
+        rest.status && rest.status !== org.status
+          ? rest.status === 'SUSPENDED'
+            ? 'org.suspend'
+            : 'org.reactivate'
+          : 'org.update';
+      await audit(prisma, req, action, org.id, {
+        before: {
+          status: org.status,
+          billingType: org.billingType,
+          creditLimitMicros: org.creditLimitMicros.toString(),
+          markupOverride: org.markupOverride?.toFixed() ?? null,
+        },
+        changes,
+        ...(reason ? { reason } : {}),
+      });
+      return {
+        id: updated.id,
+        status: updated.status,
+        billingType: updated.billingType,
+        creditLimitMicros: updated.creditLimitMicros.toString(),
+        markupOverride: updated.markupOverride?.toFixed() ?? null,
+      };
+    },
+  );
+
+  /** Every API key of the customer's projects (prefix only: the secret is never stored). */
+  app.get(
+    '/internal/admin/organizations/:id/api-keys',
+    { schema: { params: idParams } },
+    async (req) => {
+      const org = await findOrg(req.params.id);
+      const keys = await prisma.apiKey.findMany({
+        where: { project: { orgId: org.id } },
+        orderBy: [{ revokedAt: { sort: 'desc', nulls: 'first' } }, { createdAt: 'desc' }],
+        include: { project: { select: { id: true, name: true } } },
+      });
+      return {
+        items: keys.map((k) => ({
+          id: k.id,
+          name: k.name,
+          prefix: k.prefix,
+          env: k.env,
+          scopes: k.scopes,
+          project: k.project,
+          lastUsedAt: k.lastUsedAt?.toISOString() ?? null,
+          expiresAt: k.expiresAt?.toISOString() ?? null,
+          revokedAt: k.revokedAt?.toISOString() ?? null,
+          createdAt: k.createdAt.toISOString(),
+        })),
+      };
+    },
+  );
+
+  app.post('/internal/admin/api-keys/:id/revoke', { schema: { params: idParams } }, async (req) => {
+    const key = await prisma.apiKey.findUnique({
+      where: { id: req.params.id },
+      include: { project: { select: { orgId: true } } },
+    });
+    if (!key) throw notFound('Chave não encontrada');
+    if (!key.revokedAt) {
+      await prisma.apiKey.update({ where: { id: key.id }, data: { revokedAt: new Date() } });
+      await audit(prisma, req, 'api_key.revoke', key.id, {
+        orgId: key.project.orgId,
+        prefix: key.prefix,
+        byAdmin: true,
+      });
+    }
+    return { revoked: true };
+  });
 };

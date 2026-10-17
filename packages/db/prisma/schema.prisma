@@ -99,6 +99,10 @@ model User {
   emailVerified Boolean      @default(false)
   image         String?
   role          PlatformRole @default(USER)
+  /// Better Auth admin plugin: a banned user cannot sign in (sessions are revoked on ban).
+  banned        Boolean?     @default(false)
+  banReason     String?
+  banExpires    DateTime?
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
   memberships   Membership[]
@@ -109,15 +113,17 @@ model User {
 }
 
 model Session {
-  id        String   @id
-  expiresAt DateTime
-  token     String   @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  ipAddress String?
-  userAgent String?
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id             String   @id
+  expiresAt      DateTime
+  token          String   @unique
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  ipAddress      String?
+  userAgent      String?
+  userId         String
+  /// Super admin who started this session with "entrar como cliente" (admin plugin).
+  impersonatedBy String?
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@map("session")
@@ -362,6 +368,8 @@ model InboundWebhookEvent {
   processedAt DateTime?
   error       String?
   createdAt   DateTime  @default(now())
+
+  @@index([createdAt])
 }
 
 model OutboundWebhook {
@@ -465,4 +473,5 @@ model AuditLog {
   createdAt DateTime @default(now())
 
   @@index([createdAt])
+  @@index([action, createdAt])
 }

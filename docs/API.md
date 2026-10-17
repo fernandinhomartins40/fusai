@@ -48,6 +48,23 @@ Requisições não-GET precisam vir do `APP_URL` (`Origin`), senão 403.
 | GET | `/internal/admin/organizations/:id` | Detalhe: membros, projetos e carteira (`activeHolds`, `ledgerSumMicros`, `consistent`). |
 | GET | `/internal/admin/organizations/:id/ledger` | Extrato (mesmo formato do cliente). |
 | POST | `/internal/admin/organizations/:id/wallet/adjust` | `{ amountMicros (string com sinal), reason }` → 201 com o lançamento `ADJUSTMENT`. |
+| GET | `/internal/admin/dashboard?days=1\|7\|30\|90` | `{ totals: { requests, errors, chargedMicros, costMicros, marginMicros, marginPct, receivedCents, refundedCents, payments }, daily[], topCustomers[], topModels[], providers[] (requests, errors, avgLatencyMs), liability, requestsPerMinute, counts }`. Margem calculada em inteiros (`marginPct` "75.0"). |
+| PATCH | `/internal/admin/organizations/:id` | `{ status?, billingType?, creditLimitMicros?, markupOverride? (string ou null), reason? }`. Suspender exige `reason`. AuditLog `org.suspend` / `org.reactivate` / `org.update` com o estado anterior. |
+| GET | `/internal/admin/organizations/:id/api-keys` | Chaves de todos os projetos do cliente (só prefixo). |
+| POST | `/internal/admin/api-keys/:id/revoke` | Revoga na hora (AuditLog `api_key.revoke`, `byAdmin`). |
+| GET | `/internal/admin/users?q&cursor&limit` | Usuários com papel, `banned`, último acesso e organizações. |
+| POST | `/internal/admin/users/:id/ban` | `{ reason }`: bloqueia o login e encerra as sessões. 409 para super admin. |
+| POST | `/internal/admin/users/:id/unban` | Desbloqueia. |
+| POST | `/internal/admin/users/:id/revoke-sessions` | Encerra todas as sessões. |
+| GET/POST | `/internal/admin/packages` | Pacotes globais de recarga (mesmo formato dos pacotes de projeto). |
+| PATCH/DELETE | `/internal/admin/packages/:id` | Pacote já comprado é desativado em vez de apagado. |
+| GET | `/internal/admin/usage?orgId&modelId&providerId&status&requestId&from&to&cursor&limit` | Explorador de uso de todos os clientes com `costMicros` e `chargedMicros`. |
+| GET | `/internal/admin/webhook-events?state=pending\|error\|processed&provider&cursor` | Webhooks recebidos; só um resumo do payload (`kind`, `providerPaymentId`, `externalRef`, `valueCents`). |
+| POST | `/internal/admin/webhook-events/:id/reprocess` | Só Asaas: zera o estado e põe `process-webhook` na fila (crédito é idempotente). |
+| GET | `/internal/admin/audit?action&q&cursor` | AuditLog; `action` é prefixo, `q` é email de quem fez ou ID do alvo. |
+| GET | `/internal/admin/system` | `{ version, node, uptimeSeconds, database, redis, queue, pendingInboundWebhooks, failedOutboundWebhooks, activeHolds, lastMigration }`. |
+| POST | `/api/auth/admin/impersonate-user` | Better Auth (plugin admin): `{ userId }` → sessão de 1 h como o usuário, com `impersonatedBy`; não vale para outro super admin. AuditLog `impersonate.start`. |
+| POST | `/api/auth/admin/stop-impersonating` | Volta à sessão do super admin. AuditLog `impersonate.stop`. |
 
 Todas as alterações do admin geram `AuditLog`.
 
@@ -116,7 +133,7 @@ Membros da organização; 404 para quem não é membro.
 | POST | `/internal/organizations/:orgId/topups` | sessão (dono/admin/financeiro) | `{ packageId }` ou `{ amountCents }`; header opcional `Idempotency-Key`. 201 com `{ id, status, amountCents, creditMicros, pixCopyPaste, pixQrBase64, expiresAt }`. 502 se o Asaas falhar. |
 | GET | `/internal/payments/:id` | sessão (membro) | Status (para o polling). QR e copia e cola só enquanto `PENDING`. |
 | GET | `/internal/organizations/:orgId/payments?cursor&limit` | sessão (membro) | Histórico de recargas. |
-| GET | `/internal/admin/payments?status&cursor` | super admin | Todos os pagamentos. |
+| GET | `/internal/admin/payments?status&orgId&cursor` | super admin | Todos os pagamentos (ou de um cliente). |
 | POST | `/internal/admin/payments/:id/refund` | super admin | Pede o estorno ao Asaas (o débito entra com o webhook `PAYMENT_REFUNDED`). 409 se não for estornável. |
 
 ## Usuários finais e checkout (Fase 7)

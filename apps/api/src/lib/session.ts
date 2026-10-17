@@ -10,6 +10,8 @@ export type SessionUser = {
   email: string;
   emailVerified: boolean;
   role: 'USER' | 'SUPER_ADMIN';
+  /** Set when a super admin is using this account via "entrar como cliente". */
+  impersonatedBy: string | null;
 };
 
 declare module 'fastify' {
@@ -31,7 +33,9 @@ export function sessionGuards(env: Env, auth: Auth) {
     const { id, name, email, emailVerified } = session.user;
     const role =
       (session.user as { role?: string }).role === 'SUPER_ADMIN' ? 'SUPER_ADMIN' : 'USER';
-    req.user = { id, name, email, emailVerified, role };
+    const impersonatedBy =
+      (session.session as { impersonatedBy?: string | null }).impersonatedBy ?? null;
+    req.user = { id, name, email, emailVerified, role, impersonatedBy };
   }
 
   async function requireSuperAdmin(req: FastifyRequest, reply: FastifyReply) {

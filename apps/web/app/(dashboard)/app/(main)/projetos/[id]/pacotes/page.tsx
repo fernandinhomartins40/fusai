@@ -15,6 +15,10 @@ export default async function ProjectPackagesPage({ params }: { params: Promise<
   ]);
   if (!data || !project) notFound();
   return (
-    <PackagesPanel projectId={id} packages={data.packages} billingMode={project.billingMode} />
+    <PackagesPanel
+      basePath={`/internal/projects/${id}/packages`}
+      packages={data.packages}
+      billingMode={project.billingMode}
+    />
   );
 }

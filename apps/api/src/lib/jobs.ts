@@ -12,8 +12,12 @@ export type JobName =
   | 'sweep-webhooks'
   | 'deliver-webhooks';
 
+export type JobCounts = Record<'waiting' | 'active' | 'delayed' | 'failed' | 'completed', number>;
+
 export interface JobQueue {
   add(name: JobName, data: Record<string, unknown>): Promise<void>;
+  /** Queue depth for the admin "Sistema" page. */
+  counts(): Promise<JobCounts>;
   close(): Promise<void>;
 }
 
@@ -28,6 +32,16 @@ export function createJobQueue(redisUrl: string): JobQueue {
         removeOnComplete: 1000,
         removeOnFail: 5000,
       });
+    },
+    async counts() {
+      const c = await queue.getJobCounts('waiting', 'active', 'delayed', 'failed', 'completed');
+      return {
+        waiting: c.waiting ?? 0,
+        active: c.active ?? 0,
+        delayed: c.delayed ?? 0,
+        failed: c.failed ?? 0,
+        completed: c.completed ?? 0,
+      };
     },
     async close() {
       await queue.close();
@@ -45,6 +59,9 @@ export function createMemoryJobQueue(): JobQueue & {
     jobs,
     async add(name, data) {
       jobs.push({ name, data });
+    },
+    async counts() {
+      return { waiting: jobs.length, active: 0, delayed: 0, failed: 0, completed: 0 };
     },
     async close() {},
   };

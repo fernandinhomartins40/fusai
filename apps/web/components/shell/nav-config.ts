@@ -3,15 +3,21 @@ import {
   BarChart3,
   BookOpen,
   Boxes,
+  Building2,
   CreditCard,
   FolderKanban,
+  Gift,
+  Inbox,
   LayoutDashboard,
   type LucideIcon,
   Plug,
   Receipt,
+  ScrollText,
+  Server,
   Settings,
   Shield,
   Tags,
+  UserRound,
   Users,
   Wallet,
   Webhook,
@@ -53,19 +59,39 @@ export const CUSTOMER_NAV: NavConfig = {
 
 const adminItems = {
   home: { href: '/admin', label: 'Início', icon: Shield, exact: true },
-  customers: { href: '/admin/clientes', label: 'Clientes', icon: Users },
+  customers: { href: '/admin/clientes', label: 'Clientes', icon: Building2 },
+  users: { href: '/admin/usuarios', label: 'Usuários', icon: UserRound },
   payments: { href: '/admin/pagamentos', label: 'Pagamentos', icon: Receipt },
+  packages: { href: '/admin/pacotes', label: 'Pacotes', icon: Gift },
   providers: { href: '/admin/provedores', label: 'Provedores', icon: Plug },
   models: { href: '/admin/modelos', label: 'Modelos', icon: Boxes },
   prices: { href: '/admin/precos', label: 'Preços', icon: Tags },
+  usage: { href: '/admin/uso', label: 'Uso', icon: Activity },
+  webhooks: { href: '/admin/webhooks', label: 'Webhooks', icon: Inbox },
+  audit: { href: '/admin/auditoria', label: 'Auditoria', icon: ScrollText },
+  system: { href: '/admin/sistema', label: 'Sistema', icon: Server },
 } satisfies Record<string, NavItem>;
 
 const a = adminItems;
 export const ADMIN_NAV: NavConfig = {
-  sidebar: [a.home, a.customers, a.payments, a.providers, a.models, a.prices],
-  left: [a.home, a.customers],
-  center: a.payments,
-  right: a.models,
+  sidebar: [
+    a.home,
+    a.customers,
+    a.users,
+    a.payments,
+    a.packages,
+    a.providers,
+    a.models,
+    a.prices,
+    a.usage,
+    a.webhooks,
+    a.audit,
+    a.system,
+  ],
+  left: [a.home, a.payments],
+  // Customers is the daily task (balance, release credits, suspend): featured in the center.
+  center: a.customers,
+  right: a.usage,
 };
 
 /** Cross-link between the two panels (sidebar footer and "Mais" sheet). */

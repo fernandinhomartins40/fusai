@@ -22,7 +22,7 @@ const EDITORS = ['OWNER', 'ADMIN', 'DEVELOPER'] as const;
 const MANAGERS = ['OWNER', 'ADMIN'] as const;
 const PAGE_SIZE = 50;
 
-function serializePackage(p: CreditPackage) {
+export function serializePackage(p: CreditPackage) {
   return {
     id: p.id,
     name: p.name,

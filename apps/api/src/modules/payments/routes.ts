@@ -202,12 +202,19 @@ export const adminPaymentRoutes: FastifyPluginAsyncZod<{
     '/internal/admin/payments',
     {
       schema: {
-        querystring: z.object({ status: z.string().optional(), cursor: z.string().optional() }),
+        querystring: z.object({
+          status: z
+            .enum(['PENDING', 'CONFIRMED', 'RECEIVED', 'EXPIRED', 'REFUNDED', 'FAILED', 'CANCELED'])
+            .optional(),
+          orgId: z.string().min(1).max(64).optional(),
+          cursor: z.string().optional(),
+        }),
       },
     },
     async (req) => {
+      const { status, orgId } = req.query;
       const rows = await prisma.payment.findMany({
-        where: req.query.status ? { status: req.query.status as never } : {},
+        where: { ...(status ? { status } : {}), ...(orgId ? { orgId } : {}) },
         orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         take: 51,
         include: { org: { select: { id: true, name: true } } },

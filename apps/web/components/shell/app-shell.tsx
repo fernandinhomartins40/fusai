@@ -8,6 +8,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { authClient } from '@/lib/auth-client';
+import { ImpersonationBanner } from './impersonation-banner';
 import {
   isActive,
   NAV,
@@ -24,6 +25,8 @@ type ShellProps = {
   canSwitch: boolean;
   /** Optional control under the logo (e.g. organization switcher). */
   topSlot?: ReactNode;
+  /** A super admin is using this account ("entrar como cliente"): show the exit banner. */
+  impersonating?: boolean;
   children: ReactNode;
 };
 
@@ -33,7 +36,14 @@ type ShellProps = {
  * - mobile: native-app style with a bottom bar of 5 slots (featured center item) and "Mais"
  *   opening a bottom sheet with the remaining destinations.
  */
-export function AppShell({ variant, user, canSwitch, topSlot, children }: ShellProps) {
+export function AppShell({
+  variant,
+  user,
+  canSwitch,
+  topSlot,
+  impersonating,
+  children,
+}: ShellProps) {
   const nav = NAV[variant];
   const switchTo = variant === 'admin' ? SWITCH_TO_APP : SWITCH_TO_ADMIN;
   const extra = canSwitch || variant === 'admin' ? [switchTo] : [];
@@ -90,6 +100,7 @@ export function AppShell({ variant, user, canSwitch, topSlot, children }: ShellP
       </header>
 
       <div className="md:pl-64">
+        {impersonating ? <ImpersonationBanner user={user} /> : null}
         <main
           className="mx-auto max-w-6xl px-4 pt-6 sm:px-6 md:px-8 md:pt-8 md:pb-12"
           style={{ paddingBottom: 'calc(6.5rem + env(safe-area-inset-bottom))' }}

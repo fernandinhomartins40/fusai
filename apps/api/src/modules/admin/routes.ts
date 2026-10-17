@@ -1,15 +1,22 @@
 import type { PrismaClient } from '@fusai/db';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import type { Env } from '../../lib/env';
+import type { JobQueue } from '../../lib/jobs';
+import type { RedisClient } from '../../lib/redis';
 import type { sessionGuards } from '../../lib/session';
 import type { SettingsStore } from '../../lib/settings';
 import type { PaymentProvider } from '../../payments/types';
 import type { CatalogStore } from '../gateway/catalog';
 import { adminPaymentRoutes } from '../payments/routes';
+import { adminDashboardRoutes } from './dashboard';
 import { adminModelRoutes } from './models';
+import { adminOperationsRoutes } from './operations';
 import { adminOrganizationRoutes } from './organizations';
+import { adminPackageRoutes } from './packages';
 import { adminProviderRoutes } from './providers';
 import { adminSettingsRoutes } from './settings';
+import { adminUsageRoutes } from './usage';
+import { adminUserRoutes } from './users';
 
 type Options = {
   prisma: PrismaClient;
@@ -19,6 +26,8 @@ type Options = {
   encryptionKey: Buffer;
   catalog: CatalogStore;
   provider: PaymentProvider;
+  redis: RedisClient;
+  jobs: JobQueue;
 };
 
 /** Super-admin routes. Every route here requires role SUPER_ADMIN. */
@@ -41,4 +50,9 @@ export const adminRoutes: FastifyPluginAsyncZod<Options> = async (app, opts) => 
   await app.register(adminSettingsRoutes, opts);
   await app.register(adminOrganizationRoutes, opts);
   await app.register(adminPaymentRoutes, opts);
+  await app.register(adminDashboardRoutes, opts);
+  await app.register(adminUserRoutes, opts);
+  await app.register(adminPackageRoutes, opts);
+  await app.register(adminUsageRoutes, opts);
+  await app.register(adminOperationsRoutes, opts);
 };

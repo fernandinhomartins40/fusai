@@ -24,20 +24,36 @@ import { ApiError, apiFetch } from '@/lib/api';
 import type { ProjectPackage } from '@/lib/end-user-types';
 import { brl, microsToInput } from '@/lib/format';
 
-type Props = { projectId: string; packages: ProjectPackage[]; billingMode: string };
+type Props = {
+  /** Collection endpoint: project packages or the admin's global packages. */
+  basePath: string;
+  packages: ProjectPackage[];
+  /** Project packages only: warns when end users cannot buy. */
+  billingMode?: string;
+  intro?: string;
+  emptyText?: string;
+};
 
-/** "Pacotes de créditos": what the project's end users can buy via Pix (PRD §12). */
-export function PackagesPanel({ projectId, packages, billingMode }: Props) {
+/**
+ * Credit packages sold via Pix: a project's packages for its end users (PRD §12) or, in the
+ * admin, the global packages customers see in "Adicionar créditos".
+ */
+export function PackagesPanel({
+  basePath,
+  packages,
+  billingMode,
+  intro = 'O que os usuários do seu app compram via Pix. O valor pago vai para a sua conta fusai; os créditos vão para a carteira do usuário.',
+  emptyText = 'Nenhum pacote ainda. Crie o primeiro para vender créditos no seu app.',
+}: Props) {
   const router = useRouter();
   const [editing, setEditing] = useState<ProjectPackage | 'new' | null>(null);
 
   async function remove(pkg: ProjectPackage) {
     if (!confirm(`Remover o pacote “${pkg.name}”?`)) return;
     try {
-      const res = await apiFetch<{ deactivated: boolean }>(
-        `/internal/projects/${projectId}/packages/${pkg.id}`,
-        { method: 'DELETE' },
-      );
+      const res = await apiFetch<{ deactivated: boolean }>(`${basePath}/${pkg.id}`, {
+        method: 'DELETE',
+      });
       toast.success(
         res.deactivated
           ? 'Pacote desativado (já tem vendas, fica no histórico)'
@@ -59,10 +75,7 @@ export function PackagesPanel({ projectId, packages, billingMode }: Props) {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="grid gap-0.5">
           <h2 className="font-semibold text-lg">Pacotes de créditos</h2>
-          <p className="text-muted-foreground text-sm">
-            O que os usuários do seu app compram via Pix. O valor pago vai para a sua conta fusai;
-            os créditos vão para a carteira do usuário.
-          </p>
+          <p className="text-muted-foreground text-sm">{intro}</p>
         </div>
         <Button variant="brand" onClick={() => setEditing('new')}>
           <Plus /> Novo pacote
@@ -92,7 +105,7 @@ export function PackagesPanel({ projectId, packages, billingMode }: Props) {
             <TableRow>
               <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
                 <Package className="mx-auto mb-2 size-5" aria-hidden />
-                Nenhum pacote ainda. Crie o primeiro para vender créditos no seu app.
+                {emptyText}
               </TableCell>
             </TableRow>
           ) : (
@@ -146,7 +159,7 @@ export function PackagesPanel({ projectId, packages, billingMode }: Props) {
       >
         {editing ? (
           <PackageForm
-            projectId={projectId}
+            basePath={basePath}
             pkg={editing === 'new' ? null : editing}
             onSaved={() => close(true)}
           />
@@ -157,11 +170,11 @@ export function PackagesPanel({ projectId, packages, billingMode }: Props) {
 }
 
 function PackageForm({
-  projectId,
+  basePath,
   pkg,
   onSaved,
 }: {
-  projectId: string;
+  basePath: string;
   pkg: ProjectPackage | null;
   onSaved: () => void;
 }) {
@@ -191,23 +204,18 @@ function PackageForm({
     if (priceMicros % 10_000n !== 0n) return setError('O preço precisa estar em centavos.');
     setPending(true);
     try {
-      await apiFetch(
-        pkg
-          ? `/internal/projects/${projectId}/packages/${pkg.id}`
-          : `/internal/projects/${projectId}/packages`,
-        {
-          method: pkg ? 'PATCH' : 'POST',
-          body: JSON.stringify({
-            name: name.trim(),
-            priceCents: Number(priceMicros / 10_000n),
-            creditMicros: creditMicros.toString(),
-            bonusMicros: bonusMicros.toString(),
-            highlight,
-            active,
-            sortOrder: Number(order) || 0,
-          }),
-        },
-      );
+      await apiFetch(pkg ? `${basePath}/${pkg.id}` : basePath, {
+        method: pkg ? 'PATCH' : 'POST',
+        body: JSON.stringify({
+          name: name.trim(),
+          priceCents: Number(priceMicros / 10_000n),
+          creditMicros: creditMicros.toString(),
+          bonusMicros: bonusMicros.toString(),
+          highlight,
+          active,
+          sortOrder: Number(order) || 0,
+        }),
+      });
       toast.success(pkg ? 'Pacote atualizado' : 'Pacote criado');
       onSaved();
     } catch (err) {

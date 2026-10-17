@@ -4,7 +4,14 @@ import { cache } from 'react';
 import { SERVER_API_URL } from './config';
 
 export type Me = {
-  user: { id: string; name: string; email: string; role: 'USER' | 'SUPER_ADMIN' };
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    role: 'USER' | 'SUPER_ADMIN';
+    /** Super admin id while in "entrar como cliente". */
+    impersonatedBy: string | null;
+  };
   organizations: {
     id: string;
     name: string;

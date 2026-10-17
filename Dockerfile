@@ -27,7 +27,8 @@ FROM deps AS build-api
 RUN pnpm --filter @fusai/api build
 
 FROM base AS api
-ENV NODE_ENV=production HOST=0.0.0.0 PORT=4000
+ARG APP_VERSION=dev
+ENV NODE_ENV=production HOST=0.0.0.0 PORT=4000 APP_VERSION=$APP_VERSION
 COPY --from=build-api /app /app
 USER node
 EXPOSE 4000

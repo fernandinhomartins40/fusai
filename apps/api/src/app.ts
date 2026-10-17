@@ -166,6 +166,8 @@ export async function buildApp(env: Env, deps: AppDeps = {}) {
     encryptionKey,
     catalog,
     provider,
+    redis,
+    jobs,
   });
   await app.register(paymentWebhookRoutes, { prisma, provider, jobs });
   await app.register(emailWebhookRoutes, { prisma, secret: env.VELOMAIL_WEBHOOK_SECRET });

@@ -1,9 +1,12 @@
+import { adminClient } from 'better-auth/client/plugins';
 import { createAuthClient } from 'better-auth/react';
 import { API_URL } from './config';
 
 export const authClient = createAuthClient({
   baseURL: API_URL,
   fetchOptions: { credentials: 'include' },
+  // Super admin: "entrar como cliente" (impersonation) and back.
+  plugins: [adminClient()],
 });
 
 const messages: Record<string, string> = {
@@ -16,6 +19,7 @@ const messages: Record<string, string> = {
   PASSWORD_TOO_LONG: 'A senha é muito longa.',
   INVALID_TOKEN: 'Link inválido ou expirado. Peça um novo.',
   TOO_MANY_REQUESTS: 'Muitas tentativas. Aguarde um minuto e tente novamente.',
+  BANNED_USER: 'Sua conta está bloqueada. Fale com o suporte da fusai.',
 };
 
 /** Maps Better Auth error codes to pt-BR messages. */

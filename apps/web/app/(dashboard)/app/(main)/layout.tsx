@@ -20,6 +20,7 @@ export default async function DashboardShell({ children }: { children: ReactNode
       variant="customer"
       user={{ name: me.user.name, email: me.user.email }}
       canSwitch={me.user.role === 'SUPER_ADMIN'}
+      impersonating={!!me.user.impersonatedBy}
       topSlot={
         <OrgSwitcher
           orgs={me.organizations.map((o) => ({ id: o.id, name: o.name }))}

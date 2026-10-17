@@ -480,3 +480,13 @@ pnpm --filter @fusai/docs generate               # depois de editar packages/doc
 - OAuth 2.1 do MCP (descoberta padrão para clientes que exigem): fase 2 do produto, como o PRD prevê.
 - A descrição de uma tool não substitui a confirmação do usuário: `update_project_settings` exige `confirm: true`, mas quem pede a confirmação é a IA cliente.
 - `create_test_checkout` usa um CPF de sandbox fixo quando o usuário de teste não tem documento.
+
+## Fase 10 (parte 1) — Painel super admin completo
+
+- Dashboard de margem, conta do cliente (suspender, cobrança, limite, margem especial), chaves de API do cliente, usuários (bloquear, desconectar), entrar como cliente com auditoria, pacotes globais, uso, webhooks recebidos com reprocessamento, auditoria e sistema (D-119).
+- **Testes:** API 139 (11 novos em `admin-panel.test.ts`), shared 42, sdk 7, docs 6.
+- **Aceite no navegador:** 33/33 (1280px e 375px): liberar crédito, margem especial, suspender e reativar, pacote, bloquear (login recusado) e desbloquear, entrar como cliente e voltar, auditoria com todas as ações, sem rolagem horizontal em 9 páginas.
+
+### Pendências
+- Fase 10 (resto): e2e Playwright no CI, backup e README de deploy.
+- Assinaturas recorrentes: aguardando definição.

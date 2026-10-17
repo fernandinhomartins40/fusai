@@ -134,6 +134,7 @@ jobs:
           target: api
           push: true
           provenance: false
+          build-args: APP_VERSION=${{ github.sha }}
           cache-from: type=gha,scope=fuseai-api
           cache-to: type=gha,mode=max,scope=fuseai-api
           tags: ${{ steps.image.outputs.name }}:sha-${{ github.sha }}

@@ -169,3 +169,44 @@ export const orgSearchSchema = z.object({
   cursor: z.string().min(1).optional(),
   limit: z.coerce.number().int().min(1).max(100).optional(),
 });
+
+// ---- Customers (organizations) ----
+
+export const orgStatuses = ['ACTIVE', 'SUSPENDED'] as const;
+export const billingTypes = ['PREPAID', 'POSTPAID', 'INTERNAL'] as const;
+/** Largest post-paid credit limit (R$ 1.000.000). */
+export const MAX_CREDIT_LIMIT_MICROS = 1_000_000_000_000n;
+
+export const orgAdminUpdateSchema = z
+  .object({
+    status: z.enum(orgStatuses),
+    billingType: z.enum(billingTypes),
+    creditLimitMicros: microsString.refine(
+      (v) => !/^\d+$/.test(v) || BigInt(v) <= MAX_CREDIT_LIMIT_MICROS,
+      'Limite acima de R$ 1.000.000',
+    ),
+    /** Special markup for this customer; null = global default. */
+    markupOverride: positiveDecimal(3)
+      .refine((v) => compareDecimals(v, '100') <= 0, 'Máximo de 100×')
+      .nullable(),
+    /** Required when suspending (shown in the audit log). */
+    reason: z.string().trim().min(5, 'Descreva o motivo (mínimo 5 caracteres)').max(300),
+  })
+  .partial()
+  .refine((v) => v.status !== 'SUSPENDED' || !!v.reason, {
+    message: 'Informe o motivo da suspensão',
+    path: ['reason'],
+  });
+export type OrgAdminUpdateInput = z.input<typeof orgAdminUpdateSchema>;
+
+// ---- Users ----
+
+export const userBanSchema = z.object({
+  reason: z.string().trim().min(5, 'Descreva o motivo (mínimo 5 caracteres)').max(300),
+});
+
+export const adminListQuerySchema = z.object({
+  q: z.string().trim().max(120).optional(),
+  cursor: z.string().min(1).max(64).optional(),
+  limit: z.coerce.number().int().min(1).max(100).optional(),
+});

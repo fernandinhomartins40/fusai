@@ -2,7 +2,9 @@ import type { PrismaClient } from '@fusai/db';
 import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH, passwordProblem } from '@fusai/shared';
 import { betterAuth } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
-import { APIError, createAuthMiddleware } from 'better-auth/api';
+import { APIError, createAuthMiddleware, getSessionFromCtx } from 'better-auth/api';
+import { admin } from 'better-auth/plugins/admin';
+import { defaultAc } from 'better-auth/plugins/admin/access';
 import { resetPasswordEmail, verificationEmail } from '../../lib/email-templates';
 import type { Env } from '../../lib/env';
 import type { Mailer } from '../../lib/mailer';
@@ -21,6 +23,24 @@ export function withCallback(url: string, fallback: string): string {
   const current = link.searchParams.get('callbackURL') ?? '';
   if (!/^https?:\/\//i.test(current)) link.searchParams.set('callbackURL', fallback);
   return link.toString();
+}
+
+/**
+ * Super admin powers inside Better Auth (admin plugin): only what the panel uses — find users,
+ * ban, revoke sessions and "entrar como cliente". No role/email/password changes from here.
+ */
+const superAdminRole = defaultAc.newRole({
+  user: ['list', 'get', 'ban', 'impersonate'],
+  session: ['list', 'revoke'],
+});
+const userRole = defaultAc.newRole({ user: [], session: [] });
+
+/** Impersonation lasts at most 1 hour; the admin's own session comes back on "Sair do modo cliente". */
+export const IMPERSONATION_SECONDS = 60 * 60;
+
+function clientIp(headers: Headers | undefined): string | null {
+  const forwarded = headers?.get('x-forwarded-for')?.split(',')[0]?.trim();
+  return forwarded || headers?.get('x-real-ip') || null;
 }
 
 export function createAuth(env: Env, prisma: PrismaClient, mailer: Mailer, redis: RedisClient) {
@@ -54,10 +74,43 @@ export function createAuth(env: Env, prisma: PrismaClient, mailer: Mailer, redis
             : ctx.path === '/reset-password' || ctx.path === '/change-password'
               ? 'newPassword'
               : null;
-        if (!field) return;
-        const value = (ctx.body as Record<string, unknown> | undefined)?.[field];
-        const problem = typeof value === 'string' ? passwordProblem(value) : null;
-        if (problem) throw new APIError('BAD_REQUEST', { message: problem, code: 'WEAK_PASSWORD' });
+        if (field) {
+          const value = (ctx.body as Record<string, unknown> | undefined)?.[field];
+          const problem = typeof value === 'string' ? passwordProblem(value) : null;
+          if (problem)
+            throw new APIError('BAD_REQUEST', { message: problem, code: 'WEAK_PASSWORD' });
+        }
+        // Audit trail: who leaves impersonation (the session still says who started it).
+        if (ctx.path === '/admin/stop-impersonating') {
+          const current = await getSessionFromCtx(ctx).catch(() => null);
+          const by = (current?.session as { impersonatedBy?: string | null } | undefined)
+            ?.impersonatedBy;
+          if (current && by) {
+            await prisma.auditLog.create({
+              data: {
+                actorId: by,
+                action: 'impersonate.stop',
+                target: current.user.id,
+                ip: clientIp(ctx.request?.headers),
+              },
+            });
+          }
+        }
+      }),
+      after: createAuthMiddleware(async (ctx) => {
+        if (ctx.path !== '/admin/impersonate-user') return;
+        const created = ctx.context.newSession;
+        const by = (created?.session as { impersonatedBy?: string | null } | undefined)
+          ?.impersonatedBy;
+        if (!created || !by) return;
+        await prisma.auditLog.create({
+          data: {
+            actorId: by,
+            action: 'impersonate.start',
+            target: created.user.id,
+            ip: clientIp(ctx.request?.headers),
+          },
+        });
       }),
     },
     database: prismaAdapter(prisma, { provider: 'postgresql' }),
@@ -89,6 +142,15 @@ export function createAuth(env: Env, prisma: PrismaClient, mailer: Mailer, redis
       },
     },
     socialProviders: google,
+    plugins: [
+      admin({
+        defaultRole: 'USER',
+        adminRoles: ['SUPER_ADMIN'],
+        roles: { SUPER_ADMIN: superAdminRole, USER: userRole },
+        impersonationSessionDuration: IMPERSONATION_SECONDS,
+        bannedUserMessage: 'Sua conta está bloqueada. Fale com o suporte da fusai.',
+      }),
+    ],
     rateLimit: {
       enabled: env.NODE_ENV !== 'test',
       // Shared across API instances (and survives restarts) via Redis.
