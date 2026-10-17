@@ -281,6 +281,8 @@ jobs:
           FUSEAI_WEB_IMAGE='${FUSEAI_WEB_IMAGE}' \
           VELOMAIL_API_KEY='${VELOMAIL_API_KEY}' \
           VELOMAIL_WEBHOOK_SECRET='${VELOMAIL_WEBHOOK_SECRET}' \
+          ASAAS_API_KEY='${ASAAS_API_KEY}' \
+          ASAAS_WEBHOOK_EMAIL='${ASAAS_WEBHOOK_EMAIL}' \
             '${VPS_APP_DIR}/deploy.sh'
           EOF
 

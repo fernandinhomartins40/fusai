@@ -92,6 +92,8 @@ if [ -n "${ASAAS_API_KEY:-}" ]; then
   case "$ASAAS_API_KEY" in
     '$aact_prod_'*) asaas_env=production ;;
     '$aact_hmlg_'*) asaas_env=sandbox ;;
+    # Formato antigo (sem prod/hmlg): as chaves antigas de sandbox já não são emitidas.
+    '$aact_'*) asaas_env=production ;;
     # Texto provisório ou chave colada errada: avisa e mantém o que já estava no .env.
     *) asaas_env="" ; echo "AVISO: o secret ASAAS_API_KEY não é uma chave do Asaas (\$aact_prod_... ou \$aact_hmlg_...); ignorado" >&2 ;;
   esac
