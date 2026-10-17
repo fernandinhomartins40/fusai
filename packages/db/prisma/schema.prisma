@@ -183,6 +183,7 @@ model Organization {
   projects              Project[]
   wallet                Wallet?
   payments              Payment[]
+  agentKeys             AgentKey[]
 }
 
 model Membership {
@@ -254,6 +255,23 @@ model ApiKey {
   project          Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   @@index([projectId])
+}
+
+/// Organization-wide key for the customer's AI agent (MCP): `fai_agent_` + 40 base62 chars.
+/// Can create projects and keys, packages, Pix top-ups... Only the hash is stored.
+model AgentKey {
+  id          String       @id @default(cuid())
+  orgId       String
+  name        String
+  prefix      String
+  hash        String       @unique // sha256(key + KEY_PEPPER)
+  createdById String
+  lastUsedAt  DateTime?
+  revokedAt   DateTime?
+  createdAt   DateTime     @default(now())
+  org         Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId])
 }
 
 model AppUser {

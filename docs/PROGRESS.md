@@ -490,3 +490,9 @@ pnpm --filter @fusai/docs generate               # depois de editar packages/doc
 ### Pendências
 - Fase 10 (resto): e2e Playwright no CI, backup e README de deploy.
 - Assinaturas recorrentes: aguardando definição.
+
+## MCP do agente (chave da organização)
+
+- Painel **Agente de IA**: cria a chave `fai_agent_` (mostrada uma vez, já dentro dos comandos para Claude Code, Cursor e VS Code), lista e revoga; casos de uso e pedidos prontos para a IA.
+- MCP do agente com 23 tools e 2 prompts (`configurar_uso_proprio`, `configurar_revenda`) (D-123). Docs `/docs/mcp` atualizadas.
+- **Testes:** API 144 (4 novos em `agent.test.ts`). **Navegador:** 13/13 (computador e 375px, chave criada e MCP real respondendo).

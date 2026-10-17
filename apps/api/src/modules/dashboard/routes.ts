@@ -10,6 +10,7 @@ import type { SettingsStore } from '../../lib/settings';
 import type { PaymentProvider } from '../../payments/types';
 import type { CatalogStore } from '../gateway/catalog';
 import { dashboardPaymentRoutes } from '../payments/routes';
+import { dashboardAgentKeyRoutes } from './agent-keys';
 import { dashboardAnalyticsRoutes } from './analytics';
 import { dashboardApiKeyRoutes } from './api-keys';
 import { dashboardEndUserRoutes } from './end-users';
@@ -38,6 +39,7 @@ export const dashboardRoutes: FastifyPluginAsyncZod<Options> = async (
   app.addHook('onRequest', guards.requireUser);
   await app.register(dashboardWalletRoutes, { prisma });
   await app.register(dashboardApiKeyRoutes, { prisma, env });
+  await app.register(dashboardAgentKeyRoutes, { prisma, env });
   await app.register(dashboardAnalyticsRoutes, { prisma, settings });
   await app.register(dashboardProjectRoutes, { prisma, env, settings, catalog, encryptionKey });
   await app.register(dashboardEndUserRoutes, { prisma, env, encryptionKey });

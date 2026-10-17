@@ -65,6 +65,10 @@ Requisições não-GET precisam vir do `APP_URL` (`Origin`), senão 403.
 | GET | `/internal/admin/system` | `{ version, node, uptimeSeconds, database, redis, queue, pendingInboundWebhooks, failedOutboundWebhooks, activeHolds, lastMigration }`. |
 | POST | `/api/auth/admin/impersonate-user` | Better Auth (plugin admin): `{ userId }` → sessão de 1 h como o usuário, com `impersonatedBy`; não vale para outro super admin. AuditLog `impersonate.start`. |
 | POST | `/api/auth/admin/stop-impersonating` | Volta à sessão do super admin. AuditLog `impersonate.stop`. |
+| GET | `/internal/organizations/:orgId/agent-keys` | Chaves de agente da organização (donos e admins; só prefixo). |
+| POST | `/internal/organizations/:orgId/agent-keys` | `{ name }` → 201 com `key` (`fai_agent_...`) só nesta resposta. Máx. 10 ativas. |
+| POST | `/internal/organizations/:orgId/agent-keys/:id/revoke` | Revoga na hora. |
+| POST | `/mcp` | MCP (Streamable HTTP). `Authorization: Bearer fai_agent_...` (organização inteira) ou `fai_live_/fai_test_` com escopo `mcp` (um projeto). Ferramentas em `/docs/mcp`. |
 
 Todas as alterações do admin geram `AuditLog`.
 

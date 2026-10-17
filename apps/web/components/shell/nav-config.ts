@@ -2,6 +2,7 @@ import {
   Activity,
   BarChart3,
   BookOpen,
+  Bot,
   Boxes,
   Building2,
   CreditCard,
@@ -46,12 +47,24 @@ const customerItems = {
   webhooks: { href: '/app/webhooks', label: 'Webhooks', icon: Webhook },
   team: { href: '/app/equipe', label: 'Equipe', icon: Users },
   settings: { href: '/app/configuracoes', label: 'Configurações', icon: Settings },
+  agent: { href: '/app/agente', label: 'Agente de IA', icon: Bot },
   docs: { href: '/docs', label: 'Docs', icon: BookOpen },
 } satisfies Record<string, NavItem>;
 
 const c = customerItems;
 export const CUSTOMER_NAV: NavConfig = {
-  sidebar: [c.home, c.projects, c.wallet, c.usage, c.logs, c.webhooks, c.team, c.settings, c.docs],
+  sidebar: [
+    c.home,
+    c.projects,
+    c.wallet,
+    c.usage,
+    c.logs,
+    c.webhooks,
+    c.team,
+    c.agent,
+    c.settings,
+    c.docs,
+  ],
   left: [c.home, c.projects],
   center: c.wallet,
   right: c.usage,

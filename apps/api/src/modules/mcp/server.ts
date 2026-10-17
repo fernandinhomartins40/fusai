@@ -1,10 +1,8 @@
-import { randomBytes } from 'node:crypto';
 import type { PrismaClient } from '@fusai/db';
 import { type DocUrls, docBundle, fusaiMd, GUIDE_STACKS, integrationGuide } from '@fusai/docs';
-import { brlToMicros, microsToBrl, projectPackageSchema, projectUpdateSchema } from '@fusai/shared';
+import { microsToBrl } from '@fusai/shared';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { encryptSecret } from '../../lib/crypto';
 import type { Env } from '../../lib/env';
 import { HttpError } from '../../lib/errors';
 import type { SettingsStore } from '../../lib/settings';
@@ -16,7 +14,12 @@ import { serializeCheckout } from '../gateway/end-users';
 import { listModelsFor, usageSummary } from '../gateway/queries';
 import { projectSnapshot } from '../integration/snapshot';
 import { createAppUserCheckout } from '../payments/service';
-import { deliverWebhook, emitEvent } from '../webhooks-out/service';
+import {
+  type ActionResult,
+  createPackage,
+  sendTestWebhook,
+  updateProjectSettings,
+} from './actions';
 
 export type McpDeps = {
   prisma: PrismaClient;
@@ -47,6 +50,8 @@ const fail = (message: string) => ({
   content: [{ type: 'text' as const, text: message }],
   isError: true,
 });
+export const result = (r: ActionResult) => (r.ok ? json(r.data) : fail(r.message));
+export { fail, json, text };
 
 /**
  * One MCP server per request (stateless Streamable HTTP, PRD §10.1), bound to the project of the
@@ -57,6 +62,7 @@ export function buildMcpServer(ctx: GatewayContext, deps: McpDeps) {
   const urls: DocUrls = { api: env.API_URL, app: env.APP_URL };
   const project = () => prisma.project.findUniqueOrThrow({ where: { id: ctx.project.id } });
   const snapshot = async () => projectSnapshot(prisma, catalog, settings, await project(), ctx.org);
+  const hookOpts = { encryptionKey: deps.encryptionKey, production: env.NODE_ENV === 'production' };
 
   const audit = (tool: string, metadata: Record<string, unknown> = {}) =>
     prisma.auditLog.create({
@@ -319,48 +325,7 @@ export function buildMcpServer(ctx: GatewayContext, deps: McpDeps) {
       credits_brl: string;
       bonus_brl?: string;
       highlight?: boolean;
-    }>('create_package', async (args) => {
-      let price: bigint;
-      let credit: bigint;
-      let bonus: bigint;
-      try {
-        price = brlToMicros(args.price_brl);
-        credit = brlToMicros(args.credits_brl);
-        bonus = args.bonus_brl ? brlToMicros(args.bonus_brl) : 0n;
-      } catch {
-        return fail('Valores inválidos. Use reais como texto, ex.: "9.90".');
-      }
-      if (price % 10_000n !== 0n) return fail('O preço precisa estar em centavos inteiros.');
-      const parsed = projectPackageSchema.safeParse({
-        name: args.name,
-        priceCents: Number(price / 10_000n),
-        creditMicros: credit.toString(),
-        bonusMicros: bonus.toString(),
-        highlight: args.highlight ?? false,
-        active: true,
-        sortOrder: 0,
-      });
-      if (!parsed.success) return fail(parsed.error.issues.map((i) => i.message).join('; '));
-      if ((await prisma.creditPackage.count({ where: { projectId: ctx.project.id } })) >= 20) {
-        return fail('Limite de 20 pacotes por projeto.');
-      }
-      const d = parsed.data;
-      const pkg = await prisma.creditPackage.create({
-        data: {
-          ...d,
-          projectId: ctx.project.id,
-          creditMicros: BigInt(d.creditMicros),
-          bonusMicros: BigInt(d.bonusMicros),
-        },
-      });
-      return json({
-        id: pkg.id,
-        name: pkg.name,
-        priceCents: pkg.priceCents,
-        creditMicros: pkg.creditMicros.toString(),
-        bonusMicros: pkg.bonusMicros.toString(),
-      });
-    }),
+    }>('create_package', async (args) => result(await createPackage(prisma, ctx.project.id, args))),
   );
 
   server.registerTool(
@@ -397,62 +362,16 @@ export function buildMcpServer(ctx: GatewayContext, deps: McpDeps) {
       billingMode?: 'ORG_WALLET' | 'END_USER_WALLET' | 'HYBRID';
       confirm?: boolean;
     }>('update_project_settings', async ({ confirm, ...changes }) => {
-      const parsed = projectUpdateSchema.safeParse({
-        ...changes,
-        ...(changes.webhookUrl === '' ? { webhookUrl: null } : {}),
-      });
-      if (!parsed.success)
-        return fail(parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; '));
-      // Only the fields this tool exposes (the shared schema has more).
-      const { allowedOrigins, webhookUrl, billingMode } = parsed.data;
-      const body = Object.fromEntries(
-        Object.entries({ allowedOrigins, webhookUrl, billingMode }).filter(
-          ([, v]) => v !== undefined,
-        ),
-      ) as {
-        allowedOrigins?: string[];
-        webhookUrl?: string | null;
-        billingMode?: typeof billingMode;
-      };
-      if (Object.keys(body).length === 0) return fail('Nada para alterar.');
-      if (
-        body.webhookUrl &&
-        env.NODE_ENV === 'production' &&
-        !body.webhookUrl.startsWith('https://')
-      ) {
-        return fail('O webhook precisa usar https.');
-      }
-      const current = await project();
-      const diff = Object.fromEntries(
-        Object.entries(body).map(([k, v]) => [
-          k,
-          { de: current[k as keyof typeof current], para: v },
-        ]),
+      const res = await updateProjectSettings(
+        prisma,
+        hookOpts,
+        await project(),
+        changes,
+        !!confirm,
       );
-      if (!confirm) {
-        return json({
-          preview: diff,
-          aplicado: false,
-          instrucao: 'Confirme com o usuário e chame de novo com confirm: true.',
-        });
-      }
-      await prisma.project.update({
-        where: { id: current.id },
-        data: {
-          ...body,
-          ...(body.allowedOrigins ? { allowedOrigins: [...new Set(body.allowedOrigins)] } : {}),
-          ...(body.webhookUrl && !current.webhookSecret
-            ? {
-                webhookSecret: encryptSecret(
-                  `whsec_${randomBytes(32).toString('base64url')}`,
-                  deps.encryptionKey,
-                ),
-              }
-            : {}),
-        },
-      });
-      await audit('update_project_settings.applied', { fields: Object.keys(body) });
-      return json({ aplicado: true, alteracoes: diff });
+      if (res.ok && confirm)
+        await audit('update_project_settings.applied', { fields: Object.keys(changes) });
+      return result(res);
     }),
   );
 
@@ -527,26 +446,9 @@ export function buildMcpServer(ctx: GatewayContext, deps: McpDeps) {
         openWorldHint: true,
       },
     },
-    tool('send_test_webhook', async () => {
-      const p = await project();
-      if (!p.webhookUrl)
-        return fail('O projeto não tem URL de webhook. Configure com update_project_settings.');
-      const hook = await emitEvent(prisma, p.id, 'test.ping', {
-        message: 'Webhook de teste da fusai (MCP)',
-      });
-      if (!hook) return fail('O projeto não tem URL de webhook.');
-      await deliverWebhook(prisma, hook.id, {
-        encryptionKey: deps.encryptionKey,
-        production: env.NODE_ENV === 'production',
-      });
-      const after = await prisma.outboundWebhook.findUniqueOrThrow({ where: { id: hook.id } });
-      return json({
-        url: p.webhookUrl,
-        status: after.status,
-        responseStatus: after.responseStatus,
-        error: after.lastError,
-      });
-    }),
+    tool('send_test_webhook', async () =>
+      result(await sendTestWebhook(prisma, hookOpts, await project())),
+    ),
   );
 
   // ---- Resources ----

@@ -41,3 +41,19 @@ export function hashesEqual(a: string, b: string): boolean {
   const bb = Buffer.from(b, 'hex');
   return ba.length === bb.length && timingSafeEqual(ba, bb);
 }
+
+/** Organization-wide AI agent key (MCP): `fai_agent_` + 40 base62 chars, same hash and pepper. */
+const AGENT_KEY_RE = /^fai_agent_[0-9A-Za-z]{40}$/;
+
+export function generateAgentKey(): string {
+  let random = '';
+  for (let i = 0; i < KEY_RANDOM_LENGTH; i++) random += BASE62[randomInt(BASE62.length)];
+  return `fai_agent_${random}`;
+}
+
+export function looksLikeAgentKey(value: string): boolean {
+  return AGENT_KEY_RE.test(value);
+}
+
+/** "fai_agent_AbCd" — enough to recognize a key in the dashboard. */
+export const agentKeyDisplayPrefix = (key: string) => key.slice(0, 14);

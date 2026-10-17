@@ -1,6 +1,7 @@
 import { DOC_PAGES } from './content.generated';
 import type { DocPage, DocUrls } from './types';
 
+export * from './agent';
 export * from './guide';
 export * from './kit';
 export type { DocPage, DocUrls };
