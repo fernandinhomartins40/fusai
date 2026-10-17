@@ -86,6 +86,28 @@ if [ -n "${VELOMAIL_API_KEY:-}" ]; then set_env VELOMAIL_API_KEY "$VELOMAIL_API_
 if [ -n "${VELOMAIL_WEBHOOK_SECRET:-}" ]; then set_env VELOMAIL_WEBHOOK_SECRET "$VELOMAIL_WEBHOOK_SECRET"; fi
 grep -q '^VELOMAIL_API_KEY=re_' .env && echo "E-mail: VeloMail configurada" || echo "AVISO: VELOMAIL_API_KEY ausente; e-mails da aplicação não serão enviados" >&2
 
+# Asaas (Pix). O ambiente segue o prefixo da chave: $aact_prod_ = produção, $aact_hmlg_ =
+# sandbox. Entre aspas simples: a chave começa com "$" e o compose interpolaria o valor.
+if [ -n "${ASAAS_API_KEY:-}" ]; then
+  case "$ASAAS_API_KEY" in
+    '$aact_prod_'*) asaas_env=production ;;
+    '$aact_hmlg_'*) asaas_env=sandbox ;;
+    # Texto provisório ou chave colada errada: avisa e mantém o que já estava no .env.
+    *) asaas_env="" ; echo "AVISO: o secret ASAAS_API_KEY não é uma chave do Asaas (\$aact_prod_... ou \$aact_hmlg_...); ignorado" >&2 ;;
+  esac
+  case "$ASAAS_API_KEY" in *"'"*) asaas_env="" ; echo "AVISO: ASAAS_API_KEY com aspas simples; ignorado" >&2 ;; esac
+  if [ -n "$asaas_env" ]; then
+    set_env ASAAS_API_KEY "'$ASAAS_API_KEY'"
+    set_env ASAAS_ENV "$asaas_env"
+  fi
+fi
+if [ -n "${ASAAS_WEBHOOK_EMAIL:-}" ]; then set_env ASAAS_WEBHOOK_EMAIL "$ASAAS_WEBHOOK_EMAIL"; fi
+if grep -q "^ASAAS_API_KEY='\$aact_" .env; then
+  echo "Pix: Asaas configurado ($(grep '^ASAAS_ENV=' .env | cut -d= -f2))"
+else
+  echo "AVISO: ASAAS_API_KEY ausente; recargas via Pix ficam indisponíveis" >&2
+fi
+
 compose() { docker compose -f docker-compose.vps.yml --env-file .env --env-file "$1" "${@:2}"; }
 
 printf 'FUSEAI_API_IMAGE=%s\nFUSEAI_WEB_IMAGE=%s\n' "$FUSEAI_API_IMAGE" "$FUSEAI_WEB_IMAGE" > images.env.new
@@ -161,6 +183,11 @@ for attempt in $(seq 1 30); do
   if healthy; then
     mv images.env.new images.env
     log "Deploy OK (tentativa $attempt)"
+    # Webhook do Asaas apontando para esta API (idempotente; erro aqui não desfaz o deploy).
+    if grep -q "^ASAAS_API_KEY='" .env; then
+      log "Webhook do Asaas"
+      compose images.env run --rm --no-deps -T -v "$APP_DIR/asaas-webhook.mjs:/tmp/asaas-webhook.mjs:ro"         api node /tmp/asaas-webhook.mjs || echo "AVISO: não foi possível conferir o webhook do Asaas" >&2
+    fi
     compose images.env ps --format 'table {{.Name}}\t{{.Status}}'
     exit 0
   fi
