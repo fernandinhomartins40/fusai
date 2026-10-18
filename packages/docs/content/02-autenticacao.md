@@ -54,5 +54,5 @@ curl {{V1}}/chat/completions \
   -H "Authorization: Bearer $FUSAI_API_KEY" \
   -H "X-Fuse-User: usuario-123" \
   -H "Content-Type: application/json" \
-  -d '{"model":"fuse/deepseek-chat","messages":[{"role":"user","content":"Oi"}]}'
+  -d '{"model":"fuse/auto","messages":[{"role":"user","content":"Oi"}]}'
 ```

@@ -55,7 +55,7 @@ const MODE_TEXT: Record<ProjectSnapshot['billingMode'], string> = {
 
 function projectSection(p: ProjectSnapshot, urls: DocUrls) {
   const v1 = `${urls.api.replace(/\/+$/, '')}/v1`;
-  const model = p.defaultModel ?? p.models[0]?.id ?? 'fuse/deepseek-chat';
+  const model = p.defaultModel ?? 'fuse/auto';
   const models = p.models.length
     ? [
         '| Modelo | Nome | Entrada (R$/1M) | Saída (R$/1M) |',
@@ -98,7 +98,7 @@ const RULES = `## Regras (obrigatórias)
 
 1. A chave secreta (\`fai_live_…\` / \`fai_test_…\`) fica **só no servidor**, em variável de ambiente (\`FUSAI_API_KEY\`). Nunca no front-end, no app mobile, no repositório ou em logs.
 2. Front-end e apps usam **session token** (\`fai_st_…\`, 15 min) gerado pelo backend para o usuário **já autenticado** no app. Nunca gere token para um id vindo do cliente.
-3. Dinheiro vem em **micro-reais** como texto (1 real = 1.000.000). Use inteiros (BigInt), nunca float.
+3. Dinheiro vem em **reais**: micro-reais como texto (1 real = 1.000.000; use inteiros/BigInt, nunca float). Cada resposta traz \`usage.cost_brl\` (custo da chamada em R$). Mostre sempre R$: nunca converta de dólar nem use preços do provedor.
 4. Trate \`402 insufficient_funds\` mostrando a compra de créditos (ou avisando o admin, em \`ORG_WALLET\`).
 5. Webhooks: valide \`X-Fuse-Signature\` com o corpo bruto e deduplique pelo \`id\` do evento.
 6. Não registre em log o conteúdo das mensagens dos usuários.`;
@@ -183,7 +183,7 @@ Sem saldo, as chamadas de IA recebem \`402 insufficient_funds\`: mostre ao admin
 
 function stackSection(stack: GuideStack, p: ProjectSnapshot, urls: DocUrls) {
   const v1 = `${urls.api.replace(/\/+$/, '')}/v1`;
-  const model = p.defaultModel ?? p.models[0]?.id ?? 'fuse/deepseek-chat';
+  const model = p.defaultModel ?? 'fuse/auto';
   const pkg = p.packages[0]?.id ?? 'PACOTE_ID';
   const endUser = p.billingMode !== 'ORG_WALLET';
 

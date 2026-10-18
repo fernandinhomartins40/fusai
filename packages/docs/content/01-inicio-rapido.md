@@ -21,7 +21,7 @@ FUSAI_BASE_URL={{V1}}
 curl {{V1}}/chat/completions \
   -H "Authorization: Bearer $FUSAI_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"model": "fuse/deepseek-chat", "messages": [{"role": "user", "content": "Olá!"}]}'
+  -d '{"model": "fuse/auto", "messages": [{"role": "user", "content": "Olá!"}]}'
 ```
 
 Com o SDK oficial da OpenAI, troque só `baseURL` e `apiKey`:
@@ -35,7 +35,7 @@ const client = new OpenAI({
 });
 
 const res = await client.chat.completions.create({
-  model: 'fuse/deepseek-chat',
+  model: 'fuse/auto',
   messages: [{ role: 'user', content: 'Olá!' }],
 });
 console.log(res.choices[0].message.content);
@@ -47,7 +47,7 @@ import os
 
 client = OpenAI(api_key=os.environ["FUSAI_API_KEY"], base_url="{{V1}}")
 res = client.chat.completions.create(
-    model="fuse/deepseek-chat",
+    model="fuse/auto",
     messages=[{"role": "user", "content": "Olá!"}],
 )
 print(res.choices[0].message.content)

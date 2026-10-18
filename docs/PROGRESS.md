@@ -502,3 +502,7 @@ pnpm --filter @fusai/docs generate               # depois de editar packages/doc
 - `/v1/topups` + página pronta para recargas, `fuse.topups`/`fuse.usage`, `fusaiAccountHandler`, `<FusaiTopup/>`, guia da IA e docs "Créditos da sua conta" (D-124). Revenda continua pronta (troca de modo do projeto).
 - Corrigida a instabilidade de horário nas consultas "até agora" (D-125).
 - **Testes:** API 147 (3 rodadas seguidas sem falha), SDK 10, shared 42, docs 6. **Navegador:** 19/19 no app de exemplo (celular e computador): saldo, mínimo, Pix, pagamento confirmado sozinho e saldo atualizado; webhook repetido 3 vezes creditou uma vez.
+
+## Menor custo como padrão e custo em reais
+
+- `fuse/auto` (D-126) e `usage.cost_brl`/`cost_micros` (D-127). API 150 testes (3 novos do `fuse/auto`), SDK 10, docs 6.

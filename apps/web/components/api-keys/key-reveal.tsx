@@ -44,7 +44,7 @@ const client = new OpenAI({
 });
 
 const res = await client.chat.completions.create({
-  model: 'fuse/deepseek-chat',
+  model: 'fuse/auto',
   messages: [{ role: 'user', content: 'Olá!' }],
 });`}
       />

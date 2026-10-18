@@ -1,5 +1,5 @@
 import type { Model } from '@fusai/db';
-import { costForTokens, type ModelPrices, mulDecimalsCeil } from '@fusai/shared';
+import { costForTokens, type ModelPrices, microsToBrl, mulDecimalsCeil } from '@fusai/shared';
 import { getEncoding, type Tiktoken } from 'js-tiktoken';
 import type { ChatUsage } from '../../providers/types';
 
@@ -27,13 +27,19 @@ export function normalizeUsage(u: ChatUsage): Usage {
  * Usage in the standard OpenAI shape only: provider-specific fields (e.g. DeepSeek's
  * `prompt_cache_hit_tokens`) would reveal which upstream served the request.
  */
-export function publicUsage(u: Usage) {
+/**
+ * OpenAI usage + what this request cost in REAIS (D-127): `cost_brl` ("0.045100") and
+ * `cost_micros`, so apps show spend in R$ without converting from dollars.
+ */
+export function publicUsage(u: Usage, prices?: ModelPrices) {
+  const cost = prices ? chargeFor(u, prices) : null;
   return {
     prompt_tokens: u.prompt,
     completion_tokens: u.completion,
     total_tokens: u.prompt + u.completion,
     prompt_tokens_details: { cached_tokens: u.cached },
     completion_tokens_details: { reasoning_tokens: u.reasoning },
+    ...(cost != null ? { cost_brl: microsToBrl(cost), cost_micros: cost.toString() } : {}),
   };
 }
 

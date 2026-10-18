@@ -25,6 +25,11 @@ export type Usage = {
   completion_tokens: number;
   total_tokens: number;
   prompt_tokens_details?: { cached_tokens?: number };
+  completion_tokens_details?: { reasoning_tokens?: number };
+  /** What this request cost, in REAIS as a decimal string ("0.045100"). */
+  cost_brl?: string;
+  /** Same cost in micro-reais (1 real = 1.000.000). */
+  cost_micros?: Micros;
 };
 
 export type ChatCompletion = {

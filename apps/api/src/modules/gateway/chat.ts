@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { once } from 'node:events';
 import type { PrismaClient } from '@fusai/db';
-import { estimateHoldMicros } from '@fusai/shared';
+import { estimateHoldMicros, type ModelPrices } from '@fusai/shared';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { priceModel } from '../../lib/model-pricing';
@@ -18,6 +18,7 @@ import {
 import { reserve } from '../billing/wallet';
 import { emitEvent } from '../webhooks-out/service';
 import type { GatewayContext } from './auth';
+import { AUTO_MODEL, autoCandidates, modelNeeds } from './auto-model';
 import {
   finishRequest,
   monthlySpend,
@@ -83,13 +84,29 @@ export function createChatHandler(deps: Deps) {
     const pricesOf = (e: CatalogEntry) => priceModel(e.model, settings, orgMarkup);
 
     // 1. Resolve the model and check what this key may use.
-    const requested = catalog.bySlug.get(body.model);
-    if (!requested?.model.active) throw modelNotFound(body.model);
     const inProject = (e: CatalogEntry) =>
       ctx.project.allowedModelIds.length === 0 || ctx.project.allowedModelIds.includes(e.model.id);
     const testKeyOk = (e: CatalogEntry) =>
       ctx.env === 'LIVE' || pricesOf(e).outputPerM <= BigInt(settings.test_key_max_output_micros);
     const allowed = (e: CatalogEntry) => inProject(e) && testKeyOk(e);
+    // fuse/auto: the cheapest usable model that meets the request (tools, images), D-126.
+    const auto =
+      body.model === AUTO_MODEL
+        ? autoCandidates(
+            [...catalog.bySlug.values()].filter((e) => isServable(e) && allowed(e)),
+            modelNeeds(body as Record<string, unknown>),
+            pricesOf,
+          )
+        : null;
+    if (auto && auto.length === 0) {
+      throw new GatewayError(
+        503,
+        'model_unavailable',
+        'Nenhum modelo disponível para fuse/auto com o que este pedido precisa (ferramentas ou imagens).',
+      );
+    }
+    const requested = auto ? auto[0] : catalog.bySlug.get(body.model);
+    if (!requested?.model.active) throw modelNotFound(body.model);
     if (!inProject(requested)) throw modelNotAllowed(body.model);
     if (!testKeyOk(requested)) {
       throw modelNotAllowed(
@@ -112,7 +129,7 @@ export function createChatHandler(deps: Deps) {
 
     // 3. Candidates: requested model + fallbacks that are servable and allowed.
     const candidates: CatalogEntry[] = [];
-    for (const e of [
+    for (const e of auto ?? [
       requested,
       ...requested.model.fallbackModelIds.map((id) => catalog.byId.get(id)),
     ]) {
@@ -298,6 +315,7 @@ export function createChatHandler(deps: Deps) {
           first,
           finish,
           breaker: deps.breaker,
+          prices: pricesOf(entry),
         });
       }
 
@@ -308,7 +326,7 @@ export function createChatHandler(deps: Deps) {
         ? normalizeUsage(completion.usage)
         : estimateUsage(body.messages, completionText(completion));
       await finish(entry, usage, 'SUCCESS', completion.usage ? null : 'usage_estimated');
-      return reply.send(publicCompletion(completion, entry, usageId));
+      return reply.send(publicCompletion(completion, entry, usageId, pricesOf(entry)));
     } catch (err) {
       if (reply.raw.headersSent) {
         // The stream already started and settled itself; nothing else can be sent.
@@ -354,13 +372,18 @@ function completionText(c: ChatCompletion): string {
 }
 
 /** Hides upstream details: our id, our public model slug, no provider fields. */
-function publicCompletion(c: ChatCompletion, entry: CatalogEntry, usageId: string) {
+function publicCompletion(
+  c: ChatCompletion,
+  entry: CatalogEntry,
+  usageId: string,
+  prices: ModelPrices,
+) {
   const { provider: _p, usage, ...rest } = c;
   return {
     ...rest,
     id: `chatcmpl-${usageId}`,
     model: entry.model.slug,
-    ...(usage ? { usage: publicUsage(normalizeUsage(usage)) } : {}),
+    ...(usage ? { usage: publicUsage(normalizeUsage(usage), prices) } : {}),
   };
 }
 
@@ -381,6 +404,7 @@ type PipeInput = {
     ttftMs?: number | null,
   ) => Promise<bigint>;
   breaker: CircuitBreaker;
+  prices: ModelPrices;
 };
 
 /** Relays the upstream SSE chunk by chunk, then settles with the reported (or estimated) usage. */
@@ -426,7 +450,8 @@ async function pipeStream(p: PipeInput) {
       id: `chatcmpl-${usageId}`,
       model: entry.model.slug,
     };
-    if (wantsUsage) out.usage = chunkUsage ? publicUsage(normalizeUsage(chunkUsage)) : null;
+    if (wantsUsage)
+      out.usage = chunkUsage ? publicUsage(normalizeUsage(chunkUsage), p.prices) : null;
     await write(`data: ${JSON.stringify(out)}\n\n`);
   };
 

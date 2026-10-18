@@ -12,7 +12,7 @@ Content-Type: application/json
 
 ```json
 {
-  "model": "fuse/deepseek-chat",
+  "model": "fuse/auto",
   "messages": [
     { "role": "system", "content": "Responda em português." },
     { "role": "user", "content": "O que é Pix?" }
@@ -30,11 +30,17 @@ Obrigatórios: `model` e `messages`. Os demais campos do formato OpenAI (`stream
 {
   "id": "chatcmpl-...",
   "object": "chat.completion",
-  "model": "fuse/deepseek-chat",
+  "model": "fuse/auto",
   "choices": [
     { "index": 0, "message": { "role": "assistant", "content": "Pix é..." }, "finish_reason": "stop" }
   ],
-  "usage": { "prompt_tokens": 18, "completion_tokens": 42, "total_tokens": 60 }
+  "usage": {
+    "prompt_tokens": 18,
+    "completion_tokens": 42,
+    "total_tokens": 60,
+    "cost_brl": "0.002812",
+    "cost_micros": "2812"
+  }
 }
 ```
 
@@ -44,9 +50,13 @@ O header `x-fuse-request-id` identifica a cobrança nos [logs do painel]({{APP}}
 
 Com `"stream": true`, a resposta vem em Server-Sent Events (`data: {...}` até `data: [DONE]`), igual à OpenAI. Use `"stream_options": {"include_usage": true}` para receber o uso no último pedaço.
 
+## Quanto custou (em reais)
+
+Todo `usage` traz **`cost_brl`** (reais, texto decimal) e **`cost_micros`** (micro-reais): é exatamente o que saiu do saldo por esta chamada. Some esses valores para mostrar "gasto do mês" ou "gasto por função" no seu app. Tudo na fusai é em **reais**: não converta de dólar nem use a tabela de preços do provedor.
+
 ```ts
 const stream = await client.chat.completions.create({
-  model: 'fuse/deepseek-chat',
+  model: 'fuse/auto',
   messages: [{ role: 'user', content: 'Conte uma história curta' }],
   stream: true,
 });

@@ -3,6 +3,7 @@ import { microsToBrl } from '@fusai/shared';
 import { priceModel } from '../../lib/model-pricing';
 import type { SettingsStore } from '../../lib/settings';
 import type { GatewayContext } from './auth';
+import { AUTO_MODEL, priceKey } from './auto-model';
 import { type CatalogStore, isServable } from './catalog';
 
 /** Models this credential may use, with BRL prices (shared by GET /v1/models and MCP). */
@@ -13,7 +14,7 @@ export async function listModelsFor(
 ) {
   const [{ bySlug }, s] = await Promise.all([catalog.get(), settings.get()]);
   const markup = ctx.org.markupOverride?.toFixed() ?? null;
-  return [...bySlug.values()]
+  const models = [...bySlug.values()]
     .filter(isServable)
     .filter(
       (e) =>
@@ -25,10 +26,11 @@ export async function listModelsFor(
       ({ prices }) =>
         ctx.env === 'LIVE' || prices.outputPerM <= BigInt(s.test_key_max_output_micros),
     )
-    .sort(
-      (a, b) =>
-        a.e.model.sortOrder - b.e.model.sortOrder || a.e.model.slug.localeCompare(b.e.model.slug),
-    )
+    // Cheapest first (D-126): the default choice is always the lowest cost.
+    .sort((a, b) => {
+      const d = priceKey(a.prices) - priceKey(b.prices);
+      return d < 0n ? -1 : d > 0n ? 1 : a.e.model.slug.localeCompare(b.e.model.slug);
+    })
     .map(({ e, prices }) => ({
       id: e.model.slug,
       object: 'model' as const,
@@ -51,6 +53,24 @@ export async function listModelsFor(
         output: microsToBrl(prices.outputPerM),
       },
     }));
+  const cheapest = models[0];
+  if (!cheapest) return models;
+  // fuse/auto: routes each request to the cheapest model that can serve it (from this price).
+  return [
+    {
+      ...cheapest,
+      id: AUTO_MODEL,
+      name: 'Automático (o mais barato)',
+      description:
+        'Escolhe a cada pedido o modelo mais barato disponível que atende o que foi pedido (ferramentas, imagens), com os seguintes mais baratos como reserva. Preço a partir do mais barato.',
+      capabilities: {
+        tools: models.some((m) => m.capabilities.tools),
+        vision: models.some((m) => m.capabilities.vision),
+        reasoning: models.some((m) => m.capabilities.reasoning),
+      },
+    },
+    ...models,
+  ];
 }
 
 /** Project consumption per model in [from, to) (shared by GET /v1/usage and MCP). */

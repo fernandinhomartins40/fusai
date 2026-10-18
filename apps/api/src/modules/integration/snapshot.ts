@@ -1,6 +1,7 @@
 import type { Organization, PrismaClient, Project } from '@fusai/db';
 import type { ProjectSnapshot } from '@fusai/docs';
 import type { SettingsStore } from '../../lib/settings';
+import { AUTO_MODEL } from '../gateway/auto-model';
 import type { CatalogStore } from '../gateway/catalog';
 import { listModelsFor } from '../gateway/queries';
 
@@ -26,9 +27,10 @@ export async function projectSnapshot(
     allowedOrigins: project.allowedOrigins,
     webhookUrl: project.webhookUrl,
     freeCreditMicros: project.freeCreditMicros.toString(),
+    // Without a project default, the guides use fuse/auto (always the cheapest, D-126).
     defaultModel: project.defaultModelId
-      ? (byId.get(project.defaultModelId)?.model.slug ?? null)
-      : null,
+      ? (byId.get(project.defaultModelId)?.model.slug ?? AUTO_MODEL)
+      : AUTO_MODEL,
     models: models.map((m) => ({
       id: m.id,
       name: m.name,

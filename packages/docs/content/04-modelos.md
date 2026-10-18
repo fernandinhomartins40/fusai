@@ -2,13 +2,19 @@
 
 > Lista de modelos, capacidades e preços em reais por milhão de tokens.
 
+## Padrão: `fuse/auto` (o mais barato)
+
+Use **`fuse/auto`** como modelo. A cada pedido a fusai escolhe o modelo **mais barato disponível** que atende o que foi pedido: se o pedido usa ferramentas (`tools`) ou imagens, só entram modelos que suportam isso. Se o mais barato falhar, tenta o próximo mais barato. A resposta traz em `model` qual modelo atendeu, e o consumo é cobrado pelo preço dele.
+
+Quando entra um modelo mais barato no catálogo, o `fuse/auto` passa a usá-lo sem você mudar nada. Para fixar um modelo, use o id dele (ex.: `fuse/deepseek-reasoner` para raciocínio).
+
 ## Listar
 
 ```bash
 curl {{V1}}/models -H "Authorization: Bearer $FUSAI_API_KEY"
 ```
 
-Exemplo (preços ilustrativos):
+A lista vem do mais barato para o mais caro, com `fuse/auto` no topo. Exemplo (preços ilustrativos):
 
 ```json
 {
@@ -36,7 +42,7 @@ Exemplo (preços ilustrativos):
 
 | Uso | Sugestão |
 |---|---|
-| Chat geral, barato e rápido | `fuse/deepseek-chat` |
+| Chat geral, sempre o menor custo | `fuse/auto` |
 | Raciocínio passo a passo | `fuse/deepseek-reasoner` |
 | Código e agentes com ferramentas | `fuse/kimi-k2`, `fuse/glm-4.6` |
 | Volume alto, respostas curtas | `fuse/qwen-plus` |

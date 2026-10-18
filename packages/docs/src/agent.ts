@@ -17,7 +17,9 @@ const COMMON_RULES = `## Regras de segurança (sempre)
 - Navegador e app mobile falam com a fusai por **session token** (gerado pelo servidor do app, vale 15 minutos).
 - Ações que mudam dinheiro ou desligam algo (revogar chave, mudar modo de cobrança, ajustar créditos) pedem \`confirm: true\`: mostre o resumo e peça confirmação ao usuário antes.
 - Valores em dinheiro: texto em reais (\`"9.90"\`) nas tools; a API usa micro-reais (1 real = 1.000.000) em texto.
-- O Pix tem mínimo de **R$ 5,00** por cobrança (limite do Asaas).`;
+- O Pix tem mínimo de **R$ 5,00** por cobrança (limite do Asaas).
+- Dinheiro na tela do sistema: sempre em **R$**. Use \`usage.cost_brl\` de cada resposta, \`/v1/usage\` e \`/v1/balance\`. Nunca converta de dólar nem calcule com preços do provedor; se o sistema já tinha um controle de gasto em US$, troque pelo da fusai.
+- Modelo: use **\`fuse/auto\`** (o mais barato que atende o pedido) em todo lugar, a não ser que o usuário peça um modelo específico.`;
 
 const PERSONAL = `## Caso 1: uso próprio (o dono do sistema usa IA no próprio sistema)
 

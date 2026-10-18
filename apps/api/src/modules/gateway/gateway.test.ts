@@ -59,6 +59,9 @@ describe('gateway with the official OpenAI SDK', () => {
       total_tokens: 20,
       prompt_tokens_details: { cached_tokens: 0 },
       completion_tokens_details: { reasoning_tokens: 0 },
+      // What this request cost in reais = exactly what was debited (D-127).
+      cost_brl: '0.000242',
+      cost_micros: String(ECHO_CHARGE),
     });
     expect(fake.requests[0]).toMatchObject({ model: 'echo', stream: false });
 
@@ -97,7 +100,11 @@ describe('gateway with the official OpenAI SDK', () => {
       models.add(chunk.model);
     }
     expect(text).toBe('Olá do fusai!');
-    expect(usage).toMatchObject({ prompt_tokens: 12, completion_tokens: 8 });
+    expect(usage).toMatchObject({
+      prompt_tokens: 12,
+      completion_tokens: 8,
+      cost_micros: String(ECHO_CHARGE),
+    });
     expect([...models]).toEqual(['fuse/echo']);
     expect(fake.requests[0]?.body.stream_options).toEqual({ include_usage: true });
     expect((await wallet(g.walletId)).balanceMicros).toBe(1_000_000n - 242n);
@@ -259,7 +266,7 @@ describe('gateway with the official OpenAI SDK', () => {
     const g = await setup({ allowedSlugs: ['fuse/echo', 'fuse/fail'] });
     const list = await client(g.plain).models.list();
     const ids = list.data.map((m) => m.id);
-    expect(ids).toEqual(['fuse/echo', 'fuse/fail']);
+    expect(ids).toEqual(['fuse/auto', 'fuse/echo', 'fuse/fail']);
     expect((list.data[0] as unknown as { pricing: unknown }).pricing).toEqual({
       currency: 'BRL',
       unit: '1M tokens',

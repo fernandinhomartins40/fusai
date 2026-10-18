@@ -60,7 +60,7 @@ const fuse = new Fusai({
 
 const saldo = await fuse.balance(); // saldo DO USUÁRIO
 for await (const chunk of fuse.chat.completions.stream({
-  model: 'fuse/deepseek-chat',
+  model: 'fuse/auto',
   messages: [{ role: 'user', content: 'Oi!' }],
 })) {
   console.log(chunk.choices[0]?.delta.content ?? '');

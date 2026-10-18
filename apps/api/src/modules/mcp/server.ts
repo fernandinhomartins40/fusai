@@ -523,7 +523,7 @@ export function buildMcpServer(ctx: GatewayContext, deps: McpDeps) {
     },
     () =>
       prompt(
-        `Migre este projeto da OpenAI para a fusai. Mantenha o SDK oficial da OpenAI e troque só a configuração: apiKey = process.env.FUSAI_API_KEY e baseURL = "${env.API_URL}/v1" (ou equivalente na linguagem). Use list_models para escolher modelos equivalentes aos usados hoje e substitua os nomes (ex.: gpt-4o-mini → um modelo fuse/*). Atualize .env.example sem colocar a chave real. No fim, valide com test_chat.`,
+        `Migre este projeto da OpenAI para a fusai. Mantenha o SDK oficial da OpenAI e troque só a configuração: apiKey = process.env.FUSAI_API_KEY e baseURL = "${env.API_URL}/v1" (ou equivalente na linguagem). Troque os nomes de modelo por "fuse/auto" (sempre o mais barato que atende o pedido); só fixe um modelo específico (list_models) quando o código depender dele, como raciocínio. Atualize .env.example sem colocar a chave real. No fim, valide com test_chat.`,
       ),
   );
 

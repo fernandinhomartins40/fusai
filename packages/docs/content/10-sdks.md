@@ -34,7 +34,7 @@ const { token } = await server.appUsers.createSessionToken('usuario-123');
 // Navegador / app (session token)
 const fuse = new Fusai({ sessionToken: token, baseUrl: '{{V1}}' });
 try {
-  const res = await fuse.chat.completions.create({ model: 'fuse/deepseek-chat', messages: [{ role: 'user', content: 'Oi' }] });
+  const res = await fuse.chat.completions.create({ model: 'fuse/auto', messages: [{ role: 'user', content: 'Oi' }] });
   const { available_micros } = await fuse.balance();
   console.log(res.choices[0].message.content, formatMicros(available_micros));
 } catch (err) {
