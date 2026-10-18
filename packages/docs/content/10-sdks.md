@@ -1,6 +1,8 @@
 # SDKs
 
-> Use o SDK oficial da OpenAI no servidor, `@fusai/sdk` em qualquer runtime JavaScript e `@fusai/react` para checkout e saldo prontos.
+> Use o SDK oficial da OpenAI no servidor, `@fusai/sdk` em qualquer runtime JavaScript e `@fusai/react` para checkout, recarga e saldo prontos.
+
+Créditos da sua própria conta dentro do seu sistema (`fuse.topups`, `fusaiAccountHandler` e `<FusaiTopup/>`): veja [Créditos da sua conta](/docs/creditos-da-conta).
 
 ## SDK da OpenAI (qualquer linguagem)
 

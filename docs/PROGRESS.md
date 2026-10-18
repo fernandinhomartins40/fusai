@@ -496,3 +496,9 @@ pnpm --filter @fusai/docs generate               # depois de editar packages/doc
 - Painel **Agente de IA**: cria a chave `fai_agent_` (mostrada uma vez, já dentro dos comandos para Claude Code, Cursor e VS Code), lista e revoga; casos de uso e pedidos prontos para a IA.
 - MCP do agente com 23 tools e 2 prompts (`configurar_uso_proprio`, `configurar_revenda`) (D-123). Docs `/docs/mcp` atualizadas.
 - **Testes:** API 144 (4 novos em `agent.test.ts`). **Navegador:** 13/13 (computador e 375px, chave criada e MCP real respondendo).
+
+## Créditos da conta dentro do app do cliente (uso próprio)
+
+- `/v1/topups` + página pronta para recargas, `fuse.topups`/`fuse.usage`, `fusaiAccountHandler`, `<FusaiTopup/>`, guia da IA e docs "Créditos da sua conta" (D-124). Revenda continua pronta (troca de modo do projeto).
+- Corrigida a instabilidade de horário nas consultas "até agora" (D-125).
+- **Testes:** API 147 (3 rodadas seguidas sem falha), SDK 10, shared 42, docs 6. **Navegador:** 19/19 no app de exemplo (celular e computador): saldo, mínimo, Pix, pagamento confirmado sozinho e saldo atualizado; webhook repetido 3 vezes creditou uma vez.

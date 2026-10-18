@@ -121,6 +121,66 @@ function flowSection(p: ProjectSnapshot) {
 6. **Configuração**: cadastre a origem do front em Origens permitidas e a URL do webhook (painel ou \`update_project_settings\`).`;
 }
 
+/**
+ * "Uso próprio": the customer keeps credits for ITS organization from inside its own app
+ * (balance, Pix top-up, usage), with the secret key on the server only. Also shown for HYBRID.
+ */
+function accountSection(p: ProjectSnapshot, urls: DocUrls, stack?: GuideStack) {
+  if (p.billingMode === 'END_USER_WALLET') return '';
+  const v1 = `${urls.api.replace(/\/+$/, '')}/v1`;
+  const next = code(
+    'ts',
+    `// app/api/fusai/[...path]/route.ts — rotas seguras de créditos da SUA conta
+import { Fusai } from '@fusai/sdk';
+import { fusaiAccountHandler } from '@fusai/sdk/server';
+
+const fuse = new Fusai({ apiKey: process.env.FUSAI_API_KEY!, baseUrl: '${v1}' });
+
+const handler = fusaiAccountHandler(fuse, {
+  basePath: '/api/fusai',
+  // OBRIGATÓRIO: só quem administra o sistema pode ver saldo e gerar recarga.
+  authorize: async () => (await getCurrentUser())?.isAdmin === true, // sua autenticação
+});
+export { handler as GET, handler as POST };`,
+  );
+  const page = code(
+    'tsx',
+    `// Página de créditos do seu painel (ex.: app/admin/creditos/page.tsx)
+'use client';
+import { FusaiTopup } from '@fusai/react';
+
+export default function Creditos() {
+  return <FusaiTopup endpoint="/api/fusai" onPaid={(t) => console.log('créditos na conta', t.creditMicros)} />;
+}`,
+  );
+  const rest = `| Método | Rota (chave secreta com os escopos \`billing:read\` e \`checkout\`) | Para quê |
+|---|---|---|
+| GET | \`/v1/balance\` | Saldo da organização (sem \`X-Fuse-User\`). |
+| GET | \`/v1/usage?from=&to=\` | Consumo do projeto por modelo. |
+| GET | \`/v1/topup-options\` | Mínimo (R$ 5,00), máximo, taxa e pacotes. |
+| POST | \`/v1/topups\` | \`{ amountCents }\` ou \`{ packageId }\` (+ \`returnUrl\`) → Pix: \`copyPaste\`, \`qrBase64\`, \`hostedUrl\`. Use \`Idempotency-Key\`. |
+| GET | \`/v1/topups/:id\` | Status (\`PENDING\` → \`RECEIVED\`): consulte a cada 3 s. |
+| GET | \`/v1/topups\` | Últimas 20 recargas. |`;
+  const useNext = !stack || stack === 'nextjs';
+  return `## Créditos da sua conta dentro do seu sistema
+
+Para não precisar abrir o painel da fusai: mostre o saldo, o consumo e um botão **Adicionar créditos (Pix)** numa área de administração do seu sistema. A chave secreta fica no servidor; o front fala só com as suas rotas.
+
+${rest}
+
+${
+  useNext
+    ? `**Next.js (pronto):** o SDK já traz as rotas e o React traz a tela.
+
+${next}
+
+${page}`
+    : `**Sua stack:** crie no backend, atrás do login de admin, rotas que repassam para a tabela acima com \`Authorization: Bearer $FUSAI_API_KEY\`. Na tela, mostre o QR (\`data:image/png;base64,\` + \`qrBase64\`) e o copia e cola, ou abra \`hostedUrl\` no navegador; consulte o status a cada 3 s.`
+}
+
+Sem saldo, as chamadas de IA recebem \`402 insufficient_funds\`: mostre ao admin o link para a página de créditos. O webhook \`balance.low\` avisa antes de acabar.`;
+}
+
 function stackSection(stack: GuideStack, p: ProjectSnapshot, urls: DocUrls) {
   const v1 = `${urls.api.replace(/\/+$/, '')}/v1`;
   const model = p.defaultModel ?? p.models[0]?.id ?? 'fuse/deepseek-chat';
@@ -446,6 +506,8 @@ ${projectSection(p, urls)}
 ${RULES}
 
 ${flowSection(p)}
+
+${accountSection(p, urls, stack)}
 
 ## Código
 

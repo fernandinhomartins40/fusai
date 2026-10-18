@@ -277,7 +277,15 @@ function PackageSummary({ pkg }: { pkg?: CreditPackage }) {
   );
 }
 
-function PendingPix({ checkout: c }: { checkout: Checkout }) {
+/** QR + copy-paste + countdown of an open Pix (checkout of an end user or organization top-up). */
+export function PendingPix({
+  checkout: c,
+}: {
+  checkout: Pick<
+    Checkout,
+    'amountCents' | 'creditMicros' | 'qrBase64' | 'copyPaste' | 'expiresAt' | 'hostedUrl'
+  >;
+}) {
   const [now, setNow] = useState(() => Date.now());
   const [copied, setCopied] = useState(false);
   useEffect(() => {

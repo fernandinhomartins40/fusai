@@ -69,6 +69,10 @@ Requisições não-GET precisam vir do `APP_URL` (`Origin`), senão 403.
 | POST | `/internal/organizations/:orgId/agent-keys` | `{ name }` → 201 com `key` (`fai_agent_...`) só nesta resposta. Máx. 10 ativas. |
 | POST | `/internal/organizations/:orgId/agent-keys/:id/revoke` | Revoga na hora. |
 | POST | `/mcp` | MCP (Streamable HTTP). `Authorization: Bearer fai_agent_...` (organização inteira) ou `fai_live_/fai_test_` com escopo `mcp` (um projeto). Ferramentas em `/docs/mcp`. |
+| GET | `/v1/topup-options` | Chave secreta (`checkout`): `{ available, hasDocument, minAmountCents, maxAmountCents, feePct, packages }`. |
+| POST | `/v1/topups` | Chave secreta (`checkout`): `{ amountCents }` ou `{ packageId }` (+ `returnUrl`, header `Idempotency-Key`) → 201 `{ object: "topup", checkoutId, status, amountCents, creditMicros, copyPaste, qrBase64, expiresAt, hostedUrl }`. Créditos da organização. |
+| GET | `/v1/topups/:id` | Status da recarga da organização. |
+| GET | `/v1/topups` | Últimas 20 recargas (sem QR). |
 
 Todas as alterações do admin geram `AuditLog`.
 

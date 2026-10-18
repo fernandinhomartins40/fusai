@@ -282,11 +282,14 @@ export const publicCheckoutRoutes: FastifyPluginAsyncZod<{
       where: { publicId: req.params.publicId },
       include: { org: { select: { name: true } } },
     });
-    if (!payment?.projectId) throw notFound('Checkout não encontrado');
-    const project = await prisma.project.findUnique({
-      where: { id: payment.projectId },
-      select: { name: true },
-    });
+    // End-user checkouts and organization top-ups; legacy payments without publicId never match.
+    if (!payment) throw notFound('Checkout não encontrado');
+    const project = payment.projectId
+      ? await prisma.project.findUnique({
+          where: { id: payment.projectId },
+          select: { name: true },
+        })
+      : null;
     const meta = (payment.metadata ?? {}) as { packageName?: string; returnUrl?: string };
     const pending = payment.status === 'PENDING';
     return {
@@ -295,7 +298,8 @@ export const publicCheckoutRoutes: FastifyPluginAsyncZod<{
       amountCents: payment.amountCents,
       creditMicros: payment.creditMicros.toString(),
       packageName: meta.packageName ?? null,
-      merchantName: project?.name ?? payment.org.name,
+      // A top-up is the customer paying fusai; a checkout is an end user paying the app.
+      merchantName: payment.projectId ? (project?.name ?? payment.org.name) : 'fusai',
       copyPaste: pending ? payment.pixCopyPaste : null,
       qrBase64: pending ? payment.pixQrBase64 : null,
       expiresAt: payment.expiresAt?.toISOString() ?? null,

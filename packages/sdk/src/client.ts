@@ -6,9 +6,13 @@ import type {
   ChatCompletionRequest,
   Checkout,
   CreateCheckoutInput,
+  CreateTopupInput,
   CreditPackage,
   Model,
   SessionToken,
+  Topup,
+  TopupOptions,
+  UsageSummary,
 } from './types';
 
 export const DEFAULT_BASE_URL = 'https://api.fusai.com.br/v1';
@@ -214,6 +218,48 @@ export class Fusai {
       const interval = opts.intervalMs ?? 3000;
       while (true) {
         const current = await this.checkout.get(checkoutId, { signal: opts.signal });
+        opts.onUpdate?.(current);
+        if (current.status !== 'PENDING') return current;
+        await sleep(interval, opts.signal);
+      }
+    },
+  };
+
+  /** Server only (secret key): consumption of this key's project, by model (default: 30 days). */
+  usage(opts: { from?: string | Date; to?: string | Date; signal?: AbortSignal } = {}) {
+    const q = new URLSearchParams();
+    if (opts.from) q.set('from', new Date(opts.from).toISOString());
+    if (opts.to) q.set('to', new Date(opts.to).toISOString());
+    return this.json<UsageSummary>('GET', `/usage${q.size ? `?${q}` : ''}`, opts);
+  }
+
+  /**
+   * Server only (secret key): credits for YOUR organization, paid with Pix from inside your app
+   * ("uso próprio"). The QR / copy-paste can be shown in your UI or the payer can open `hostedUrl`.
+   */
+  readonly topups = {
+    options: (opts: { signal?: AbortSignal } = {}) =>
+      this.json<TopupOptions>('GET', '/topup-options', opts),
+    create: (input: CreateTopupInput) => {
+      const { idempotencyKey, ...body } = input;
+      return this.json<Topup>('POST', '/topups', {
+        body,
+        headers: idempotencyKey ? { 'idempotency-key': idempotencyKey } : undefined,
+      });
+    },
+    get: (topupId: string, opts: { signal?: AbortSignal } = {}) =>
+      this.json<Topup>('GET', `/topups/${encodeURIComponent(topupId)}`, opts),
+    /** Last 20 top-ups of the organization (without QR codes). */
+    list: async (opts: { signal?: AbortSignal } = {}) =>
+      (await this.json<{ data: Topup[] }>('GET', '/topups', opts)).data,
+    /** Polls every `intervalMs` (default 3 s) until the top-up leaves PENDING. */
+    waitForPayment: async (
+      topupId: string,
+      opts: { intervalMs?: number; signal?: AbortSignal; onUpdate?: (t: Topup) => void } = {},
+    ): Promise<Topup> => {
+      const interval = opts.intervalMs ?? 3000;
+      while (true) {
+        const current = await this.topups.get(topupId, { signal: opts.signal });
         opts.onUpdate?.(current);
         if (current.status !== 'PENDING') return current;
         await sleep(interval, opts.signal);

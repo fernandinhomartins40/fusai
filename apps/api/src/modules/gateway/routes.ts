@@ -5,6 +5,7 @@ import { hasZodFastifySchemaValidationErrors } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import type { RedisClient } from '../../lib/redis';
 import type { SettingsStore } from '../../lib/settings';
+import { untilNow } from '../../lib/time';
 import type { PaymentProvider } from '../../payments/types';
 import { createGatewayAuth, type GatewayContext, requireScope, requireSecretKey } from './auth';
 import type { CatalogStore } from './catalog';
@@ -13,6 +14,7 @@ import type { CircuitBreaker } from './circuit-breaker';
 import { endUserRoutes } from './end-users';
 import { GatewayError } from './errors';
 import { listModelsFor, usageSummary } from './queries';
+import { topupRoutes } from './topups';
 
 type Options = {
   prisma: PrismaClient;
@@ -106,6 +108,12 @@ export const gatewayRoutes: FastifyPluginAsync<Options> = async (app, opts) => {
     sessionSecret: opts.sessionSecret,
     appUrl: opts.appUrl,
   });
+  await app.register(topupRoutes, {
+    prisma,
+    provider: opts.provider,
+    settings,
+    appUrl: opts.appUrl,
+  });
 
   app.get('/balance', async (req) => {
     const ctx = ctxOf(req);
@@ -135,7 +143,7 @@ export const gatewayRoutes: FastifyPluginAsync<Options> = async (app, opts) => {
     requireSecretKey(ctx); // project-wide usage: never for an end user's session token
     requireScope(ctx, 'billing:read');
     const query = req.query as z.infer<typeof usageQuery>;
-    const to = query.to ? new Date(query.to) : new Date();
+    const to = query.to ? new Date(query.to) : untilNow();
     const from = query.from ? new Date(query.from) : new Date(to.getTime() - 30 * 86_400_000);
     if (from > to || to.getTime() - from.getTime() > 366 * 86_400_000) {
       throw new GatewayError(400, 'invalid_range', 'Período inválido (máximo de 366 dias).');

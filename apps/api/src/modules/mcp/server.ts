@@ -6,6 +6,7 @@ import { z } from 'zod';
 import type { Env } from '../../lib/env';
 import { HttpError } from '../../lib/errors';
 import type { SettingsStore } from '../../lib/settings';
+import { untilNow } from '../../lib/time';
 import type { PaymentProvider } from '../../payments/types';
 import { upsertAppUser } from '../app-users/service';
 import type { GatewayContext } from '../gateway/auth';
@@ -195,7 +196,7 @@ export function buildMcpServer(ctx: GatewayContext, deps: McpDeps) {
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
     tool<{ from?: string; to?: string }>('get_usage', async (args) => {
-      const to = args.to ? new Date(args.to) : new Date();
+      const to = args.to ? new Date(args.to) : untilNow();
       const from = args.from ? new Date(args.from) : new Date(to.getTime() - 30 * 86_400_000);
       if (from > to || to.getTime() - from.getTime() > 366 * 86_400_000) {
         return fail('Período inválido (máximo de 366 dias).');

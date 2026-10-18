@@ -40,12 +40,13 @@ describe('docs content', () => {
     expect(current).toBe(buildContent());
   });
 
-  it('has the 11 pages of PRD §10.3 and renders every placeholder', () => {
+  it('has the PRD §10.3 pages (+ créditos da conta) and renders every placeholder', () => {
     expect(DOC_PAGES.map((p) => p.slug)).toEqual([
       'inicio-rapido',
       'autenticacao',
       'chat',
       'modelos',
+      'creditos-da-conta',
       'usuarios-finais',
       'checkout-pix',
       'webhooks',

@@ -56,6 +56,12 @@ export async function emitEvent(
 export type DeliverOptions = { encryptionKey: Buffer; production: boolean; timeoutMs?: number };
 const LEASE_MS = 60_000;
 
+/**
+ * "Due" cut-off with 1 s of slack: the database rounds timestamps up to the millisecond, so a
+ * row created or rescheduled a moment ago can look "1 ms in the future" and be skipped.
+ */
+const dueBy = (now: Date) => new Date(now.getTime() + 1000);
+
 /** Puts a delivery back in the queue now (manual resend from the dashboard). */
 export async function resendWebhook(prisma: PrismaClient, id: string, projectId: string) {
   const res = await prisma.outboundWebhook.updateMany({
@@ -70,7 +76,7 @@ export async function deliverWebhook(prisma: PrismaClient, id: string, opts: Del
   // Lease: push nextAttemptAt forward so a concurrent run does not send it twice.
   const now = new Date();
   const claimed = await prisma.outboundWebhook.updateMany({
-    where: { id, status: 'pending', nextAttemptAt: { lte: now } },
+    where: { id, status: 'pending', nextAttemptAt: { lte: dueBy(now) } },
     data: { nextAttemptAt: new Date(now.getTime() + LEASE_MS) },
   });
   if (claimed.count === 0) return;
@@ -141,7 +147,7 @@ export async function deliverWebhook(prisma: PrismaClient, id: string, opts: Del
 /** Delivers every due webhook (run by the worker every 30s). */
 export async function deliverDueWebhooks(prisma: PrismaClient, opts: DeliverOptions, limit = 50) {
   const due = await prisma.outboundWebhook.findMany({
-    where: { status: 'pending', nextAttemptAt: { lte: new Date() } },
+    where: { status: 'pending', nextAttemptAt: { lte: dueBy(new Date()) } },
     orderBy: { nextAttemptAt: 'asc' },
     take: limit,
     select: { id: true },

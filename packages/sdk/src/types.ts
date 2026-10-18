@@ -113,6 +113,56 @@ export type CreateCheckoutInput = {
   idempotencyKey?: string;
 };
 
+/** Organization credit top-up (secret key, from the customer's own backend). */
+export type Topup = Omit<Checkout, 'object' | 'checkoutId'> & {
+  object: 'topup';
+  /** Use with topups.get / waitForPayment; also the hosted page id. */
+  checkoutId: string;
+};
+
+export type CreateTopupInput = {
+  /** Amount in cents (minimum R$ 5,00) — or a global package id. */
+  amountCents?: number;
+  packageId?: string;
+  /** Where the hosted page sends the payer after paying: https URL or app deep link. */
+  returnUrl?: string;
+  /** Same key = same top-up (avoids duplicates on double clicks / retries). */
+  idempotencyKey?: string;
+};
+
+export type TopupOptions = {
+  object: 'topup_options';
+  /** false when the organization has no CPF/CNPJ yet or is internal. */
+  available: boolean;
+  hasDocument: boolean;
+  minAmountCents: number;
+  maxAmountCents: number;
+  feePct: string;
+  packages: CreditPackage[];
+};
+
+export type UsageSummary = {
+  object: 'usage';
+  currency: 'BRL';
+  from: string;
+  to: string;
+  total: {
+    requests: number;
+    prompt_tokens: number;
+    completion_tokens: number;
+    charged: string;
+    charged_micros: Micros;
+  };
+  by_model: {
+    model: string;
+    requests: number;
+    prompt_tokens: number;
+    cached_tokens: number;
+    completion_tokens: number;
+    charged_micros: Micros;
+  }[];
+};
+
 export type AppUser = {
   id: string;
   externalId: string;

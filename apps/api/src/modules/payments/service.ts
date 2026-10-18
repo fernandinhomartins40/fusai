@@ -70,7 +70,13 @@ export function serializePayment(p: Payment) {
   };
 }
 
-type TopupInput = { packageId?: string; amountCents?: number; idempotencyKey?: string };
+type TopupInput = {
+  packageId?: string;
+  amountCents?: number;
+  idempotencyKey?: string;
+  /** Hosted page "Voltar" button (https or app deep link), already validated. */
+  returnUrl?: string;
+};
 
 /** Creates an organization top-up: customer at the PSP, Pix charge and QR code (PRD §9.1 steps 1-4). */
 export async function createOrgTopup(
@@ -153,11 +159,14 @@ export async function createOrgTopup(
       amountCents,
       creditMicros: baseMicros + bonusMicros,
       idempotencyKey,
+      // Also payable on the hosted page /pay/{publicId} (e.g. opened from the customer's app).
+      publicId: `chk_${randomBytes(18).toString('base64url')}`,
       metadata: {
         baseMicros: baseMicros.toString(),
         bonusMicros: bonusMicros.toString(),
         feeCents,
         ...(packageName ? { packageName } : {}),
+        ...(input.returnUrl ? { returnUrl: input.returnUrl } : {}),
       } satisfies PaymentMeta,
     },
   });
@@ -492,7 +501,8 @@ export async function processPendingWebhookEvents(
   olderThanMs = 0,
 ) {
   const pending = await prisma.inboundWebhookEvent.findMany({
-    where: { processedAt: null, createdAt: { lte: new Date(Date.now() - olderThanMs) } },
+    // +1 s: timestamps are rounded up to the millisecond (see webhooks-out `dueBy`).
+    where: { processedAt: null, createdAt: { lte: new Date(Date.now() - olderThanMs + 1000) } },
     orderBy: { createdAt: 'asc' },
     take: 100,
   });

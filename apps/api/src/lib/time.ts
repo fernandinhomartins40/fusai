@@ -46,3 +46,9 @@ export const utc = (date: Date) => Prisma.sql`(${date}::timestamptz AT TIME ZONE
 /** São Paulo calendar day of a UTC `timestamp` column, as text. */
 export const spDayOf = (column: Prisma.Sql) =>
   Prisma.sql`to_char((${column} AT TIME ZONE 'UTC') AT TIME ZONE ${TZ}, 'YYYY-MM-DD')`;
+
+/**
+ * End of an open "until now" range, with 1 s of slack: Postgres rounds timestamps up to the
+ * millisecond, so a row written this instant can look "in the future" for `createdAt < now`.
+ */
+export const untilNow = () => new Date(Date.now() + 1000);

@@ -26,8 +26,10 @@ Quem paga o consumo é a organização. Os usuários do sistema não veem preço
 1. \`create_project\` com \`use_case: "uso_proprio"\` (modo de cobrança \`ORG_WALLET\`).
 2. \`create_api_key\` (\`env: "live"\`) e grave a chave em \`FUSAI_API_KEY\` no servidor do sistema.
 3. \`get_integration_guide\` com a \`stack\` do projeto e implemente as chamadas de IA **no backend** (SDK oficial da OpenAI com \`baseURL\` da fusai, ou \`@fusai/sdk\`).
-4. Coloque saldo: \`create_topup_pix\` gera um Pix para a carteira da organização (QR e copia e cola). Também dá para recarregar no painel, em Carteira.
-5. Acompanhe com \`get_balance\` e \`get_usage\`. Para não ficar sem saldo, sugira o alerta de saldo baixo no painel (Configurações).`;
+4. **Tela de créditos dentro do sistema** (recomendado): numa área de admin do sistema, mostre o saldo, o consumo e o botão "Adicionar créditos (Pix)". O guia de \`get_integration_guide\` traz o código: rotas \`/v1/balance\`, \`/v1/usage\`, \`/v1/topup-options\`, \`/v1/topups\` atrás do login de admin (em Next.js: \`fusaiAccountHandler\` do \`@fusai/sdk/server\` + \`<FusaiTopup/>\` do \`@fusai/react\`). Assim o dono recarrega sem sair do sistema.
+5. Saldo inicial agora: \`create_topup_pix\` gera um Pix para a carteira da organização (copia e cola aqui no chat). Também dá para recarregar no painel, em Carteira.
+6. Acompanhe com \`get_balance\` e \`get_usage\`. Para não ficar sem saldo, sugira o alerta de saldo baixo no painel (Configurações).
+7. Se um dia o sistema passar a **revender** créditos, nada precisa ser refeito: mude o modo do projeto para \`HYBRID\` ou \`END_USER_WALLET\` (\`update_project_settings\`) e siga o caso 2.`;
 
 const RESALE = `## Caso 2: revenda (os clientes do sistema compram créditos e pagam o que usam)
 

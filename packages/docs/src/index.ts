@@ -57,7 +57,7 @@ export function llmsFullTxt(urls: DocUrls): string {
 export const DOC_BUNDLES = {
   api: ['inicio-rapido', 'autenticacao', 'chat', 'modelos', 'erros', 'limites'],
   sdk: ['sdks', 'usuarios-finais'],
-  checkout: ['usuarios-finais', 'checkout-pix', 'webhooks'],
+  checkout: ['creditos-da-conta', 'usuarios-finais', 'checkout-pix', 'webhooks'],
 } as const;
 
 export function docBundle(name: keyof typeof DOC_BUNDLES, urls: DocUrls): string {
