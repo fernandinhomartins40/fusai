@@ -99,18 +99,21 @@ export function OrgAccountForm({ org, defaultMarkup }: { org: Org; defaultMarkup
       <Field
         id="org-billing"
         label="Tipo de cobrança"
-        hint="Pós-pago usa o limite de crédito; interno não é cobrado."
+        hint="Pré-pago: só consome o saldo já pago. Interno: não é cobrado (contas da casa)."
       >
         <Select
           id="org-billing"
           value={billingType}
           onChange={(e) => setBillingType(e.target.value as Org['billingType'])}
         >
-          {Object.entries(billingTypeLabel).map(([value, label]) => (
-            <option key={value} value={value}>
-              {label}
-            </option>
-          ))}
+          {Object.entries(billingTypeLabel)
+            // Pós-pago desativado (D-128): ninguém consome fiado.
+            .filter(([value]) => value !== 'POSTPAID' || org.billingType === 'POSTPAID')
+            .map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
         </Select>
       </Field>
       {billingType === 'POSTPAID' ? (

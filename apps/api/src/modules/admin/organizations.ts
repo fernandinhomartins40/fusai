@@ -154,16 +154,28 @@ export const adminOrganizationRoutes: FastifyPluginAsyncZod<{ prisma: PrismaClie
       const wallet = await ensureWallet(org.id);
       const amountMicros = BigInt(req.body.amountMicros);
       const actor = currentUser(req);
-      const entry = await prisma.$transaction((tx) =>
-        applyLedger(tx, {
+      const entry = await prisma.$transaction(async (tx) => {
+        const e = await applyLedger(tx, {
           walletId: wallet.id,
           type: 'ADJUSTMENT',
           amountMicros,
           referenceType: 'admin',
           description: req.body.reason,
           actorId: actor.id,
-        }),
-      );
+        });
+        // A debit never leaves the customer owing (D-128): at most what is available.
+        if (amountMicros < 0n) {
+          const w = await tx.wallet.findUniqueOrThrow({ where: { id: wallet.id } });
+          if (e.balanceAfter - w.reservedMicros + creditLimitFor(org) < 0n) {
+            throw new HttpError(
+              400,
+              'insufficient_balance',
+              'O débito é maior que o saldo disponível do cliente.',
+            );
+          }
+        }
+        return e;
+      });
       await audit(prisma, req, 'wallet.adjust', org.id, {
         walletId: wallet.id,
         ledgerEntryId: entry.id,
@@ -188,6 +200,17 @@ export const adminOrganizationRoutes: FastifyPluginAsyncZod<{ prisma: PrismaClie
     async (req) => {
       const org = await findOrg(req.params.id);
       const { reason, creditLimitMicros, markupOverride, ...rest } = req.body;
+      // Owner's rule (D-128): prepaid only, nobody consumes on credit.
+      if (
+        rest.billingType === 'POSTPAID' ||
+        (creditLimitMicros && BigInt(creditLimitMicros) > 0n)
+      ) {
+        throw new HttpError(
+          400,
+          'postpaid_disabled',
+          'Pós-pago está desativado: os clientes só consomem o saldo que já pagaram.',
+        );
+      }
       const data: Prisma.OrganizationUpdateInput = {
         ...rest,
         ...(creditLimitMicros !== undefined

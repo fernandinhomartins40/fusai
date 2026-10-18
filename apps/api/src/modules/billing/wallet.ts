@@ -106,11 +106,22 @@ export type SettleInput = {
   /** Real cost to charge (0 = release only, e.g. upstream failed before any token). */
   chargeMicros: bigint;
   description?: string;
-  /** Runs inside the settlement transaction (e.g. insert the UsageLog atomically). */
-  onSettled?: (tx: Tx) => Promise<unknown>;
+  /**
+   * Post-paid credit of this wallet (0 = prepaid). The charge never takes the wallet below
+   * -creditLimit: a prepaid customer never owes (D-128). Anything above is absorbed by fusai.
+   */
+  creditLimitMicros?: bigint;
+  /** Runs inside the settlement transaction with the amount really charged. */
+  onSettled?: (tx: Tx, charged: bigint) => Promise<unknown>;
 };
 
-export type SettleResult = { charged: bigint; released: bigint; duplicate: boolean };
+export type SettleResult = {
+  charged: bigint;
+  released: bigint;
+  duplicate: boolean;
+  /** Part of the real cost that was NOT charged because the balance ran out. */
+  absorbed: bigint;
+};
 
 /**
  * Settles a request: releases its hold and charges the real cost (PRD §7.4 step 4).
@@ -133,7 +144,7 @@ export async function settle(prisma: PrismaClient, input: SettleInput): Promise<
           where: { type: 'USAGE', referenceType: 'usage', referenceId: input.requestId },
           select: { id: true },
         });
-        if (already) return { charged: 0n, released: 0n, duplicate: true };
+        if (already) return { charged: 0n, released: 0n, duplicate: true, absorbed: 0n };
       }
 
       const released = hold?.amountMicros ?? 0n;
@@ -143,23 +154,37 @@ export async function settle(prisma: PrismaClient, input: SettleInput): Promise<
              SET "reservedMicros" = "reservedMicros" - ${released}, "updatedAt" = ${NOW_UTC}
            WHERE id = ${input.walletId}`;
       }
-      if (input.chargeMicros > 0n) {
+      // Never below -creditLimit (prepaid: never below zero). Other requests' holds stay intact.
+      let charge = input.chargeMicros;
+      if (charge > 0n) {
+        const [w] = await tx.$queryRaw<{ balanceMicros: bigint; reservedMicros: bigint }[]>`
+          SELECT "balanceMicros", "reservedMicros" FROM "Wallet" WHERE id = ${input.walletId} FOR UPDATE`;
+        const room =
+          (w?.balanceMicros ?? 0n) - (w?.reservedMicros ?? 0n) + (input.creditLimitMicros ?? 0n);
+        if (charge > room) charge = room > 0n ? room : 0n;
+      }
+      if (charge > 0n) {
         await applyLedger(tx, {
           walletId: input.walletId,
           type: 'USAGE',
-          amountMicros: -input.chargeMicros,
+          amountMicros: -charge,
           referenceType: 'usage',
           referenceId: input.requestId,
           description: input.description ?? null,
         });
       }
-      await input.onSettled?.(tx);
-      return { charged: input.chargeMicros, released, duplicate: false };
+      await input.onSettled?.(tx, charge);
+      return {
+        charged: charge,
+        released,
+        duplicate: false,
+        absorbed: input.chargeMicros - charge,
+      };
     });
   } catch (err) {
     // A concurrent settle of the same request won the race: the unique ledger key rejected us.
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
-      return { charged: 0n, released: 0n, duplicate: true };
+      return { charged: 0n, released: 0n, duplicate: true, absorbed: 0n };
     }
     throw err;
   }

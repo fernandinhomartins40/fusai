@@ -410,14 +410,47 @@ export async function applyRefund(prisma: PrismaClient, paymentId: string): Prom
         data: { status: 'REFUNDED' },
       });
       if (claimed.count === 0) return;
-      await applyLedger(tx, {
-        walletId: payment.walletId,
-        type: 'REFUND',
-        amountMicros: -payment.creditMicros,
-        referenceType: 'payment',
-        referenceId: payment.id,
-        description: 'Estorno da recarga via Pix',
-      });
+      // Debit at most what is still available: a refund never leaves anyone owing (D-128).
+      const [w] = await tx.$queryRaw<{ balanceMicros: bigint; reservedMicros: bigint }[]>`
+        SELECT "balanceMicros", "reservedMicros" FROM "Wallet" WHERE id = ${payment.walletId} FOR UPDATE`;
+      const available = (w?.balanceMicros ?? 0n) - (w?.reservedMicros ?? 0n);
+      const debit =
+        payment.creditMicros <= available ? payment.creditMicros : available > 0n ? available : 0n;
+      const shortfall = payment.creditMicros - debit;
+      if (debit > 0n) {
+        await applyLedger(tx, {
+          walletId: payment.walletId,
+          type: 'REFUND',
+          amountMicros: -debit,
+          referenceType: 'payment',
+          referenceId: payment.id,
+          description: 'Estorno da recarga via Pix',
+        });
+      }
+      if (shortfall > 0n) {
+        // Paid, used the credits, then got the money back (refund/MED outside fusai). The
+        // organization is suspended until the admin reviews it; the case goes to the audit log.
+        if (!payment.appUserId) {
+          await tx.organization.update({
+            where: { id: payment.orgId },
+            data: { status: 'SUSPENDED' },
+          });
+        }
+        await tx.auditLog.create({
+          data: {
+            actorId: null,
+            action: 'payment.refund_shortfall',
+            target: payment.orgId,
+            metadata: {
+              paymentId: payment.id,
+              creditMicros: payment.creditMicros.toString(),
+              debitedMicros: debit.toString(),
+              shortfallMicros: shortfall.toString(),
+              suspended: !payment.appUserId,
+            },
+          },
+        });
+      }
       if (payment.projectId) {
         const refunded = await tx.payment.findUniqueOrThrow({ where: { id: payment.id } });
         await emitEvent(

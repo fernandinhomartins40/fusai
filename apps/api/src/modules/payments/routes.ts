@@ -245,6 +245,16 @@ export const adminPaymentRoutes: FastifyPluginAsyncZod<{
           'Só pagamentos creditados e ainda não estornados.',
         );
       }
+      // Never refund credits that were already consumed: the customer would owe (D-128).
+      const wallet = await prisma.wallet.findUnique({ where: { id: payment.walletId } });
+      const available = (wallet?.balanceMicros ?? 0n) - (wallet?.reservedMicros ?? 0n);
+      if (available < payment.creditMicros) {
+        throw new HttpError(
+          409,
+          'credits_already_used',
+          'O cliente já usou parte destes créditos: o estorno deixaria o saldo negativo. Estorne no Asaas só o valor não usado e debite o mesmo valor no ajuste de saldo.',
+        );
+      }
       try {
         await provider.refund(payment.providerPaymentId);
       } catch (err) {

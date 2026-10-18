@@ -163,16 +163,25 @@ describe('super admin panel', () => {
     });
     expect(suspend.json()).toMatchObject({ status: 'SUSPENDED' });
 
+    // Prepaid only (D-128): post-paid / credit limit is refused.
+    const postpaid = await call('PATCH', `/internal/admin/organizations/${orgId}`, admin, {
+      billingType: 'POSTPAID',
+    });
+    expect(postpaid.statusCode).toBe(400);
+    expect(postpaid.json().error.code).toBe('postpaid_disabled');
+    const credit = await call('PATCH', `/internal/admin/organizations/${orgId}`, admin, {
+      creditLimitMicros: '50000000',
+    });
+    expect(credit.statusCode).toBe(400);
+
     const update = await call('PATCH', `/internal/admin/organizations/${orgId}`, admin, {
       status: 'ACTIVE',
-      billingType: 'POSTPAID',
-      creditLimitMicros: '50000000',
       markupOverride: '2,5',
     });
     expect(update.json()).toMatchObject({
       status: 'ACTIVE',
-      billingType: 'POSTPAID',
-      creditLimitMicros: '50000000',
+      billingType: 'PREPAID',
+      creditLimitMicros: '0',
       markupOverride: '2.5',
     });
 

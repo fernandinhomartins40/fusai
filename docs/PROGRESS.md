@@ -506,3 +506,7 @@ pnpm --filter @fusai/docs generate               # depois de editar packages/doc
 ## Menor custo como padrão e custo em reais
 
 - `fuse/auto` (D-126) e `usage.cost_brl`/`cost_micros` (D-127). API 150 testes (3 novos do `fuse/auto`), SDK 10, docs 6.
+
+## Saldo nunca negativo
+
+- D-128: teto na cobrança, débito e estorno limitados ao disponível, suspensão em estorno externo de crédito já usado, pós-pago desativado. API 153 testes (3 novos em `never-negative.test.ts`), 2 rodadas seguidas.

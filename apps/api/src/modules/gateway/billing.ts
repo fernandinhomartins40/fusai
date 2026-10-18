@@ -86,7 +86,7 @@ export async function finishRequest(
 ): Promise<bigint> {
   const charge = chargeFor(input.usage, input.prices);
   const cost = providerCost(input.usage, input.entry.model, settings.usd_brl_rate);
-  const log = (tx: Tx | PrismaClient) =>
+  const log = (tx: Tx | PrismaClient, charged = charge) =>
     tx.usageLog.create({
       data: {
         requestId: usageId,
@@ -103,12 +103,16 @@ export async function finishRequest(
         reasoningTokens: input.usage.reasoning,
         costUsdMicros: cost.costUsdMicros,
         costBrlMicros: cost.costBrlMicros,
-        chargedMicros: charge,
+        chargedMicros: charged,
         latencyMs: input.latencyMs,
         ttftMs: input.ttftMs,
         stream: input.stream,
         status: input.status,
-        errorCode: input.errorCode,
+        // The balance ran out mid-request: only what was available was charged (D-128).
+        errorCode:
+          charged < charge
+            ? [input.errorCode, 'charge_capped'].filter(Boolean).join(':')
+            : input.errorCode,
       },
     });
 
@@ -116,12 +120,13 @@ export async function finishRequest(
     await log(prisma);
     return charge;
   }
-  await settle(prisma, {
+  const result = await settle(prisma, {
     requestId: usageId,
     walletId: target.walletId,
     chargeMicros: charge,
+    creditLimitMicros: target.creditLimitMicros,
     description: `${input.entry.model.slug} · ${input.usage.prompt} + ${input.usage.completion} tokens`,
-    onSettled: log,
+    onSettled: (tx, charged) => log(tx, charged),
   });
-  return charge;
+  return result.charged;
 }
