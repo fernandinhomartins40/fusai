@@ -54,7 +54,7 @@ export function Dialog({ open, onClose, title, description, children, className 
               aria-label="Fechar"
               className="rounded-lg p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
             >
-              <X className="size-4" />
+              <X className="size-4" aria-hidden />
             </button>
           </div>
           {children}

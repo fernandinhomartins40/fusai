@@ -3,6 +3,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
 import type { Env } from '../../lib/env';
+import type { Mailer } from '../../lib/mailer';
 import { slidingWindow } from '../../lib/rate-limit';
 import type { RedisClient } from '../../lib/redis';
 import type { SettingsStore } from '../../lib/settings';
@@ -22,6 +23,7 @@ type Options = {
   redis: RedisClient;
   env: Env;
   encryptionKey: Buffer;
+  mailer: Mailer;
 };
 
 const LAST_USED_THROTTLE_MS = 60_000;
@@ -106,6 +108,7 @@ export const mcpRoutes: FastifyPluginAsync<Options> = async (app, opts) => {
         env: opts.env,
         encryptionKey: opts.encryptionKey,
         ip: req.ip,
+        mailer: opts.mailer,
       });
       return serve(server, req, reply);
     }
@@ -121,6 +124,7 @@ export const mcpRoutes: FastifyPluginAsync<Options> = async (app, opts) => {
       provider: opts.provider,
       env: opts.env,
       encryptionKey: opts.encryptionKey,
+      mailer: opts.mailer,
       inject: (o) => app.inject(o),
       authorization: req.headers.authorization ?? '',
       ip: req.ip,

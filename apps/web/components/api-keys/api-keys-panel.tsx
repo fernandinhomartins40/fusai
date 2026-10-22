@@ -16,22 +16,26 @@ import { KeyRound, Plus } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { toast } from 'sonner';
+import { confirmAction } from '@/components/confirm';
 import { ApiError, apiFetch } from '@/lib/api';
 import type { ApiKeyInfo, CreatedApiKey } from '@/lib/api-key-types';
 import { dateTimeBR } from '@/lib/format';
 import { CreateKeyForm } from './create-key-form';
+import { EditKeyForm } from './edit-key-form';
 import { KeyReveal } from './key-reveal';
 
 export function ApiKeysPanel({ projectId, keys }: { projectId: string; keys: ApiKeyInfo[] }) {
   const router = useRouter();
   const [creating, setCreating] = useState(false);
   const [created, setCreated] = useState<CreatedApiKey | null>(null);
+  const [editing, setEditing] = useState<ApiKeyInfo | null>(null);
 
   async function revoke(key: ApiKeyInfo) {
     if (
-      !confirm(
+      !(await confirmAction(
         `Revogar a chave “${key.name}” (${key.prefix}…)? Apps que usam esta chave param na hora.`,
-      )
+        { confirmLabel: 'Revogar', destructive: true },
+      ))
     )
       return;
     try {
@@ -90,13 +94,18 @@ export function ApiKeysPanel({ projectId, keys }: { projectId: string; keys: Api
                   <span className="flex items-center gap-2">
                     <code className="font-mono text-xs">{k.prefix}…</code>
                     <Badge variant={k.env === 'LIVE' ? 'outline' : 'warning'}>
-                      {k.env === 'LIVE' ? 'live' : 'teste'}
+                      {k.env === 'LIVE' ? 'produção' : 'teste'}
                     </Badge>
                   </span>
                 </TableCell>
                 <TableCell className="text-muted-foreground text-xs">
                   {k.rpmLimit ?? 120} rpm
                   {k.spendLimitMicros ? ` · ${formatBRL(BigInt(k.spendLimitMicros))}/mês` : ''}
+                  <span className="block">
+                    {k.scopes.length === 1 && k.scopes[0] === 'chat'
+                      ? 'só chat'
+                      : `${k.scopes.length} permissões`}
+                  </span>
                 </TableCell>
                 <TableCell className="text-muted-foreground">
                   {k.lastUsedAt ? dateTimeBR(k.lastUsedAt) : 'nunca'}
@@ -112,14 +121,19 @@ export function ApiKeysPanel({ projectId, keys }: { projectId: string; keys: Api
                 </TableCell>
                 <TableCell className="text-right">
                   {k.revokedAt ? null : (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-destructive"
-                      onClick={() => revoke(k)}
-                    >
-                      Revogar
-                    </Button>
+                    <span className="inline-flex gap-1">
+                      <Button variant="ghost" size="sm" onClick={() => setEditing(k)}>
+                        Editar
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive"
+                        onClick={() => revoke(k)}
+                      >
+                        Revogar
+                      </Button>
+                    </span>
                   )}
                 </TableCell>
               </TableRow>
@@ -142,6 +156,25 @@ export function ApiKeysPanel({ projectId, keys }: { projectId: string; keys: Api
         ) : (
           <CreateKeyForm projectId={projectId} onCreated={setCreated} />
         )}
+      </Dialog>
+
+      <Dialog
+        open={editing != null}
+        onClose={() => setEditing(null)}
+        title="Editar chave"
+        description="Nome e limites. A chave continua a mesma."
+      >
+        {editing ? (
+          <EditKeyForm
+            key={editing.id}
+            apiKey={editing}
+            onSaved={() => {
+              setEditing(null);
+              toast.success('Chave atualizada');
+              router.refresh();
+            }}
+          />
+        ) : null}
       </Dialog>
     </section>
   );

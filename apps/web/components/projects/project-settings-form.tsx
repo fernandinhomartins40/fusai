@@ -143,7 +143,7 @@ export function ProjectSettingsForm({
         <Field
           id="p-free"
           label="Crédito grátis para novos usuários finais (R$)"
-          hint="0 = sem bônus."
+          hint="Sai do saldo da sua organização a cada novo usuário (sem saldo, ele é criado sem o crédito). 0 = sem crédito."
         >
           <Input
             id="p-free"

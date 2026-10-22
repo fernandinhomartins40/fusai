@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { ImpersonateButton } from '@/components/admin/impersonate-button';
+import { confirmAction } from '@/components/confirm';
 import type { AdminUser } from '@/lib/admin-types';
 import { ApiError, apiFetch } from '@/lib/api';
 
@@ -49,8 +50,13 @@ export function UserActions({ user }: { user: AdminUser }) {
         size="sm"
         variant="ghost"
         disabled={busy}
-        onClick={() => {
-          if (confirm(`Encerrar todas as sessões de ${user.email}?`))
+        onClick={async () => {
+          if (
+            await confirmAction(`Encerrar todas as sessões de ${user.email}?`, {
+              confirmLabel: 'Desconectar',
+              destructive: true,
+            })
+          )
             void run('revoke-sessions', undefined, 'Sessões encerradas');
         }}
       >

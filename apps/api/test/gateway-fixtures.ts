@@ -39,6 +39,8 @@ export async function setupGateway(
     spendLimitMicros?: bigint;
     scopes?: string[];
     allowedSlugs?: string[];
+    /** Makes the key's creator a real member with this role (default: no membership). */
+    keyCreatorRole?: 'OWNER' | 'ADMIN' | 'DEVELOPER' | 'BILLING';
   } = {},
 ) {
   const encKey = parseEncryptionKey(env.ENCRYPTION_KEY);
@@ -87,6 +89,16 @@ export async function setupGateway(
       allowedModelIds: (opts.allowedSlugs ?? []).map((s) => ids.get(s) as string),
     },
   });
+  let createdById = 'test';
+  if (opts.keyCreatorRole) {
+    const user = await prisma.user.create({
+      data: { id: `creator-${org.id}`, name: 'Criador', email: `creator-${org.id}@teste.local` },
+    });
+    await prisma.membership.create({
+      data: { userId: user.id, orgId: org.id, role: opts.keyCreatorRole },
+    });
+    createdById = user.id;
+  }
   const plain = generateApiKey(opts.keyEnv ?? 'LIVE');
   const key = await prisma.apiKey.create({
     data: {
@@ -98,7 +110,7 @@ export async function setupGateway(
       scopes: opts.scopes ?? ['chat', 'billing:read', 'checkout', 'app_users', 'mcp'],
       rpmLimit: opts.rpmLimit ?? null,
       spendLimitMicros: opts.spendLimitMicros ?? null,
-      createdById: 'test',
+      createdById,
     },
   });
   return { org, walletId, project, key, plain, modelIds: ids, providers: { main, backup } };

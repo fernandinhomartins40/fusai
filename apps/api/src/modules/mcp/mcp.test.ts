@@ -203,7 +203,7 @@ describe('MCP server (Phase 8)', () => {
   });
 
   it('update_project_settings previews, then applies only with confirm', async () => {
-    const g = await setup();
+    const g = await setup({ keyCreatorRole: 'OWNER' });
     const client = await connect(g.plain);
     const args = {
       allowedOrigins: ['https://app.exemplo.com'],

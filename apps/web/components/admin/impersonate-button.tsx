@@ -4,6 +4,7 @@ import { Button } from '@fusai/ui/components/button';
 import { Loader2, LogIn } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
+import { confirmAction } from '@/components/confirm';
 import { authClient } from '@/lib/auth-client';
 
 /**
@@ -14,7 +15,12 @@ export function ImpersonateButton({ userId, name }: { userId: string; name: stri
   const [pending, setPending] = useState(false);
 
   async function start() {
-    if (!confirm(`Entrar no painel como ${name}? A sessão dura 1 hora e fica na auditoria.`))
+    if (
+      !(await confirmAction(
+        `Entrar no painel como ${name}? A sessão dura 1 hora e fica na auditoria.`,
+        { confirmLabel: 'Entrar como' },
+      ))
+    )
       return;
     setPending(true);
     const { error } = await authClient.admin.impersonateUser({ userId });

@@ -213,3 +213,72 @@ Documentação do Asaas consultada em out/2026 (docs.asaas.com: cobranças via P
   - **Estorno pelo botão do admin:** recusado (409 `credits_already_used`) se o cliente já usou parte dos créditos.
   - **Estorno feito fora da fusai** (painel do Asaas ou MED): debita só até zerar. Se faltar, a organização é suspensa e o caso vai para a auditoria (`payment.refund_shortfall`).
   - **Pós-pago e limite de crédito desativados:** a API recusa (`postpaid_disabled`) e a opção saiu da tela. Substitui o pós-pago da D-119.
+- **D-129 — Auditoria PIE (2026-10-22): correções sem mudança de regra comercial.** Detalhes e evidências em `docs/pie/`.
+  - **Limite mensal da chave (R-04/R-05):** o session token guarda a chave que o emitiu (`kid`). O consumo do usuário final conta no limite mensal dessa chave e aparece no `UsageLog` com o `apiKeyId` dela. A checagem é atômica dentro do `reserve()` (trava por chave, soma do cobrado no mês + reservas abertas; coluna `WalletHold.apiKeyId`). Tokens antigos, sem `kid`, seguem sem limite até expirar (15 min). Organizações INTERNAL continuam com a checagem antiga.
+  - **Estornos (R-06/R-07):** antes de debitar um `PAYMENT_REFUNDED`, a API confirma o estorno no Asaas. Estorno parcial, estorno em andamento, contestação e reversão de dinheiro geram `payment.needs_review` na auditoria, sem débito automático. O webhook `payment.refunded` ganha `refund { debitedMicros, shortfallMicros }`.
+  - **Chave de projeto no MCP (S-01):** `update_project_settings` segue as regras do painel. Quem criou a chave precisa continuar OWNER/ADMIN/DEVELOPER, e `billingMode` exige OWNER/ADMIN; vale também para `webhookUrl` e `allowedOrigins`.
+  - **Dados de usuário final no MCP (S-03):** nome e email vão em `untrusted`, sem caracteres de controle, zero-width e bidi, e com no máximo 120 caracteres. As instruções avisam a IA de que são dados, não ordens.
+  - **Personificação (S-04):** todo registro de auditoria feito durante a personificação guarda `metadata.impersonatedBy`.
+  - **Login (S-05):** no máximo 10 senhas erradas por conta em 15 min, de qualquer IP. Depois disso, 429 `ACCOUNT_TEMPORARILY_LOCKED` só para login com senha. Login com Google e reset de senha continuam livres. O email fica no Redis só como hash.
+  - **Configurações (D-07/D-08):** uma chave inválida volta ao padrão sozinha e gera log, em vez de derrubar todas. O validador decimal recusa texto (400) em vez de lançar exceção (500).
+  - **Teto de saída (R-02):** o gateway manda ao provedor o `max_tokens` coberto pela reserva.
+  - **SSRF (S-02):** também bloqueia IPv4 mapeado em IPv6, NAT64 e faixas reservadas. **Logs (S-06):** tokens de convite, verificação e reset saem da URL logada. **Web (S-07):** cabeçalhos X-Frame-Options, nosniff e HSTS.
+  - **Dependências (S-08):** `@modelcontextprotocol/sdk` 1.32.1, `nodemailer` 10 e override de `postcss` ^8.5.23. Os alertas restantes vêm do `vitest` (só testes) e do CLI do Prisma (só build).
+- **D-130 — Créditos de usuário final saem da carteira da organização (R-01, regra do dono, 2026-10-22).** Crédito grátis no cadastro, ajuste positivo (painel e MCP `adjust_end_user_credits`) e bônus de pacote passam a ser **transferência**: débito na carteira da org e crédito no AppUser na mesma transação, com a checagem atômica de saldo. Sem saldo, a API recusa (402). O pacote do projeto só pode dar créditos até o valor pago (`creditMicros ≤ priceCents` em micros), e o bônus do pacote é debitado da org quando o Pix é liquidado. **Implementado** (`pie-receita.test.ts` 13/13).
+  - **Organizações INTERNAL:** dão crédito sem transferência.
+  - **De onde sai a transferência:** só do saldo pré-pago disponível, sem usar limite de crédito.
+  - **Ajuste negativo:** não devolve o valor à organização.
+  - **Cadastro de AppUser sem saldo na org:** cria o usuário sem o crédito grátis e responde com `freeCredit: "insufficient_org_balance"`.
+  - **Venda de pacote sem saldo para o bônus:** o usuário recebe só os créditos do pacote, e a auditoria registra `payment.bonus_skipped`.
+  - **Pacote com créditos acima do preço:** recusado com 400 `package_credit_above_price`. Em pacotes antigos, o excedente passa a ser tratado como bônus.
+  - **Ajuste no painel:** aceita `Idempotency-Key` (R-09).
+  - **Pool do banco:** `reserve` e `settle` usam `maxWait` de 10 s, para evitar o erro P2028 sob carga.
+- **D-131 — Estornos, contestação e Pix pago depois de vencido (regras do dono, 2026-10-22).** **Implementado** (`pie-estornos.test.ts` 7/7).
+  - **Status do pagamento:** sempre decidido pelo GET no Asaas, nunca só pelo webhook.
+  - **Eventos tratados como estorno:** `PAYMENT_PARTIALLY_REFUNDED`. O webhook `payment.refunded` também sai em estorno parcial, com `refund.refundedMicros` e `refund.partial`.
+  - **Bônus pago pela org:** descontado do usuário no estorno e não devolvido à org.
+  - **Eventos que congelam:** `CHARGEBACK_REQUESTED`, `CHARGEBACK_DISPUTE` e `AWAITING_CHARGEBACK_REVERSAL` congelam com um `WalletHold` `chargeback:<id>` sem expiração.
+  - **Eventos que só vão para a auditoria:** `REFUND_IN_PROGRESS` e `RECEIVED_IN_CASH_UNDONE`.
+  - **AppUser bloqueado:** recebe 403 `end_user_blocked`; o desbloqueio é pela rota `/unblock`.
+  - **Reconciliação:** o job `reconcile-payments` roda a cada 30 min.
+  - **Estorno parcial (R-06):** desconta a mesma fração dos créditos entregues, bônus incluído, arredondada para cima. Exemplo: recarga de R$ 100 que deu R$ 110, estorno de R$ 40, desconto de R$ 44. O total já estornado fica guardado no pagamento, para um estorno posterior debitar só a diferença. Vale a D-128: o saldo nunca fica negativo.
+  - **Contestação (chargeback):** congela os créditos da recarga até a disputa terminar. Disputa ganha descongela; disputa perdida vira estorno.
+  - **Usuário final (R-07):** quem estornou créditos que já tinha gastado fica bloqueado no gateway (403), e o webhook `payment.refunded` informa a falta. A organização continua funcionando, e o painel permite desbloquear.
+  - **Pix pago depois de vencido (R-11):** a varredura consulta de novo no Asaas os pagamentos expirados há até 7 dias e ainda não creditados. Se o Asaas confirmar o pagamento, credita normalmente (idempotente).
+- **D-132 — MCP, MFA e segredos (decisões do dono, 2026-10-22).** **Implementado** (suíte da API 231/231 em 38 arquivos, na execução do agente).
+  - **S-03, escopos da chave criada pelo MCP:** o servidor decide os escopos, e a chave **nunca** recebe `mcp`. Não ficou só chat porque o guia de integração usa saldo e recarga.
+    - Uso próprio: `chat`, `billing:read` e `checkout`.
+    - Revenda e híbrido: os mesmos, mais `app_users`.
+  - **S-03, aviso de mudança:** mudar webhook, origens ou modo de cobrança via MCP manda email aos donos com os nomes dos campos alterados, sem URLs nem segredos.
+  - **S-05, MFA:** TOTP pelo plugin `twoFactor` do better-auth, obrigatório para SUPER_ADMIN e opcional para clientes, com códigos de backup.
+    - Sem 2FA verificado (`session.mfaVerifiedAt`), `/internal/admin` e `/api/auth/admin/*` respondem 403 `mfa_required`.
+    - Página `/seguranca`; no máximo 5 verificações por minuto.
+    - **Passo manual:** o super admin cadastra o autenticador no primeiro acesso depois do deploy.
+  - **S-05, email de bloqueio:** sai uma vez por bloqueio e só para contas que existem.
+  - **S-05, limitações conhecidas:** login Google de cliente com 2FA não pede o TOTP; a mensagem do bloqueio por TOTP fala em senha.
+  - **Dependência nova:** `qrcode` 1.5.4.
+  - **S-14:** em produção, a API não sobe com `BETTER_AUTH_SECRET` ou `SESSION_TOKEN_SECRET` com menos de 32 caracteres. Para o `KEY_PEPPER` o mínimo é 16: mudá-lo invalida todas as chaves, então o mínimo não sobe para 32. **Risco:** o tamanho dos segredos atuais de produção não foi conferido, porque o acesso de leitura foi negado. O deploy deve manter a versão anterior no ar se a nova não ficar saudável. O `deploy.sh` gera segredos novos com `openssl rand -hex 32`.
+  - **S-16:** os tokens OAuth de acesso e de renovação são cifrados no banco com AES-256-GCM, e o `idToken` deixa de ser gravado. Os tokens antigos, em texto, continuam legíveis.
+- **D-133 — Operação da VPS (decisões do dono, 2026-10-22; implementado).** Tudo é aplicado pelo deploy via Actions, só nos containers `fuseai-*`. Detalhes e restauração manual em `docs/OPERACAO.md`.
+  - **Backup (V-01):** serviço `fuseai-backup` (mesma imagem do Postgres), diário às 03:30 de Brasília, com 7 dumps em `/root/fuseai/backups/daily`, fora do volume do banco. Cada dump é restaurado num Postgres temporário e comparado (tabelas e migrações); um dump reprovado vira `.failed` e deixa o container "unhealthy". Não há cópia externa nem alerta por email.
+  - **Imagem e rollback (V-02/V-03):** a imagem da API leva só as dependências de produção, sem as peers opcionais do better-auth. O `prisma` passou a ser dependência de produção do `@fusai/db` e o seed vai empacotado em `dist/seed.js`. Antes da troca, a API e a web novas sobem à parte e precisam responder; se não subirem (inclusive por segredo fraco, D-131), a versão no ar continua. Workflow manual "Rollback" reimplanta as imagens de um SHA sem rodar migração nem seed.
+  - **Desligamento sem cortar streams (V-04):** no SIGTERM a API espera até 55 s pelas requisições e streams e fecha as conexões keep-alive ociosas; o worker termina os jobs em curso. `stop_grace_period`: 65 s na api e no worker, 30 s na web.
+  - **Saúde (V-05):** `/health/ready` testa Postgres e Redis (503 se algum falhar) e é usado pelo deploy. O worker grava um heartbeat a cada job, tem healthcheck e encerra sozinho após 3 min sem concluir nenhum job, para o `restart` subir de novo.
+  - **Limites (V-06):** tetos de CPU (postgres 1,0; redis 0,5; api 1,0; worker 0,5; web 0,75; nginx 0,25; backup 0,25), memória mantida, `pids_limit` e logs de 10 MB × 3 em todos os serviços.
+- **D-134 — Ativação, alertas e chaves (O-02, O-06, O-10/O-11, O-12; feito em 2026-10-22).**
+  - **Checklist "Primeiros passos" no Início:** conta, projeto, chave, créditos e primeira chamada, a partir do novo campo `activation` do overview. Substitui o cartão "Comece por aqui" e some quando tudo está concluído.
+  - **Email de saldo baixo:** vai aos membros OWNER e BILLING, no máximo uma vez por dia por tipo (`notifyOnce`), com link para a recarga. O webhook `balance.low` não mudou.
+  - **Email de créditos esgotados:** dispara quando uma chamada da carteira da organização é **recusada com 402**. No pré-pago o saldo para antes de zerar, porque a reserva deixa de caber.
+  - **Admin:** `GET /internal/admin/readiness` mostra o checklist "Pronto para vender": provedor ativo com chave, modelo ativo com preço, Asaas, pacote global ativo e câmbio com no máximo 7 dias. A idade do câmbio vem do `updatedAt` da configuração `usd_brl_rate`, então salvar Preços sem mudar o câmbio conta como atualização. `GET /internal/admin/providers/health` mostra, por provedor, requisições, % de erro e p95 nas últimas 24 h, e o estado do circuit breaker.
+  - **Chaves criadas no painel:** nascem só com `chat`; os demais escopos ficam em "Avançado", com explicação em pt-BR. Dá para editar nome, rpm e limite mensal (PATCH já existente). O padrão do schema da API e as chaves existentes não mudam.
+  - **Chave do onboarding:** nasce com `chat` + `mcp`, porque o onboarding leva ao Kit de Integração, que usa MCP.
+- **D-135 — LGPD: rascunho, exportação, exclusão e retenção (feito em 2026-10-22).**
+  - **`/termos` e `/privacidade`:** publicadas como **rascunho** visível, sujeitas a revisão jurídica. Os dados da empresa ficam como placeholders em `apps/web/lib/legal.ts`; `draft: false` remove o aviso.
+  - **Exportar meus dados:** `GET /internal/privacy/export`, com limite de 5 por hora. Não inclui hashes, senhas, tokens nem segredos de webhook, e só traz organizações das quais a pessoa é dona.
+  - **Excluir minha conta:** a pessoa confirma digitando o email e tem 7 dias de carência, com cancelamento possível. Recebe um email e o pedido entra na auditoria.
+    - Recusada para quem é o único OWNER de uma organização com saldo, Pix pendente, usuários finais com créditos ou outros membros. Super admin também não pode pedir.
+    - Depois da carência, um job de hora em hora confere as regras de novo e então: anonimiza nome e email; apaga sessões, logins e verificações; bane a conta; suspende as organizações que eram só da pessoa e revoga as chaves delas.
+    - Pagamentos, extrato e consumo são mantidos, por obrigação fiscal.
+  - **Retenção:** desligada por padrão. O super admin liga em admin → Sistema, com mínimo de 180 dias. Apaga UsageLog, AuditLog, webhooks finalizados, eventos processados, sessões vencidas e convites encerrados. Nunca apaga pagamentos nem extrato.
+  - **Personificação:** exportação e exclusão ficam bloqueadas (403) enquanto um super admin está personificando a conta.
+  - **Migração:** `20261023130000_pie_privacy`, aditiva (`User.deletionRequestedAt`, `User.deletedAt`).

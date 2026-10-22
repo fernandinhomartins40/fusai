@@ -7,6 +7,8 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   const me = await getMe();
   if (!me) redirect('/entrar?next=/admin');
   if (me.user.role !== 'SUPER_ADMIN') forbidden();
+  // PIE S-05: the admin panel needs a session confirmed with the authenticator app.
+  if (!me.user.mfaVerified) redirect('/seguranca');
 
   return (
     <AppShell variant="admin" user={{ name: me.user.name, email: me.user.email }} canSwitch>

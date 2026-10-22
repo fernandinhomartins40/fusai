@@ -51,6 +51,12 @@ export function AppShell({
 
   return (
     <div className="min-h-dvh">
+      <a
+        href="#conteudo"
+        className="sr-only z-50 rounded-lg bg-background px-3 py-2 text-sm shadow focus:not-sr-only focus:fixed focus:top-2 focus:left-2"
+      >
+        Pular para o conteúdo
+      </a>
       {/* Desktop sidebar */}
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r bg-card/40 md:flex">
         <div className="flex h-16 shrink-0 items-center gap-2 px-5">
@@ -102,7 +108,9 @@ export function AppShell({
       <div className="md:pl-64">
         {impersonating ? <ImpersonationBanner user={user} /> : null}
         <main
-          className="mx-auto max-w-6xl px-4 pt-6 sm:px-6 md:px-8 md:pt-8 md:pb-12"
+          id="conteudo"
+          tabIndex={-1}
+          className="mx-auto max-w-6xl outline-none px-4 pt-6 sm:px-6 md:px-8 md:pt-8 md:pb-12"
           style={{ paddingBottom: 'calc(6.5rem + env(safe-area-inset-bottom))' }}
         >
           {children}

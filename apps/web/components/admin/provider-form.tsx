@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
+import { confirmAction } from '@/components/confirm';
 import { Field, FormAlert } from '@/components/form-field';
 import type { AdminProvider } from '@/lib/admin-types';
 import { ApiError, apiFetch } from '@/lib/api';
@@ -62,7 +63,14 @@ export function ProviderForm({ provider }: { provider?: AdminProvider }) {
   });
 
   async function remove() {
-    if (!provider || !confirm(`Excluir o provedor ${provider.name}?`)) return;
+    if (
+      !provider ||
+      !(await confirmAction(`Excluir o provedor ${provider.name}?`, {
+        confirmLabel: 'Excluir',
+        destructive: true,
+      }))
+    )
+      return;
     try {
       await apiFetch(`/internal/admin/providers/${provider.id}`, { method: 'DELETE' });
       toast.success('Provedor excluído');

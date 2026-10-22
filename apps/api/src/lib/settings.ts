@@ -16,8 +16,35 @@ export function createSettingsStore(prisma: PrismaClient) {
     for (const row of rows) {
       if (row.key in DEFAULT_SETTINGS) raw[row.key] = String(row.value);
     }
-    const parsed = settingsSchema.safeParse(raw);
-    return parsed.success ? parsed.data : DEFAULT_SETTINGS;
+    const parsed = safeParse(raw);
+    if (parsed) return parsed;
+    // Only the invalid keys fall back to their defaults (PIE D-07): one bad row must not
+    // reset (or break) the exchange rate, markup and fees.
+    const defaults = DEFAULT_SETTINGS as Record<string, unknown>;
+    const shape = settingsSchema.shape as Record<string, { safeParse: (v: unknown) => unknown }>;
+    const bad = Object.entries(shape)
+      .filter(([key, schema]) => !validField(schema, raw[key]))
+      .map(([key]) => key);
+    console.error(`settings: invalid values for ${bad.join(', ')}; using their defaults`);
+    for (const key of bad) raw[key] = defaults[key];
+    return safeParse(raw) ?? DEFAULT_SETTINGS;
+  }
+
+  /** Some refinements throw on garbage instead of failing; treat that as invalid too. */
+  function safeParse(raw: Record<string, unknown>): Settings | null {
+    try {
+      const r = settingsSchema.safeParse(raw);
+      return r.success ? r.data : null;
+    } catch {
+      return null;
+    }
+  }
+  function validField(schema: { safeParse: (v: unknown) => unknown }, value: unknown) {
+    try {
+      return (schema.safeParse(value) as { success: boolean }).success;
+    } catch {
+      return false;
+    }
   }
 
   return {
@@ -28,8 +55,16 @@ export function createSettingsStore(prisma: PrismaClient) {
       return value;
     },
     async save(values: Settings): Promise<Settings> {
+      // Only changed keys are written, so `updatedAt` tells when each value really changed
+      // (the admin readiness check uses it for the exchange rate age).
+      const current = new Map(
+        (await prisma.setting.findMany()).map((row) => [row.key, String(row.value)]),
+      );
+      const changed = Object.entries(values).filter(
+        ([key, value]) => current.get(key) !== String(value),
+      );
       await prisma.$transaction(
-        Object.entries(values).map(([key, value]) =>
+        changed.map(([key, value]) =>
           prisma.setting.upsert({
             where: { key },
             update: { value: String(value) },

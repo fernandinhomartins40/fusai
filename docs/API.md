@@ -142,7 +142,7 @@ Membros da organização; 404 para quem não é membro.
 | GET | `/internal/payments/:id` | sessão (membro) | Status (para o polling). QR e copia e cola só enquanto `PENDING`. |
 | GET | `/internal/organizations/:orgId/payments?cursor&limit` | sessão (membro) | Histórico de recargas. |
 | GET | `/internal/admin/payments?status&orgId&cursor` | super admin | Todos os pagamentos (ou de um cliente). |
-| POST | `/internal/admin/payments/:id/refund` | super admin | Pede o estorno ao Asaas (o débito entra com o webhook `PAYMENT_REFUNDED`). 409 se não for estornável. |
+| POST | `/internal/admin/payments/:id/refund` | super admin | Pede o estorno ao Asaas (o débito entra com o webhook `PAYMENT_REFUNDED`). 409 se não for estornável. Estorno parcial feito no painel do Asaas desconta a fração proporcional dos créditos (bônus incluído) sozinho; chargeback congela os créditos da recarga até a disputa acabar. |
 
 ## Usuários finais e checkout (Fase 7)
 
@@ -154,7 +154,7 @@ Quem paga o chat: `ORG_WALLET` → organização; `END_USER_WALLET` → usuário
 
 | Método | Rota | Credencial | Descrição |
 |---|---|---|---|
-| POST | `/v1/app-users` | secreta (`app_users`) | Upsert `{ externalId, email?, name?, document? }` → `{ id, externalId, email, name, balanceMicros, availableMicros, createdAt }` (201 se novo). Crédito grátis do projeto 1×. |
+| POST | `/v1/app-users` | secreta (`app_users`) | Upsert `{ externalId, email?, name?, document? }` → `{ id, externalId, email, name, balanceMicros, availableMicros, blockedAt, createdAt, freeCredit? }` (201 se novo). Crédito grátis do projeto 1×, **pago pela carteira da organização**: sem saldo, o usuário é criado sem ele e `freeCredit` = `"insufficient_org_balance"` (`"granted"` quando deu). |
 | GET | `/v1/app-users/:externalId` | secreta (`app_users`) | Dados + saldo. 404 `app_user_not_found`. |
 | POST | `/v1/app-users/:externalId/session-token` | secreta (`app_users`) | `{ token, expiresAt, scopes }`. |
 | GET | `/v1/packages` | `checkout` | `{ data: [{ id, name, priceCents, creditMicros, bonusMicros, highlight }] }`. |
@@ -167,16 +167,17 @@ Quem paga o chat: `ORG_WALLET` → organização; `END_USER_WALLET` → usuário
 ### Webhooks de saída
 `POST` JSON para `Project.webhookUrl`: `{ id: "evt_…", type, created, data }`.
 Headers: `X-Fuse-Event`, `X-Fuse-Delivery`, `X-Fuse-Signature: t=<unix>,v1=<hex hmac_sha256(secret, t + "." + corpo)>`.
-Eventos: `payment.received`, `app_user.credited`, `payment.expired`, `payment.refunded` (`data.payment { id, checkoutId, status, amountCents, creditMicros, packageId }`, `data.appUser { id, externalId, balanceMicros }`), `balance.low` (`availableMicros`, `thresholdMicros`), `usage.limit_reached` (`apiKey`, `spendLimitMicros`, `spentMicros`), `test.ping`.
+Eventos: `payment.received`, `app_user.credited`, `payment.expired`, `payment.refunded` (`data.payment { id, checkoutId, status, amountCents, creditMicros, packageId }`, `data.appUser { id, externalId, balanceMicros }`, `data.refund { debitedMicros, shortfallMicros, refundedMicros, partial }`: quanto foi debitado, quanto já tinha sido gasto, o total já estornado e se foi parcial), `balance.low` (`availableMicros`, `thresholdMicros`), `usage.limit_reached` (`apiKey`, `spendLimitMicros`, `spentMicros`), `test.ping`.
 Sucesso = qualquer 2xx em até 10 s. Novas tentativas: 1 min, 5 min, 30 min, 2 h, 12 h (6 no total). Verificação pronta: `verifyWebhook` de `@fusai/sdk/server`.
 
 ### Painel (sessão)
 | Método | Rota | Descrição |
 |---|---|---|
-| GET/POST | `/internal/projects/:id/packages` | Lista / cria pacote (`name, priceCents ≥ 500, creditMicros, bonusMicros, highlight, active, sortOrder`). |
+| GET/POST | `/internal/projects/:id/packages` | Lista / cria pacote (`name, priceCents ≥ 500, creditMicros ≤ preço, bonusMicros, highlight, active, sortOrder`). Créditos acima do preço: 400 `package_credit_above_price`. O bônus é pago pela carteira da organização na hora da venda (sem saldo, o comprador recebe só os créditos). |
 | PATCH/DELETE | `/internal/projects/:id/packages/:packageId` | Edita / remove (desativa se já vendido). |
 | GET | `/internal/projects/:id/app-users?q&cursor` | Usuários finais com saldo (50 por página). |
-| POST | `/internal/projects/:id/app-users/:appUserId/adjust` | `{ amountMicros (±), description }` — dono/admin. |
+| POST | `/internal/projects/:id/app-users/:appUserId/adjust` | `{ amountMicros (±), description }` + `Idempotency-Key` opcional — dono/admin. Valor positivo sai da carteira da organização (402 `insufficient_org_balance` sem saldo). |
+| POST | `/internal/projects/:id/app-users/:appUserId/unblock` | Desbloqueia o usuário final bloqueado por estorno de créditos já usados — dono/admin. |
 | GET | `/internal/projects/:id/webhooks?status&cursor` | Histórico de entregas. |
 | POST | `/internal/projects/:id/webhooks/:hookId/resend` | Reenvia agora. |
 | POST | `/internal/projects/:id/webhooks/test` | Envia `test.ping` e devolve o resultado. |

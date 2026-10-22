@@ -5,6 +5,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { Env } from '../../lib/env';
 import { HttpError } from '../../lib/errors';
+import type { Mailer } from '../../lib/mailer';
 import type { SettingsStore } from '../../lib/settings';
 import { untilNow } from '../../lib/time';
 import type { PaymentProvider } from '../../payments/types';
@@ -21,6 +22,7 @@ import {
   sendTestWebhook,
   updateProjectSettings,
 } from './actions';
+import { notifyOwnersOfMcpChange } from './safeguards';
 
 export type McpDeps = {
   prisma: PrismaClient;
@@ -29,6 +31,7 @@ export type McpDeps = {
   provider: PaymentProvider;
   env: Env;
   encryptionKey: Buffer;
+  mailer: Mailer;
   /** Runs a request against our own /v1 (test_chat goes through the real gateway and billing). */
   inject: (opts: {
     method: 'POST';
@@ -363,6 +366,34 @@ export function buildMcpServer(ctx: GatewayContext, deps: McpDeps) {
       billingMode?: 'ORG_WALLET' | 'END_USER_WALLET' | 'HYBRID';
       confirm?: boolean;
     }>('update_project_settings', async ({ confirm, ...changes }) => {
+      // Same roles as the dashboard, checked on whoever created the key (S-01): a project key
+      // must not do more than its creator can do today.
+      if (
+        changes.billingMode !== undefined ||
+        changes.webhookUrl !== undefined ||
+        changes.allowedOrigins !== undefined
+      ) {
+        const member = ctx.key
+          ? await prisma.membership.findUnique({
+              where: { userId_orgId: { userId: ctx.key.createdById, orgId: ctx.org.id } },
+            })
+          : null;
+        if (!member) {
+          return fail(
+            'Quem criou esta chave não é mais membro da organização: altere as configurações do projeto pelo painel.',
+          );
+        }
+        if (!['OWNER', 'ADMIN', 'DEVELOPER'].includes(member.role)) {
+          return fail(
+            'Só donos, admins e desenvolvedores mudam as configurações do projeto. Use o painel.',
+          );
+        }
+        if (changes.billingMode !== undefined && !['OWNER', 'ADMIN'].includes(member.role)) {
+          return fail(
+            'Só donos e admins mudam o modo de cobrança. Use uma chave criada por um dono/admin ou o painel.',
+          );
+        }
+      }
       const res = await updateProjectSettings(
         prisma,
         hookOpts,
@@ -370,8 +401,10 @@ export function buildMcpServer(ctx: GatewayContext, deps: McpDeps) {
         changes,
         !!confirm,
       );
-      if (res.ok && confirm)
+      if (res.ok && confirm) {
         await audit('update_project_settings.applied', { fields: Object.keys(changes) });
+        await notifyOwnersOfMcpChange(prisma, deps.mailer, env.APP_URL, await project(), changes);
+      }
       return result(res);
     }),
   );

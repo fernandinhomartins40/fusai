@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { ExportCsvButton } from '@/components/export-csv-button';
 import { LedgerTable } from '@/components/ledger-table';
 import { PaymentsTable } from '@/components/payments-table';
@@ -11,12 +12,12 @@ import type { LedgerPage, WalletInfo } from '@/lib/wallet-types';
 
 export const metadata: Metadata = { title: 'Carteira' };
 
-type Props = { searchParams: Promise<{ recarga?: string }> };
+type Props = { searchParams: Promise<{ recarga?: string; pix?: string }> };
 
 export default async function WalletPage({ searchParams }: Props) {
   const org = await getCurrentOrg(await getMe());
   if (!org) return null;
-  const { recarga } = await searchParams;
+  const { recarga, pix } = await searchParams;
 
   const base = `/internal/organizations/${org.id}/wallet`;
   const [{ data: wallet }, { data: ledger }, { data: options }, { data: payments }] =
@@ -28,6 +29,12 @@ export default async function WalletPage({ searchParams }: Props) {
     ]);
   if (!wallet || !ledger || !options) throw new Error('Não foi possível carregar a carteira');
   const internal = wallet.billingType === 'INTERNAL';
+  const pending = (payments?.items ?? []).filter(
+    (p) =>
+      p.status === 'PENDING' &&
+      !!p.pixCopyPaste &&
+      (!p.expiresAt || new Date(p.expiresAt).getTime() > Date.now()),
+  );
 
   return (
     <div className="grid gap-6">
@@ -41,7 +48,14 @@ export default async function WalletPage({ searchParams }: Props) {
         </div>
         {internal ? null : (
           <div className="flex flex-wrap items-center gap-2">
-            <TopupDialog orgId={org.id} options={options} autoOpen={recarga === '1'} />
+            <TopupDialog
+              key={pix ?? 'topup'}
+              orgId={org.id}
+              options={options}
+              autoOpen={recarga === '1'}
+              pending={pending}
+              resumeId={pix}
+            />
           </div>
         )}
       </div>
@@ -49,7 +63,25 @@ export default async function WalletPage({ searchParams }: Props) {
       {internal ? null : (
         <section className="grid gap-3">
           <h2 className="font-semibold text-lg">Recargas</h2>
-          <PaymentsTable items={payments?.items ?? []} />
+          <PaymentsTable
+            items={payments?.items ?? []}
+            extraColumn={
+              pending.length
+                ? {
+                    header: 'Pix',
+                    cell: (p) =>
+                      pending.some((q) => q.id === p.id) ? (
+                        <Link
+                          href={`/app/carteira?pix=${p.id}`}
+                          className="text-sm underline underline-offset-4"
+                        >
+                          Ver QR
+                        </Link>
+                      ) : null,
+                  }
+                : undefined
+            }
+          />
         </section>
       )}
       <section className="grid gap-3">

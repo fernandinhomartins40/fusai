@@ -121,9 +121,23 @@ export const dashboardTeamRoutes: FastifyPluginAsyncZod<Options> = async (
           },
         });
       });
-      await mailer.send(
-        invitationEmail(email, user.name, org.name, `${env.APP_URL}/convite/${token}`),
-      );
+      try {
+        await mailer.send(
+          invitationEmail(email, user.name, org.name, `${env.APP_URL}/convite/${token}`),
+        );
+      } catch (err) {
+        // An invitation nobody received must not stay pending.
+        req.log.warn({ err }, 'invitation email failed');
+        await prisma.invitation.update({
+          where: { id: invitation.id },
+          data: { revokedAt: new Date() },
+        });
+        throw new HttpError(
+          502,
+          'email_failed',
+          'Não foi possível enviar o convite. Tente novamente em instantes.',
+        );
+      }
       await audit(prisma, req, 'team.invite', org.id, { email, role });
       return reply.status(201).send({
         id: invitation.id,

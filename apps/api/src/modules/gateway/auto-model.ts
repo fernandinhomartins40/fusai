@@ -1,3 +1,4 @@
+import { sellsBelowCost } from '../../lib/model-pricing';
 import type { CatalogEntry } from './catalog';
 
 /**
@@ -42,14 +43,21 @@ export function rankCheapest<T extends CatalogEntry>(
   });
 }
 
-/** Candidates for `fuse/auto`: usable entries that meet the needs, cheapest first. */
+/**
+ * Candidates for `fuse/auto`: usable entries that meet the needs, cheapest first.
+ * With `usdBrlRate`, models sold below cost are skipped (R-10): the cheapest one is
+ * often cheap precisely because its price is wrong.
+ */
 export function autoCandidates(
   usable: CatalogEntry[],
   needs: Needs,
   pricesOf: (e: CatalogEntry) => { inputPerM: bigint; outputPerM: bigint },
+  usdBrlRate?: string,
 ): CatalogEntry[] {
   return rankCheapest(
-    usable.filter((e) => meets(e, needs)),
+    usable.filter(
+      (e) => meets(e, needs) && !(usdBrlRate && sellsBelowCost(e.model, pricesOf(e), usdBrlRate)),
+    ),
     pricesOf,
   ).slice(0, AUTO_FALLBACKS);
 }

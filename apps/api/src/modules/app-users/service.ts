@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { Prisma, type PrismaClient, type Project } from '@fusai/db';
 import { onlyDigits } from '@fusai/shared';
 import { signJwt, verifyJwt } from '../../lib/jwt';
-import { applyLedger } from '../billing/wallet';
+import { applyLedger, type Tx, transferCredits } from '../billing/wallet';
 
 export const SESSION_TOKEN_PREFIX = 'fai_st_';
 export const SESSION_TTL_SECONDS = 15 * 60;
@@ -15,13 +15,62 @@ export type SessionClaims = {
   iat: number;
   exp: number;
   jti: string;
+  /** API key that issued the token: its monthly spend limit also covers this end user. */
+  kid?: string;
 };
 
 export type AppUserInput = { externalId: string; email?: string; name?: string; document?: string };
 
+export type EndUserCredit = {
+  orgId: string;
+  walletId: string;
+  amountMicros: bigint;
+  referenceType: string;
+  referenceId: string;
+  description: string;
+  actorId?: string | null;
+};
+
 /**
- * Creates or updates an end user and makes sure it has a wallet. New users get the
- * project's free credit (BONUS, once, keyed by the app user id) unless the org pays everything.
+ * Credit an organization gives to one of its end users (free credit, courtesy, package bonus).
+ * PIE R-01 (owner's rule): the organization pays for it, as a transfer from its own wallet.
+ * Returns false when the organization does not have that much available. INTERNAL
+ * organizations are fusai's own: their end users get the credit without a transfer.
+ */
+export async function giveEndUserCredit(tx: Tx, credit: EndUserCredit): Promise<boolean> {
+  const org = await tx.organization.findUniqueOrThrow({
+    where: { id: credit.orgId },
+    select: { billingType: true, wallet: { select: { id: true } } },
+  });
+  const ref = {
+    referenceType: credit.referenceType,
+    referenceId: credit.referenceId,
+    description: credit.description,
+    actorId: credit.actorId ?? null,
+  };
+  if (org.billingType === 'INTERNAL') {
+    await applyLedger(tx, {
+      walletId: credit.walletId,
+      type: 'BONUS',
+      amountMicros: credit.amountMicros,
+      ...ref,
+    });
+    return true;
+  }
+  if (!org.wallet) return false;
+  return transferCredits(tx, {
+    fromWalletId: org.wallet.id,
+    toWalletId: credit.walletId,
+    amountMicros: credit.amountMicros,
+    ...ref,
+  });
+}
+
+/**
+ * Creates or updates an end user and makes sure it has a wallet. New users get the project's
+ * free credit (once, keyed by the app user id) unless the org pays everything. The credit comes
+ * out of the organization's wallet (PIE R-01): without enough balance the user is still created,
+ * just without it (`freeCredit: 'insufficient_org_balance'`).
  */
 export async function upsertAppUser(prisma: PrismaClient, project: Project, input: AppUserInput) {
   const data = {
@@ -41,22 +90,24 @@ export async function upsertAppUser(prisma: PrismaClient, project: Project, inpu
           });
       let wallet = await tx.wallet.findUnique({ where: { appUserId: user.id } });
       let created = false;
+      let freeCredit: FreeCreditResult = null;
       if (!wallet) {
         wallet = await tx.wallet.create({ data: { ownerType: 'APP_USER', appUserId: user.id } });
         created = true;
         if (project.freeCreditMicros > 0n && project.billingMode !== 'ORG_WALLET') {
-          await applyLedger(tx, {
+          const given = await giveEndUserCredit(tx, {
+            orgId: project.orgId,
             walletId: wallet.id,
-            type: 'BONUS',
             amountMicros: project.freeCreditMicros,
             referenceType: 'free_credit',
             referenceId: user.id,
             description: 'Crédito grátis de boas-vindas',
           });
-          wallet = await tx.wallet.findUniqueOrThrow({ where: { id: wallet.id } });
+          freeCredit = given ? 'granted' : 'insufficient_org_balance';
+          if (given) wallet = await tx.wallet.findUniqueOrThrow({ where: { id: wallet.id } });
         }
       }
-      return { user, wallet, created: !existing || created };
+      return { user, wallet, created: !existing || created, freeCredit };
     });
   } catch (err) {
     // Two concurrent upserts of the same externalId: the second one just reads.
@@ -65,11 +116,14 @@ export async function upsertAppUser(prisma: PrismaClient, project: Project, inpu
         where: { projectId_externalId: { projectId: project.id, externalId: input.externalId } },
       });
       const wallet = await prisma.wallet.findUniqueOrThrow({ where: { appUserId: user.id } });
-      return { user, wallet, created: false };
+      return { user, wallet, created: false, freeCredit: null as FreeCreditResult };
     }
     throw err;
   }
 }
+
+/** Outcome of the welcome credit for a new end user (null: none was due). */
+export type FreeCreditResult = 'granted' | 'insufficient_org_balance' | null;
 
 export function serializeAppUser(
   user: {
@@ -77,6 +131,7 @@ export function serializeAppUser(
     externalId: string;
     email: string | null;
     name: string | null;
+    blockedAt?: Date | null;
     createdAt: Date;
   },
   wallet: { balanceMicros: bigint; reservedMicros: bigint } | null,
@@ -90,6 +145,7 @@ export function serializeAppUser(
     name: user.name,
     balanceMicros: balance.toString(),
     availableMicros: (balance - reserved).toString(),
+    blockedAt: user.blockedAt?.toISOString() ?? null,
     createdAt: user.createdAt.toISOString(),
   };
 }
@@ -99,6 +155,7 @@ export function issueSessionToken(
   projectId: string,
   secret: string,
   now = Date.now(),
+  apiKeyId?: string,
 ) {
   const iat = Math.floor(now / 1000);
   const claims: SessionClaims = {
@@ -108,6 +165,7 @@ export function issueSessionToken(
     iat,
     exp: iat + SESSION_TTL_SECONDS,
     jti: randomUUID(),
+    ...(apiKeyId ? { kid: apiKeyId } : {}),
   };
   return {
     token: `${SESSION_TOKEN_PREFIX}${signJwt(claims, secret)}`,

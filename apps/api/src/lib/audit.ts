@@ -10,6 +10,25 @@ export async function audit(
   metadata?: Prisma.InputJsonValue,
 ) {
   await prisma.auditLog.create({
-    data: { actorId: req.user?.id ?? null, action, target, metadata, ip: req.ip },
+    data: {
+      actorId: req.user?.id ?? null,
+      action,
+      target,
+      metadata: withImpersonator(metadata, req.user?.impersonatedBy ?? null),
+      ip: req.ip,
+    },
   });
+}
+
+/** During "entrar como cliente" the actor is the customer; keep the real super admin too (S-04). */
+function withImpersonator(
+  metadata: Prisma.InputJsonValue | undefined,
+  impersonatedBy: string | null,
+): Prisma.InputJsonValue | undefined {
+  if (!impersonatedBy) return metadata;
+  if (metadata === undefined) return { impersonatedBy };
+  if (typeof metadata === 'object' && metadata !== null && !Array.isArray(metadata)) {
+    return { ...(metadata as Prisma.InputJsonObject), impersonatedBy };
+  }
+  return { value: metadata, impersonatedBy };
 }

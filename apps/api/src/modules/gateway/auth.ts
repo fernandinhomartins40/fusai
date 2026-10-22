@@ -6,6 +6,9 @@ import { GatewayError, invalidApiKey } from './errors';
 
 export type GatewayAppUser = AppUser & { wallet: Wallet | null };
 
+/** The API key whose monthly spend limit covers the request (PIE R-04). */
+export type SpendKey = Pick<ApiKey, 'id' | 'prefix' | 'name' | 'spendLimitMicros'>;
+
 /**
  * Who is calling /v1:
  * - `secret`: a project API key (customer backend). `X-Fuse-User` may name an end user.
@@ -17,6 +20,8 @@ export type GatewayContext = {
   project: Project;
   org: Organization & { wallet: Wallet | null };
   appUser: GatewayAppUser | null;
+  /** The key itself, or the key that issued the session token (null for older tokens). */
+  spendKey: SpendKey | null;
   scopes: string[];
   env: 'LIVE' | 'TEST';
   /** Rate-limit bucket: the API key, or the end user for session tokens. */
@@ -44,6 +49,17 @@ function assertActive(org: Organization) {
   }
 }
 
+/** PIE R-07: an end user who refunded or charged back credits already spent. */
+function assertEndUserAllowed(user: AppUser) {
+  if (user.blockedAt) {
+    throw new GatewayError(
+      403,
+      'end_user_blocked',
+      'Este usuário final está bloqueado após um estorno de créditos já usados. O dono do app pode desbloquear no painel da fusai.',
+    );
+  }
+}
+
 export function createGatewayAuth(prisma: PrismaClient, pepper: string, sessionSecret: string) {
   async function fromSessionToken(req: FastifyRequest, token: string): Promise<GatewayContext> {
     const claims = verifySessionToken(token, sessionSecret);
@@ -58,6 +74,7 @@ export function createGatewayAuth(prisma: PrismaClient, pepper: string, sessionS
     const { project, ...user } = appUser;
     const { org, ...proj } = project;
     assertActive(org);
+    assertEndUserAllowed(user);
     // Browsers send Origin: only the project's allowed origins may use its session tokens.
     const origin = req.headers.origin;
     if (origin && !proj.allowedOrigins.includes(origin)) {
@@ -67,12 +84,19 @@ export function createGatewayAuth(prisma: PrismaClient, pepper: string, sessionS
         `A origem ${origin} não está nas origens permitidas do projeto (Configurações → Origens permitidas).`,
       );
     }
+    const spendKey = claims.kid
+      ? await prisma.apiKey.findFirst({
+          where: { id: claims.kid, projectId: proj.id },
+          select: { id: true, prefix: true, name: true, spendLimitMicros: true },
+        })
+      : null;
     return {
       kind: 'session',
       key: null,
       project: proj,
       org,
       appUser: user,
+      spendKey,
       scopes: claims.scp,
       env: 'LIVE',
       rateKey: `st:${user.id}`,
@@ -125,6 +149,7 @@ export function createGatewayAuth(prisma: PrismaClient, pepper: string, sessionS
           `Usuário final "${externalId}" não encontrado. Crie com POST /v1/app-users.`,
         );
       }
+      assertEndUserAllowed(appUser);
     }
 
     return {
@@ -133,6 +158,7 @@ export function createGatewayAuth(prisma: PrismaClient, pepper: string, sessionS
       project: proj,
       org,
       appUser,
+      spendKey: apiKey,
       scopes: apiKey.scopes,
       env: apiKey.env,
       rateKey: `key:${apiKey.id}`,

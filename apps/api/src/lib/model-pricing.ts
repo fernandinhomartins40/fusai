@@ -54,3 +54,19 @@ export function pricingSummary(model: Model, settings: Settings) {
     outputMarginBps: marginBps(prices.outputPerM, outputCost),
   };
 }
+
+/**
+ * R-10: true when a token price is below the provider cost converted to BRL, i.e. the
+ * fusai loses money on every token (markup < 1, a low fixed price or an outdated rate).
+ */
+export function sellsBelowCost(
+  model: Model,
+  prices: { inputPerM: bigint; outputPerM: bigint },
+  usdBrlRate: string,
+): boolean {
+  const input = toPriceInput(model);
+  return (
+    prices.inputPerM < costBrlPerM(input.inputCostUsdPerM, usdBrlRate) ||
+    prices.outputPerM < costBrlPerM(input.outputCostUsdPerM, usdBrlRate)
+  );
+}

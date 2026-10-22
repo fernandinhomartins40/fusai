@@ -1,5 +1,6 @@
 import type { Prisma, PrismaClient } from '@fusai/db';
 import {
+  compareDecimals,
   ledgerQuerySchema,
   onlyDigits,
   orgAdminUpdateSchema,
@@ -199,7 +200,15 @@ export const adminOrganizationRoutes: FastifyPluginAsyncZod<{ prisma: PrismaClie
     { schema: { params: idParams, body: orgAdminUpdateSchema } },
     async (req) => {
       const org = await findOrg(req.params.id);
-      const { reason, creditLimitMicros, markupOverride, ...rest } = req.body;
+      const { reason, creditLimitMicros, markupOverride, allowNegativeMargin, ...rest } = req.body;
+      // R-10: below 1× every automatic price for this customer is under the provider cost.
+      if (markupOverride && compareDecimals(markupOverride, '1') < 0 && !allowNegativeMargin) {
+        throw new HttpError(
+          400,
+          'negative_margin',
+          'Markup abaixo de 1× faz a fusai vender abaixo do custo para este cliente. Confirme para salvar mesmo assim.',
+        );
+      }
       // Owner's rule (D-128): prepaid only, nobody consumes on credit.
       if (
         rest.billingType === 'POSTPAID' ||

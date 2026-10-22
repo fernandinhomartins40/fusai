@@ -5,6 +5,7 @@ import { Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { toast } from 'sonner';
+import { confirmAction } from '@/components/confirm';
 import { ApiError, apiFetch } from '@/lib/api';
 
 /** Asks Asaas for the refund; the wallet is debited when the PAYMENT_REFUNDED webhook arrives. */
@@ -18,7 +19,12 @@ export function RefundButton({ paymentId }: { paymentId: string }) {
       className="text-destructive"
       disabled={pending}
       onClick={async () => {
-        if (!confirm('Estornar este Pix? O valor volta ao pagador e os créditos são debitados.'))
+        if (
+          !(await confirmAction(
+            'Estornar este Pix? O valor volta ao pagador e os créditos são debitados.',
+            { confirmLabel: 'Estornar', destructive: true },
+          ))
+        )
           return;
         setPending(true);
         try {

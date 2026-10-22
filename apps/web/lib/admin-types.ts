@@ -196,3 +196,17 @@ export type AdminSystem = {
   activeHolds: number;
   lastMigration: string | null;
 };
+
+export type AdminReadiness = {
+  ready: boolean;
+  checks: { id: string; label: string; ok: boolean; detail: string; href: string | null }[];
+};
+
+export type ProviderHealth = {
+  providerId: string;
+  requests: number;
+  errors: number;
+  errorPct: string | null;
+  p95LatencyMs: number | null;
+  circuitOpen: boolean;
+};

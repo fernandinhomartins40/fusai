@@ -87,3 +87,39 @@
     white-space: nowrap;
   }
 }
+
+/* Landing hero: the baseURL line swaps from OpenAI to fusai (motion only when allowed). */
+@keyframes fusai-swap-out {
+  45%,
+  100% {
+    color: var(--muted-foreground);
+    text-decoration-line: line-through;
+  }
+}
+@keyframes fusai-swap-in {
+  /* Highlight only: changing opacity or position of text re-records LCP (the code block). */
+  0%,
+  40% {
+    background-color: transparent;
+  }
+  55% {
+    background-color: color-mix(in oklab, var(--fusai-accent) 22%, transparent);
+  }
+  100% {
+    background-color: color-mix(in oklab, var(--fusai-accent) 10%, transparent);
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .hero-swap-out {
+    animation: fusai-swap-out 2.4s ease-out 0.2s both;
+  }
+  .hero-swap-in {
+    animation: fusai-swap-in 2.4s ease-out 0.2s both;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero-swap-out {
+    color: var(--muted-foreground);
+    text-decoration-line: line-through;
+  }
+}

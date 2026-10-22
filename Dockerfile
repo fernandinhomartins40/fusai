@@ -26,10 +26,37 @@ RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store pnpm install --offline -
 FROM deps AS build-api
 RUN pnpm --filter @fusai/api build
 
+# Production dependencies only (PIE V-02): the API bundle keeps @prisma/client and a few
+# packages external, and @fusai/db carries the Prisma CLI for `migrate deploy`. No Next,
+# devDependencies or other apps. Its postinstall generates the Prisma client for this base.
+FROM base AS api-deps
+COPY pnpm-lock.yaml pnpm-workspace.yaml ./
+RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store pnpm fetch --prod
+COPY . .
+RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store   pnpm install --offline --frozen-lockfile --prod --filter "@fusai/api..."
+# better-auth declares optional peers (Next, Vitest, Vite, sharp...) that auto-install-peers
+# puts in the production graph; the API never imports them (~300 MB).
+RUN cd node_modules/.pnpm && rm -rf next@* @next+* vitest@* @vitest+* vite@* rollup@* @rollup+* \
+  esbuild@* @esbuild+* lightningcss* @img+* sharp@*
+# Fails the build (not the deploy) if the Prisma CLI or a runtime import went missing.
+RUN cd packages/db && node_modules/.bin/prisma --version >/dev/null \
+  && cd ../../apps/api && node --input-type=module -e "for (const m of ['better-auth', \
+  'better-auth/node', 'better-auth/api', 'better-auth/adapters/prisma', 'better-auth/crypto', \
+  'better-auth/plugins/admin', 'bullmq', 'fastify', '@fastify/cors', '@fastify/helmet', \
+  'fastify-type-provider-zod', '@prisma/client', '@modelcontextprotocol/sdk/server/mcp.js', \
+  'nodemailer', 'ioredis', 'js-tiktoken', 'pino', 'secure-json-parse', 'zod']) await import(m)"
+
 FROM base AS api
 ARG APP_VERSION=dev
 ENV NODE_ENV=production HOST=0.0.0.0 PORT=4000 APP_VERSION=$APP_VERSION
-COPY --from=build-api /app /app
+# Same paths as before (apps/api/dist/*.js, packages/db/node_modules/.bin/prisma), so the
+# compose file also starts older images during a rollback.
+COPY --from=api-deps /app/package.json /app/pnpm-workspace.yaml /app/
+COPY --from=api-deps /app/node_modules /app/node_modules
+COPY --from=api-deps /app/packages /app/packages
+COPY --from=api-deps /app/apps/api/package.json /app/apps/api/
+COPY --from=api-deps /app/apps/api/node_modules /app/apps/api/node_modules
+COPY --from=build-api /app/apps/api/dist /app/apps/api/dist
 USER node
 EXPOSE 4000
 CMD ["node", "apps/api/dist/server.js"]

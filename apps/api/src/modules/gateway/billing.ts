@@ -92,7 +92,7 @@ export async function finishRequest(
         requestId: usageId,
         orgId: ctx.org.id,
         projectId: ctx.project.id,
-        apiKeyId: ctx.key?.id ?? null,
+        apiKeyId: ctx.spendKey?.id ?? null,
         appUserId: ctx.appUser?.id ?? null,
         walletId: target?.walletId ?? null,
         modelId: input.entry.model.id,

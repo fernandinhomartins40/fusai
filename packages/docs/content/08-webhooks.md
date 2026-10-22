@@ -31,7 +31,7 @@ Headers: `X-Fuse-Event` (tipo), `X-Fuse-Delivery` (id da entrega) e `X-Fuse-Sign
 | `payment.received` | Pix confirmado (checkout de usuário final do projeto). |
 | `app_user.credited` | Créditos entraram na carteira de um usuário final. |
 | `payment.expired` | Pix não pago no prazo. |
-| `payment.refunded` | Pagamento estornado (créditos removidos). |
+| `payment.refunded` | Pagamento estornado (créditos removidos). Também vale para estorno parcial (`data.refund.partial: true`). `data.refund.debitedMicros` diz quanto foi debitado, `data.refund.shortfallMicros` quanto o usuário já tinha gasto e `data.refund.refundedMicros` o total já estornado. Quem estornou créditos já usados fica bloqueado (`403 end_user_blocked`) até você desbloquear no painel. |
 | `balance.low` | Saldo da organização abaixo do alerta (no máximo 1×/dia). `data`: `availableMicros`, `thresholdMicros`. |
 | `usage.limit_reached` | Uma chave atingiu o limite de gasto mensal (no máximo 1×/dia). |
 | `test.ping` | Botão “Enviar evento de teste”. |

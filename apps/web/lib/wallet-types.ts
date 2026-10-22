@@ -1,4 +1,12 @@
-export type LedgerType = 'PURCHASE' | 'USAGE' | 'REFUND' | 'ADJUSTMENT' | 'BONUS' | 'EXPIRATION';
+export type LedgerType =
+  | 'PURCHASE'
+  | 'USAGE'
+  | 'REFUND'
+  | 'ADJUSTMENT'
+  | 'BONUS'
+  | 'EXPIRATION'
+  | 'TRANSFER_OUT'
+  | 'TRANSFER_IN';
 
 export type LedgerItem = {
   id: string;
@@ -27,4 +35,6 @@ export const ledgerTypeLabel: Record<LedgerType, string> = {
   ADJUSTMENT: 'Ajuste',
   BONUS: 'Bônus',
   EXPIRATION: 'Expiração',
+  TRANSFER_OUT: 'Crédito dado a usuário final',
+  TRANSFER_IN: 'Crédito da organização',
 };

@@ -15,6 +15,8 @@ export type FakePayment = {
   dueDate: string;
   externalReference: string | null;
   deleted: boolean;
+  /** Like the real API: each refund of the charge (only DONE ones moved money). */
+  refunds?: { status: 'DONE' | 'PENDING' | 'CANCELLED'; value: number }[];
 };
 
 const PNG_1x1 =
@@ -123,6 +125,14 @@ export async function startFakeAsaas(apiKey = '$aact_hmlg_test', listenPort = 0)
     pay(id: string) {
       const p = payments.get(id);
       if (p) p.status = 'RECEIVED';
+    },
+    /** Simulates a refund done at the Asaas panel (partial unless it covers the whole value). */
+    refundValue(id: string, value: number) {
+      const p = payments.get(id);
+      if (!p) return;
+      p.refunds = [...(p.refunds ?? []), { status: 'DONE', value }];
+      const total = p.refunds.reduce((sum, r) => sum + r.value, 0);
+      if (total >= p.value) p.status = 'REFUNDED';
     },
     webhookBody(event: string, id: string, eventId = `evt_${run}${++seq}`) {
       const p = payments.get(id);

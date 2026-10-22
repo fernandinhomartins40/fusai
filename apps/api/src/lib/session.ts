@@ -2,7 +2,7 @@ import { fromNodeHeaders } from 'better-auth/node';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import type { Auth } from '../modules/auth/auth';
 import type { Env } from './env';
-import { forbidden, unauthorized } from './errors';
+import { forbidden, HttpError, unauthorized } from './errors';
 
 export type SessionUser = {
   id: string;
@@ -12,6 +12,10 @@ export type SessionUser = {
   role: 'USER' | 'SUPER_ADMIN';
   /** Set when a super admin is using this account via "entrar como cliente". */
   impersonatedBy: string | null;
+  /** Authenticator app (TOTP) turned on for this account. */
+  twoFactorEnabled: boolean;
+  /** This session passed the TOTP check (required for SUPER_ADMIN on /admin). */
+  mfaVerified: boolean;
 };
 
 declare module 'fastify' {
@@ -35,12 +39,31 @@ export function sessionGuards(env: Env, auth: Auth) {
       (session.user as { role?: string }).role === 'SUPER_ADMIN' ? 'SUPER_ADMIN' : 'USER';
     const impersonatedBy =
       (session.session as { impersonatedBy?: string | null }).impersonatedBy ?? null;
-    req.user = { id, name, email, emailVerified, role, impersonatedBy };
+    const twoFactorEnabled = (session.user as { twoFactorEnabled?: boolean | null })
+      .twoFactorEnabled;
+    const mfaVerifiedAt = (session.session as { mfaVerifiedAt?: Date | null }).mfaVerifiedAt;
+    req.user = {
+      id,
+      name,
+      email,
+      emailVerified,
+      role,
+      impersonatedBy,
+      twoFactorEnabled: twoFactorEnabled === true,
+      mfaVerified: Boolean(mfaVerifiedAt),
+    };
   }
 
   async function requireSuperAdmin(req: FastifyRequest, reply: FastifyReply) {
     await requireUser(req, reply);
     if (req.user?.role !== 'SUPER_ADMIN') throw forbidden();
+    // PIE S-05: the admin panel needs a session confirmed with the authenticator app.
+    if (!req.user.mfaVerified)
+      throw new HttpError(
+        403,
+        'mfa_required',
+        'Confirme a verificação em duas etapas para usar o painel admin.',
+      );
   }
 
   return { requireUser, requireSuperAdmin };

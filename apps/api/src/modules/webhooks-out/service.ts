@@ -1,7 +1,7 @@
 import { createHmac, randomUUID } from 'node:crypto';
 import type { Prisma, PrismaClient } from '@fusai/db';
 import { decryptSecret } from '../../lib/crypto';
-import { assertPublicUrl } from '../../lib/ssrf';
+import { assertPublicUrl, postPublic } from '../../lib/ssrf';
 
 /** Events sent to customers (PRD §9.4). */
 export type OutboundEvent =
@@ -95,9 +95,7 @@ export async function deliverWebhook(prisma: PrismaClient, id: string, opts: Del
       await assertPublicUrl(project.webhookUrl, opts.production);
       const body = JSON.stringify(hook.payload);
       const secret = decryptSecret(project.webhookSecret, opts.encryptionKey);
-      const res = await fetch(project.webhookUrl, {
-        method: 'POST',
-        redirect: 'manual', // a redirect could point into our network
+      status = await postPublic(project.webhookUrl, {
         headers: {
           'content-type': 'application/json',
           'user-agent': 'fusai-Webhooks/1.0',
@@ -106,11 +104,10 @@ export async function deliverWebhook(prisma: PrismaClient, id: string, opts: Del
           'x-fuse-signature': signPayload(secret, body),
         },
         body,
-        signal: AbortSignal.timeout(opts.timeoutMs ?? 10_000),
+        timeoutMs: opts.timeoutMs ?? 10_000,
+        guard: opts.production, // redirects are never followed; DNS is rechecked at connect
       });
-      status = res.status;
-      await res.body?.cancel().catch(() => {});
-      if (res.status < 200 || res.status >= 300) error = `HTTP ${res.status}`;
+      if (status < 200 || status >= 300) error = `HTTP ${status}`;
     } catch (err) {
       error = err instanceof Error ? err.message.slice(0, 200) : 'Falha de rede';
     }

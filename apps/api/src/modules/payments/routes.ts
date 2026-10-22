@@ -248,11 +248,11 @@ export const adminPaymentRoutes: FastifyPluginAsyncZod<{
       // Never refund credits that were already consumed: the customer would owe (D-128).
       const wallet = await prisma.wallet.findUnique({ where: { id: payment.walletId } });
       const available = (wallet?.balanceMicros ?? 0n) - (wallet?.reservedMicros ?? 0n);
-      if (available < payment.creditMicros) {
+      if (available < payment.creditMicros - payment.refundedMicros) {
         throw new HttpError(
           409,
           'credits_already_used',
-          'O cliente já usou parte destes créditos: o estorno deixaria o saldo negativo. Estorne no Asaas só o valor não usado e debite o mesmo valor no ajuste de saldo.',
+          'O cliente já usou parte destes créditos: o estorno deixaria o saldo negativo. Estorne no Asaas só o valor não usado: a fusai desconta a parte proporcional dos créditos automaticamente.',
         );
       }
       try {

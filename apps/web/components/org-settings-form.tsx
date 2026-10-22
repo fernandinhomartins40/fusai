@@ -61,7 +61,7 @@ export function OrgSettingsForm({ org }: { org: OrgSettings }) {
     <form onSubmit={save} className="grid gap-5">
       {error ? <FormAlert>{error}</FormAlert> : null}
       {!canEdit ? (
-        <FormAlert tone="success">Somente donos e admins podem alterar estes dados.</FormAlert>
+        <FormAlert tone="info">Somente donos e admins podem alterar estes dados.</FormAlert>
       ) : null}
       <fieldset disabled={!canEdit} className="grid gap-5">
         <div className="grid gap-5 sm:grid-cols-2">

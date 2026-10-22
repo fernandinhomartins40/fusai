@@ -11,6 +11,7 @@ import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import type { z } from 'zod';
 import { PasswordInput } from '@/components/auth/password-input';
+import { TwoFactorStep } from '@/components/auth/two-factor-step';
 import { Field, FormAlert } from '@/components/form-field';
 import { authClient, authErrorMessage } from '@/lib/auth-client';
 import { safeNext } from '@/lib/safe-redirect';
@@ -54,6 +55,8 @@ export function SignInForm() {
   const router = useRouter();
   const next = safeNext(useSearchParams().get('next'));
   const [error, setError] = useState<string | null>(null);
+  /** Password accepted, waiting for the authenticator code (two-factor turned on). */
+  const [needsCode, setNeedsCode] = useState(false);
   const form = useForm<Values>({
     resolver: zodResolver(signInSchema),
     defaultValues: { email: '', password: '', rememberEmail: false, rememberMe: false },
@@ -72,7 +75,7 @@ export function SignInForm() {
 
   const onSubmit = form.handleSubmit(async ({ email, password, rememberEmail, rememberMe }) => {
     setError(null);
-    const { error } = await authClient.signIn.email({
+    const { data, error } = await authClient.signIn.email({
       email,
       password,
       rememberMe: !!rememberMe,
@@ -82,9 +85,27 @@ export function SignInForm() {
     write(STORE.email, rememberEmail ? email : null);
     write(STORE.keep, rememberMe ? '1' : null);
     if (rememberEmail) await offerToSavePassword(email, password);
+    if ((data as { twoFactorRedirect?: boolean } | null)?.twoFactorRedirect)
+      return setNeedsCode(true);
+    finish();
+  });
+
+  function finish() {
     router.replace(next);
     router.refresh();
-  });
+  }
+
+  if (needsCode)
+    return (
+      <TwoFactorStep
+        submitLabel="Entrar"
+        onDone={finish}
+        onCancel={() => {
+          setNeedsCode(false);
+          form.setValue('password', '');
+        }}
+      />
+    );
 
   return (
     <form onSubmit={onSubmit} noValidate method="post" action="/entrar" className="grid gap-4">

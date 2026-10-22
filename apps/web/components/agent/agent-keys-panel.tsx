@@ -8,6 +8,7 @@ import { Bot, Loader2, Plus } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { toast } from 'sonner';
+import { confirmAction } from '@/components/confirm';
 import { CodeBlock } from '@/components/copy-button';
 import { Field, FormAlert } from '@/components/form-field';
 import { McpCommands } from '@/components/integration/mcp-commands';
@@ -52,7 +53,13 @@ export function AgentKeysPanel({ orgId, keys }: { orgId: string; keys: AgentKeyI
   }
 
   async function revoke(key: AgentKeyInfo) {
-    if (!confirm(`Revogar "${key.name}"? A IA conectada com ela perde o acesso na hora.`)) return;
+    if (
+      !(await confirmAction(
+        `Revogar "${key.name}"? A IA conectada com ela perde o acesso na hora.`,
+        { confirmLabel: 'Revogar', destructive: true },
+      ))
+    )
+      return;
     try {
       await apiFetch(`/internal/organizations/${orgId}/agent-keys/${key.id}/revoke`, {
         method: 'POST',

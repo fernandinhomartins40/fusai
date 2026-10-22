@@ -9,6 +9,7 @@ import { Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { toast } from 'sonner';
+import { confirmAction } from '@/components/confirm';
 import { Field, FormAlert } from '@/components/form-field';
 import { billingTypeLabel } from '@/lib/admin-labels';
 import { ApiError, apiFetch } from '@/lib/api';
@@ -46,21 +47,41 @@ export function OrgAccountForm({ org, defaultMarkup }: { org: Org; defaultMarkup
     }
     if (suspending && reason.trim().length < 5)
       return setError('Descreva o motivo da suspensão (mínimo 5 caracteres).');
-    if (suspending && !confirm(`Suspender ${org.name}? As chamadas de API passam a receber 403.`))
+    if (
+      suspending &&
+      !(await confirmAction(`Suspender ${org.name}? As chamadas de API passam a receber 403.`, {
+        confirmLabel: 'Suspender',
+        destructive: true,
+      }))
+    )
       return;
 
     setPending(true);
-    try {
-      await apiFetch(`/internal/admin/organizations/${org.id}`, {
+    const body = {
+      status,
+      billingType,
+      creditLimitMicros,
+      markupOverride: markup.trim() ? markup.trim() : null,
+      ...(reason.trim() ? { reason: reason.trim() } : {}),
+    };
+    const send = (extra: object = {}) =>
+      apiFetch(`/internal/admin/organizations/${org.id}`, {
         method: 'PATCH',
-        body: JSON.stringify({
-          status,
-          billingType,
-          creditLimitMicros,
-          markupOverride: markup.trim() ? markup.trim() : null,
-          ...(reason.trim() ? { reason: reason.trim() } : {}),
-        }),
+        body: JSON.stringify({ ...body, ...extra }),
       });
+    try {
+      try {
+        await send();
+      } catch (err) {
+        // R-10: markup below 1× sells below cost; ask before saving.
+        if (!(err instanceof ApiError && err.code === 'negative_margin')) throw err;
+        const ok = await confirmAction(`Vender abaixo do custo? ${err.message}`, {
+          confirmLabel: 'Salvar mesmo assim',
+          destructive: true,
+        });
+        if (!ok) return;
+        await send({ allowNegativeMargin: true });
+      }
       toast.success('Conta atualizada');
       setReason('');
       router.refresh();

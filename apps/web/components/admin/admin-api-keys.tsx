@@ -5,6 +5,7 @@ import { Button } from '@fusai/ui/components/button';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { toast } from 'sonner';
+import { confirmAction } from '@/components/confirm';
 import type { AdminApiKey } from '@/lib/admin-types';
 import { ApiError, apiFetch } from '@/lib/api';
 import { dateTimeBR } from '@/lib/format';
@@ -15,8 +16,9 @@ export function AdminApiKeys({ keys }: { keys: AdminApiKey[] }) {
   const [busy, setBusy] = useState<string | null>(null);
 
   async function revoke(key: AdminApiKey) {
-    const ok = confirm(
+    const ok = await confirmAction(
       `Revogar a chave "${key.name}" (${key.prefix}…)? Os apps que usam esta chave param na hora.`,
+      { confirmLabel: 'Revogar', destructive: true },
     );
     if (!ok) return;
     setBusy(key.id);

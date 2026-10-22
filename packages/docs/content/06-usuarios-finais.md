@@ -12,7 +12,7 @@ Em **Projetos → Configurações → Modo de cobrança**:
 | Cobrar do usuário final (`END_USER_WALLET`) | Cada usuário do seu app tem saldo próprio e paga o que usa. |
 | Híbrido (`HYBRID`) | Primeiro o saldo do usuário; quando acabar, sua organização paga (bom para freemium). |
 
-Você pode dar **crédito grátis inicial** a cada usuário novo (Configurações → Crédito grátis).
+Você pode dar **crédito grátis inicial** a cada usuário novo (Configurações → Crédito grátis). Esse crédito sai do saldo da sua organização: sem saldo, o usuário é criado sem ele e a resposta de `POST /v1/app-users` traz `"freeCredit": "insufficient_org_balance"`. Cortesias dadas pelo painel também saem do saldo da organização.
 
 ## 1. Crie (ou atualize) o usuário final, no seu backend
 

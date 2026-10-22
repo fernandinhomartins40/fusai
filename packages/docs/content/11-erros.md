@@ -27,6 +27,7 @@ Use `code` no seu código (estável); `message` é para pessoas (pt-BR). `type` 
 | 403 | `secret_key_in_browser` | Chave secreta usada no navegador. Use session token. |
 | 403 | `secret_key_required` | Rota exclusiva da chave secreta (servidor). |
 | 403 | `account_suspended` | Conta suspensa. Fale com o suporte. |
+| 403 | `end_user_blocked` | Usuário final bloqueado após estornar ou contestar créditos já usados. Desbloqueie no painel (Usuários finais). |
 | 404 | `model_not_found`, `app_user_not_found`, `package_not_found`, `checkout_not_found` | Recurso não existe. |
 | 429 | `rate_limited` | Muitas requisições. Espere `retry-after` segundos. |
 | 502 | `upstream_error` | O provedor do modelo falhou (após tentar os de reserva). Tente de novo. |

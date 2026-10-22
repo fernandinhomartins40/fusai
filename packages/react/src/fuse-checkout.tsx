@@ -326,8 +326,8 @@ export function PendingPix({
           </button>
         </>
       ) : null}
-      <p style={{ ...s.row, ...s.muted }} aria-live="polite">
-        <span>Aguardando pagamento…</span>
+      <p style={{ ...s.row, ...s.muted }}>
+        <span role="status">Aguardando pagamento…</span>
         {countdown ? <span>expira em {countdown}</span> : null}
       </p>
       <a

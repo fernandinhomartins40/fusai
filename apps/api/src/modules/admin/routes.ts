@@ -14,6 +14,7 @@ import { adminOperationsRoutes } from './operations';
 import { adminOrganizationRoutes } from './organizations';
 import { adminPackageRoutes } from './packages';
 import { adminProviderRoutes } from './providers';
+import { adminReadinessRoutes } from './readiness';
 import { adminSettingsRoutes } from './settings';
 import { adminUsageRoutes } from './usage';
 import { adminUserRoutes } from './users';
@@ -55,4 +56,5 @@ export const adminRoutes: FastifyPluginAsyncZod<Options> = async (app, opts) => 
   await app.register(adminPackageRoutes, opts);
   await app.register(adminUsageRoutes, opts);
   await app.register(adminOperationsRoutes, opts);
+  await app.register(adminReadinessRoutes, opts);
 };

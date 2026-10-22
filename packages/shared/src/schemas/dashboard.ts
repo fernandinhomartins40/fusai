@@ -106,6 +106,25 @@ export const projectPackageSchema = z.object({
 export const projectPackageUpdateSchema = projectPackageSchema.partial();
 export type ProjectPackageInput = z.input<typeof projectPackageSchema>;
 
+/**
+ * PIE R-01 (owner's rule): the credits of a package sold to end users are at most what the
+ * buyer pays. Anything above that is a bonus, which the organization pays from its own wallet.
+ */
+export function packageCreditFitsPrice(priceCents: number, creditMicros: bigint): boolean {
+  return creditMicros <= BigInt(priceCents) * 10_000n;
+}
+
+export const PACKAGE_CREDIT_MESSAGE =
+  'Os créditos não podem passar do preço. Use o bônus para dar mais (o bônus sai do saldo da organização).';
+
+/** A project's own package (end users buy it): credits ≤ price. */
+export const endUserPackageSchema = projectPackageSchema.refine(
+  (p) =>
+    !INTEGER_RE.test(p.creditMicros) ||
+    packageCreditFitsPrice(p.priceCents, BigInt(p.creditMicros)),
+  { message: PACKAGE_CREDIT_MESSAGE, path: ['creditMicros'] },
+);
+
 /** Manual credit adjustment for an end user: positive = bonus, negative = removal. */
 export const appUserAdjustSchema = z.object({
   amountMicros: z

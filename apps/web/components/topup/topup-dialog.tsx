@@ -19,18 +19,36 @@ import { Confetti } from './confetti';
 
 const brlCents = (cents: number) => formatBRL(centsToMicros(cents));
 
-/** "Adicionar créditos": package or free amount → Pix QR + copy-paste → live status → success. */
+const isOpenPix = (p: PaymentInfo) =>
+  p.status === 'PENDING' &&
+  !!p.pixCopyPaste &&
+  (!p.expiresAt || new Date(p.expiresAt) > new Date());
+
+/**
+ * "Adicionar créditos": package or free amount → Pix QR + copy-paste → live status → success.
+ * An unexpired pending Pix (`resumeId`, or the latest one) is reopened instead of creating
+ * another charge.
+ */
 export function TopupDialog({
   orgId,
   options,
   autoOpen = false,
+  pending = [],
+  resumeId,
 }: {
   orgId: string;
   options: TopupOptions;
   autoOpen?: boolean;
+  pending?: PaymentInfo[];
+  resumeId?: string;
 }) {
   const router = useRouter();
-  const [open, setOpen] = useState(autoOpen && options.canTopup && options.hasDocument);
+  const resumable = () =>
+    pending.find((p) => p.id === resumeId && isOpenPix(p)) ??
+    (resumeId ? undefined : pending.find(isOpenPix)) ??
+    null;
+  const canOpen = options.canTopup && options.hasDocument;
+  const [open, setOpen] = useState((autoOpen || !!resumeId) && canOpen);
   const [packageId, setPackageId] = useState<string | null>(
     options.packages.find((p) => p.highlight)?.id ?? options.packages[0]?.id ?? null,
   );
@@ -42,11 +60,19 @@ export function TopupDialog({
   const [mode, setMode] = useState<'package' | 'custom'>(
     options.packages.length ? 'package' : 'custom',
   );
-  const [payment, setPayment] = useState<PaymentInfo | null>(null);
+  const [payment, setPayment] = useState<PaymentInfo | null>(() => (open ? resumable() : null));
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
-  // One key per dialog session: a double click never creates two charges.
-  const idempotencyKey = useMemo(() => (open ? crypto.randomUUID() : ''), [open]);
+  const [attempt, setAttempt] = useState(0);
+  // One key per attempt: a double click never creates two charges, and "Gerar outro Pix"
+  // after an expired one gets a fresh key (reusing it would return the expired charge).
+  // biome-ignore lint/correctness/useExhaustiveDependencies: attempt only rotates the key
+  const idempotencyKey = useMemo(() => (open ? crypto.randomUUID() : ''), [open, attempt]);
+  const newPix = () => {
+    setPayment(null);
+    setError(null);
+    setAttempt((n) => n + 1);
+  };
 
   const status = useQuery({
     queryKey: ['payment', payment?.id],
@@ -70,6 +96,8 @@ export function TopupDialog({
     setOpen(false);
     setPayment(null);
     setError(null);
+    // Drop ?pix= so "Ver QR" on the same charge reopens it next time.
+    if (resumeId) router.replace('/app/carteira', { scroll: false });
   }
 
   async function create() {
@@ -93,6 +121,8 @@ export function TopupDialog({
         }),
       );
     } catch (err) {
+      // The server keeps the failed attempt under this key; the next click needs a new one.
+      setAttempt((n) => n + 1);
       setError(err instanceof ApiError ? err.message : 'Não foi possível gerar o Pix.');
     } finally {
       setCreating(false);
@@ -109,12 +139,20 @@ export function TopupDialog({
     <>
       <Button
         variant="brand"
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          setPayment(resumable());
+          setOpen(true);
+        }}
         disabled={!!disabledReason}
-        title={disabledReason ?? undefined}
+        aria-describedby={disabledReason ? 'topup-blocked' : undefined}
       >
         <Plus /> Adicionar créditos
       </Button>
+      {disabledReason ? (
+        <p id="topup-blocked" className="text-muted-foreground text-xs">
+          {disabledReason}
+        </p>
+      ) : null}
       {!options.hasDocument && options.canTopup ? (
         <Link href="/app/configuracoes" className="text-muted-foreground text-xs underline">
           Cadastrar CPF/CNPJ
@@ -209,7 +247,7 @@ export function TopupDialog({
         ) : paid ? (
           <div className="relative grid justify-items-center gap-3 py-6 text-center">
             <Confetti />
-            <CheckCircle2 className="size-12 text-success" aria-hidden />
+            <CheckCircle2 className="size-12 text-success-foreground" aria-hidden />
             <p className="font-semibold text-lg">
               {formatBRL(BigInt(current.creditMicros))} em créditos adicionados
             </p>
@@ -226,7 +264,7 @@ export function TopupDialog({
               Este Pix {current.status === 'EXPIRED' ? 'expirou' : 'não está mais disponível'}. Gere
               um novo.
             </FormAlert>
-            <Button variant="outline" onClick={() => setPayment(null)}>
+            <Button variant="outline" onClick={newPix}>
               Gerar outro Pix
             </Button>
           </div>
@@ -259,17 +297,15 @@ export function TopupDialog({
                 </div>
               </div>
             ) : null}
-            <div
-              className="flex items-center justify-between gap-2 rounded-xl border p-3 text-sm"
-              aria-live="polite"
-            >
-              <span className="flex items-center gap-2">
+            <div className="flex items-center justify-between gap-2 rounded-xl border p-3 text-sm">
+              <span className="flex items-center gap-2" role="status">
                 <Loader2 className="size-4 animate-spin text-fusai-accent" aria-hidden />
                 Aguardando pagamento…
               </span>
               {countdown ? (
                 <span className="flex items-center gap-1 text-muted-foreground tabular-nums">
-                  <Clock className="size-3.5" aria-hidden /> {countdown.text}
+                  <Clock className="size-3.5" aria-hidden />
+                  <span className="sr-only">Expira em</span> {countdown.text}
                 </span>
               ) : null}
             </div>
@@ -277,6 +313,9 @@ export function TopupDialog({
               Abra o app do seu banco, escolha Pix → Ler QR Code ou Pix copia e cola. Esta tela
               atualiza sozinha.
             </p>
+            <Button variant="ghost" size="sm" onClick={newPix}>
+              Gerar Pix de outro valor
+            </Button>
           </div>
         ) : null}
       </Dialog>

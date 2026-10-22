@@ -19,3 +19,6 @@ Thumbs.db
 
 # Configuração local de MCP (pode conter chaves, ex.: VeloMail uai_...). Nunca versionar.
 .mcp.json
+
+# Playwright E2E (mailbox, results, report)
+e2e/.tmp/

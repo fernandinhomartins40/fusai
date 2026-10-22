@@ -1,6 +1,7 @@
 'use client';
 
 import { brlToMicros } from '@fusai/shared';
+import { Badge } from '@fusai/ui/components/badge';
 import { Button } from '@fusai/ui/components/button';
 import { Dialog } from '@fusai/ui/components/dialog';
 import { Input } from '@fusai/ui/components/input';
@@ -30,6 +31,23 @@ export function AppUsersPanel({ projectId, query, initial, canAdjust }: Props) {
   const [cursor, setCursor] = useState(initial.nextCursor);
   const [loading, setLoading] = useState(false);
   const [adjusting, setAdjusting] = useState<AppUserInfo | null>(null);
+  const [unblocking, setUnblocking] = useState<string | null>(null);
+
+  async function unblock(user: AppUserInfo) {
+    setUnblocking(user.id);
+    try {
+      const updated = await apiFetch<AppUserInfo>(
+        `/internal/projects/${projectId}/app-users/${user.id}/unblock`,
+        { method: 'POST' },
+      );
+      setUsers((prev) => prev.map((u) => (u.id === updated.id ? updated : u)));
+      toast.success('Usuário desbloqueado');
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : 'Não foi possível desbloquear.');
+    } finally {
+      setUnblocking(null);
+    }
+  }
 
   // A refresh or a new search brings a new first page.
   useEffect(() => {
@@ -107,7 +125,17 @@ export function AppUsersPanel({ projectId, query, initial, canAdjust }: Props) {
               <TableRow key={u.id}>
                 <TableCell>
                   <span className="grid">
-                    <span className="font-medium">{u.name ?? u.externalId}</span>
+                    <span className="flex items-center gap-2 font-medium">
+                      {u.name ?? u.externalId}
+                      {u.blockedAt ? (
+                        <Badge
+                          variant="destructive"
+                          title="Estornou créditos que já tinha usado: a IA recusa os pedidos dele até você desbloquear."
+                        >
+                          Bloqueado
+                        </Badge>
+                      ) : null}
+                    </span>
                     <span className="font-mono text-muted-foreground text-xs">
                       {u.externalId}
                       {u.email ? ` · ${u.email}` : ''}
@@ -118,6 +146,17 @@ export function AppUsersPanel({ projectId, query, initial, canAdjust }: Props) {
                 <TableCell className="text-muted-foreground">{dateTimeBR(u.createdAt)}</TableCell>
                 {canAdjust ? (
                   <TableCell className="text-right">
+                    {u.blockedAt ? (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => unblock(u)}
+                        disabled={unblocking === u.id}
+                      >
+                        {unblocking === u.id ? <Loader2 className="animate-spin" /> : null}
+                        Desbloquear
+                      </Button>
+                    ) : null}
                     <Button variant="ghost" size="sm" onClick={() => setAdjusting(u)}>
                       Ajustar saldo
                     </Button>
@@ -177,6 +216,8 @@ function AdjustForm({
   onDone: (user: AppUserInfo) => void;
 }) {
   const [kind, setKind] = useState<'add' | 'remove'>('add');
+  // One key per dialog: a double click or a retry applies the adjustment only once.
+  const [idempotencyKey] = useState(() => crypto.randomUUID());
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -198,6 +239,7 @@ function AdjustForm({
         `/internal/projects/${projectId}/app-users/${user.id}/adjust`,
         {
           method: 'POST',
+          headers: { 'Idempotency-Key': idempotencyKey },
           body: JSON.stringify({
             amountMicros: (kind === 'add' ? micros : -micros).toString(),
             description: description.trim(),
@@ -240,7 +282,11 @@ function AdjustForm({
           </label>
         ))}
       </fieldset>
-      <Field id="adjust-amount" label="Valor (R$)">
+      <Field
+        id="adjust-amount"
+        label="Valor (R$)"
+        hint={kind === 'add' ? 'O bônus sai do saldo da sua organização.' : undefined}
+      >
         <Input
           id="adjust-amount"
           inputMode="decimal"

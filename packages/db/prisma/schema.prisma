@@ -56,6 +56,9 @@ enum LedgerType {
   ADJUSTMENT
   BONUS
   EXPIRATION
+  /// Credit an organization gives to one of its end users (PIE R-01): the org pays for it.
+  TRANSFER_OUT
+  TRANSFER_IN
 }
 
 enum PaymentStatus {
@@ -93,22 +96,30 @@ enum UsageStatus {
 // ---- Better Auth core tables (schema of better-auth 1.7) + role extension ----
 
 model User {
-  id            String       @id
-  name          String
-  email         String       @unique
-  emailVerified Boolean      @default(false)
-  image         String?
-  role          PlatformRole @default(USER)
+  id                  String       @id
+  name                String
+  email               String       @unique
+  emailVerified       Boolean      @default(false)
+  image               String?
+  role                PlatformRole @default(USER)
   /// Better Auth admin plugin: a banned user cannot sign in (sessions are revoked on ban).
-  banned        Boolean?     @default(false)
-  banReason     String?
-  banExpires    DateTime?
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
-  memberships   Membership[]
-  sessions      Session[]
-  accounts      Account[]
+  banned              Boolean?     @default(false)
+  banReason           String?
+  banExpires          DateTime?
+  /// Better Auth two-factor plugin: password sign-in asks for the TOTP code (mandatory for SUPER_ADMIN).
+  twoFactorEnabled    Boolean?     @default(false)
+  /// LGPD: account deletion requested by the user; anonymized after a 7-day grace period.
+  deletionRequestedAt DateTime?
+  /// Set when the account was anonymized (name/email replaced, sessions and logins removed).
+  deletedAt           DateTime?
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+  memberships         Membership[]
+  sessions            Session[]
+  accounts            Account[]
+  twoFactors          TwoFactor[]
 
+  @@index([deletionRequestedAt])
   @@map("user")
 }
 
@@ -123,6 +134,8 @@ model Session {
   userId         String
   /// Super admin who started this session with "entrar como cliente" (admin plugin).
   impersonatedBy String?
+  /// When this session passed the TOTP check; /admin requires it (PIE S-05).
+  mfaVerifiedAt  DateTime?
   user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
@@ -159,6 +172,22 @@ model Verification {
 
   @@index([identifier])
   @@map("verification")
+}
+
+/// Better Auth two-factor plugin: TOTP secret and backup codes, both encrypted by Better Auth.
+model TwoFactor {
+  id                      String    @id
+  secret                  String
+  backupCodes             String
+  userId                  String
+  verified                Boolean?  @default(true)
+  failedVerificationCount Int?      @default(0)
+  lockedUntil             DateTime?
+  user                    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([secret])
+  @@index([userId])
+  @@map("twoFactor")
 }
 
 // ---- Domain ----
@@ -275,15 +304,17 @@ model AgentKey {
 }
 
 model AppUser {
-  id              String   @id @default(cuid())
+  id              String    @id @default(cuid())
   projectId       String
   externalId      String // user id in the customer's system
   email           String?
   name            String?
   document        String? // CPF (optional, may be required by the PSP)
   asaasCustomerId String?
-  createdAt       DateTime @default(now())
-  project         Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  /// Refunded or charged back credits already spent (PIE R-07): the gateway refuses until unblocked.
+  blockedAt       DateTime?
+  createdAt       DateTime  @default(now())
+  project         Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
   wallet          Wallet?
 
   @@unique([projectId, externalId])
@@ -309,12 +340,15 @@ model WalletHold {
   id           String   @id // requestId
   walletId     String
   amountMicros BigInt
+  /// Key whose monthly spend limit this hold counts against (in-flight spend, PIE R-05).
+  apiKeyId     String?
   expiresAt    DateTime
   createdAt    DateTime @default(now())
   wallet       Wallet   @relation(fields: [walletId], references: [id], onDelete: Cascade)
 
   @@index([walletId])
   @@index([expiresAt])
+  @@index([apiKeyId])
 }
 
 model LedgerEntry {
@@ -366,6 +400,8 @@ model Payment {
   expiresAt          DateTime?
   paidAt             DateTime?
   creditedAt         DateTime? // guarantees a single credit
+  /// Credits already taken back by refunds (partial or total, PIE R-06): only the difference is debited.
+  refundedMicros     BigInt              @default(0)
   idempotencyKey     String              @unique
   /// Unguessable id used by the hosted checkout (/pay/[publicId]) and /v1/checkout.
   publicId           String?             @unique

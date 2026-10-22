@@ -2,7 +2,9 @@ import { randomUUID } from 'node:crypto';
 import type { CreditPackage, PrismaClient } from '@fusai/db';
 import {
   appUserAdjustSchema,
-  projectPackageSchema,
+  endUserPackageSchema,
+  PACKAGE_CREDIT_MESSAGE,
+  packageCreditFitsPrice,
   projectPackageUpdateSchema,
 } from '@fusai/shared';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
@@ -11,7 +13,7 @@ import { audit } from '../../lib/audit';
 import type { Env } from '../../lib/env';
 import { HttpError, notFound } from '../../lib/errors';
 import { currentUser } from '../../lib/session';
-import { serializeAppUser } from '../app-users/service';
+import { giveEndUserCredit, serializeAppUser } from '../app-users/service';
 import { applyLedger } from '../billing/wallet';
 import { deliverWebhook, emitEvent, resendWebhook } from '../webhooks-out/service';
 import { requireMembership } from './membership';
@@ -72,7 +74,7 @@ export const dashboardEndUserRoutes: FastifyPluginAsyncZod<Options> = async (app
 
   app.post(
     '/internal/projects/:projectId/packages',
-    { schema: { params: projectParams, body: projectPackageSchema } },
+    { schema: { params: projectParams, body: endUserPackageSchema } },
     async (req, reply) => {
       const project = await projectFor(currentUser(req).id, req.params.projectId, EDITORS);
       if ((await prisma.creditPackage.count({ where: { projectId: project.id } })) >= 20) {
@@ -98,6 +100,14 @@ export const dashboardEndUserRoutes: FastifyPluginAsyncZod<Options> = async (app
     async (req) => {
       const project = await projectFor(currentUser(req).id, req.params.projectId, EDITORS);
       const { creditMicros, bonusMicros, ...rest } = req.body;
+      const current = await prisma.creditPackage.findFirst({
+        where: { id: req.params.packageId, projectId: project.id },
+      });
+      if (!current) throw notFound('Pacote não encontrado');
+      const nextCredit = creditMicros !== undefined ? BigInt(creditMicros) : current.creditMicros;
+      if (!packageCreditFitsPrice(rest.priceCents ?? current.priceCents, nextCredit)) {
+        throw new HttpError(400, 'package_credit_above_price', PACKAGE_CREDIT_MESSAGE);
+      }
       const res = await prisma.creditPackage.updateMany({
         where: { id: req.params.packageId, projectId: project.id },
         data: {
@@ -191,19 +201,52 @@ export const dashboardEndUserRoutes: FastifyPluginAsyncZod<Options> = async (app
       if (!appUser?.wallet) throw notFound('Usuário final não encontrado');
       const amount = BigInt(req.body.amountMicros);
       const walletId = appUser.wallet.id;
+      // R-09: a retried click with the same Idempotency-Key applies only once.
+      const idem = req.headers['idempotency-key'];
+      const referenceId =
+        typeof idem === 'string' && /^[\w-]{8,100}$/.test(idem)
+          ? `${appUser.id}:${idem}`
+          : randomUUID();
+      const already = await prisma.ledgerEntry.findFirst({
+        where: { walletId, referenceType: 'manual_adjustment', referenceId },
+      });
+      if (already) {
+        const w = await prisma.wallet.findUniqueOrThrow({ where: { id: walletId } });
+        return serializeAppUser(appUser, w);
+      }
       const wallet = await prisma.$transaction(async (tx) => {
+        if (amount > 0n) {
+          // R-01: a courtesy credit comes out of the organization's wallet.
+          const given = await giveEndUserCredit(tx, {
+            orgId: project.orgId,
+            walletId,
+            amountMicros: amount,
+            referenceType: 'manual_adjustment',
+            referenceId,
+            description: req.body.description,
+            actorId: user.id,
+          });
+          if (!given) {
+            throw new HttpError(
+              402,
+              'insufficient_org_balance',
+              'A organização não tem saldo para dar esse crédito. Recarregue a carteira da organização.',
+            );
+          }
+          return tx.wallet.findUniqueOrThrow({ where: { id: walletId } });
+        }
         const entry = await applyLedger(tx, {
           walletId,
-          type: amount > 0n ? 'BONUS' : 'ADJUSTMENT',
+          type: 'ADJUSTMENT',
           amountMicros: amount,
           referenceType: 'manual_adjustment',
-          referenceId: randomUUID(),
+          referenceId,
           description: req.body.description,
           actorId: user.id,
         });
         // A removal cannot take more than the end user has available.
         const after = await tx.wallet.findUniqueOrThrow({ where: { id: walletId } });
-        if (amount < 0n && entry.balanceAfter - after.reservedMicros < 0n) {
+        if (entry.balanceAfter - after.reservedMicros < 0n) {
           throw new HttpError(400, 'insufficient_balance', 'O usuário não tem esse saldo');
         }
         return after;
@@ -213,6 +256,26 @@ export const dashboardEndUserRoutes: FastifyPluginAsyncZod<Options> = async (app
         amountMicros: amount.toString(),
       });
       return serializeAppUser(appUser, wallet);
+    },
+  );
+
+  // PIE R-07: an end user blocked after refunding credits already spent can be let back in.
+  app.post(
+    '/internal/projects/:projectId/app-users/:appUserId/unblock',
+    { schema: { params: appUserParams } },
+    async (req) => {
+      const project = await projectFor(currentUser(req).id, req.params.projectId, MANAGERS);
+      const appUser = await prisma.appUser.findFirst({
+        where: { id: req.params.appUserId, projectId: project.id },
+        include: { wallet: true },
+      });
+      if (!appUser) throw notFound('Usuário final não encontrado');
+      const updated = await prisma.appUser.update({
+        where: { id: appUser.id },
+        data: { blockedAt: null },
+      });
+      await audit(prisma, req, 'app_user.unblock', appUser.id, { projectId: project.id });
+      return serializeAppUser(updated, appUser.wallet);
     },
   );
 

@@ -18,13 +18,12 @@ export function McpCommands({ apiKey }: { apiKey: string }) {
   const s = mcpSnippets(API_URL, apiKey);
   return (
     <div className="grid gap-3">
-      <div role="tablist" aria-label="Cliente MCP" className="flex flex-wrap gap-1">
+      <fieldset aria-label="Cliente MCP" className="flex flex-wrap gap-1">
         {CLIENTS.map((c) => (
           <button
             key={c.id}
             type="button"
-            role="tab"
-            aria-selected={client === c.id}
+            aria-pressed={client === c.id}
             onClick={() => setClient(c.id)}
             className={cn(
               'rounded-lg px-3 py-1.5 text-sm transition-colors',
@@ -36,7 +35,7 @@ export function McpCommands({ apiKey }: { apiKey: string }) {
             {c.label}
           </button>
         ))}
-      </div>
+      </fieldset>
       {client === 'claude' ? (
         <CodeBlock label="Terminal" code={s.claudeCode} />
       ) : client === 'cursor' ? (

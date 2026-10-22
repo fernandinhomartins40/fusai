@@ -28,7 +28,7 @@ export function ImpersonationBanner({ user }: { user: { name: string; email: str
       role="status"
       className="sticky top-14 z-20 flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-warning/40 bg-warning/15 px-4 py-2 text-sm md:top-0 md:px-8"
     >
-      <UserRoundCog className="size-4 shrink-0 text-warning" aria-hidden />
+      <UserRoundCog className="size-4 shrink-0 text-warning-foreground" aria-hidden />
       <span className="min-w-0 flex-1">
         Você está usando a conta de <strong className="font-semibold">{user.name}</strong>{' '}
         <span className="text-muted-foreground">({user.email})</span> como super admin. Tudo fica

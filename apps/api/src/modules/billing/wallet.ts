@@ -17,6 +17,9 @@ export type Tx = Prisma.TransactionClient;
 /** Holds live longer than the slowest upstream call (10 min) before cleanup releases them. */
 export const HOLD_TTL_MS = 15 * 60 * 1000;
 
+/** Under load the 2 s default wait for a pool connection turned reserves and charges into 500s. */
+const BUSY_TX = { maxWait: 10_000 };
+
 /**
  * Prisma stores DateTime as UTC in `timestamp` (no time zone) columns. Raw SQL must use UTC
  * explicitly: a bare `now()` or a timestamptz parameter is converted with the session time zone.
@@ -56,6 +59,56 @@ export async function applyLedger(tx: Tx, entry: LedgerInput) {
   });
 }
 
+export type TransferInput = {
+  fromWalletId: string;
+  toWalletId: string;
+  amountMicros: bigint;
+  referenceType: string;
+  referenceId: string;
+  description?: string | null;
+  actorId?: string | null;
+};
+
+/**
+ * Moves credits from an organization wallet to one of its end users (PIE R-01): the org pays
+ * for every credit it gives away. The debit is conditional, like a reservation: it only happens
+ * when the org has that much available (prepaid, never negative). Returns false otherwise.
+ * Must run inside a transaction.
+ */
+export async function transferCredits(tx: Tx, input: TransferInput): Promise<boolean> {
+  if (input.amountMicros <= 0n) throw new Error('Transfer must be positive');
+  const rows = await tx.$queryRaw<{ balanceMicros: bigint }[]>`
+    UPDATE "Wallet"
+       SET "balanceMicros" = "balanceMicros" - ${input.amountMicros}, "updatedAt" = ${NOW_UTC}
+     WHERE id = ${input.fromWalletId}
+       AND "balanceMicros" - "reservedMicros" >= ${input.amountMicros}
+    RETURNING "balanceMicros"`;
+  const row = rows[0];
+  if (!row) return false;
+  const common = {
+    referenceType: input.referenceType,
+    referenceId: input.referenceId,
+    description: input.description ?? null,
+    actorId: input.actorId ?? null,
+  };
+  await tx.ledgerEntry.create({
+    data: {
+      walletId: input.fromWalletId,
+      type: 'TRANSFER_OUT',
+      amountMicros: -input.amountMicros,
+      balanceAfter: row.balanceMicros,
+      ...common,
+    },
+  });
+  await applyLedger(tx, {
+    walletId: input.toWalletId,
+    type: 'TRANSFER_IN',
+    amountMicros: input.amountMicros,
+    ...common,
+  });
+  return true;
+}
+
 /** Credit or debit in its own transaction. */
 export function postLedger(prisma: PrismaClient, entry: LedgerInput) {
   return prisma.$transaction((tx) => applyLedger(tx, entry));
@@ -68,19 +121,51 @@ export type ReserveInput = {
   /** POSTPAID credit limit; 0 for PREPAID. */
   creditLimitMicros?: bigint;
   ttlMs?: number;
+  /**
+   * Monthly spend limit of the calling key (PIE R-04/R-05): checked and reserved atomically,
+   * counting what was already charged this month plus every hold still in flight.
+   */
+  spendLimit?: { apiKeyId: string; limitMicros: bigint | null; since: Date };
 };
+
+/** The key's monthly spend limit would be exceeded by this hold (-> 402 spend_limit_reached). */
+export class SpendLimitReached extends Error {
+  constructor(readonly spentMicros: bigint) {
+    super('Spend limit reached');
+  }
+}
+
+/** Charged this month plus in-flight holds of a key, read in one snapshot. */
+async function keySpendInFlight(tx: Tx, apiKeyId: string, since: Date): Promise<bigint> {
+  const [row] = await tx.$queryRaw<{ used: bigint }[]>`
+    SELECT (SELECT COALESCE(SUM("chargedMicros"), 0) FROM "UsageLog"
+             WHERE "apiKeyId" = ${apiKeyId} AND "createdAt" >= ${since})
+         + (SELECT COALESCE(SUM("amountMicros"), 0) FROM "WalletHold"
+             WHERE "apiKeyId" = ${apiKeyId}) AS used`;
+  return BigInt(row?.used ?? 0);
+}
 
 /**
  * Atomically reserves `amountMicros`. Returns false when the available balance
  * (balance - reserved + creditLimit) is lower than the hold (-> 402 insufficient_funds).
  * A zero hold still requires a non-negative available balance (blocks wallets left negative
  * by a refund until they are topped up).
+ * Throws `SpendLimitReached` when `spendLimit` is set and the hold does not fit in it.
  */
 export async function reserve(prisma: PrismaClient, input: ReserveInput): Promise<boolean> {
   if (input.amountMicros < 0n) throw new Error('Hold cannot be negative');
   const limit = input.creditLimitMicros ?? 0n;
   const expiresAt = new Date(Date.now() + (input.ttlMs ?? HOLD_TTL_MS));
+  const spend = input.spendLimit;
   return prisma.$transaction(async (tx) => {
+    if (spend) {
+      // One reservation at a time per key, so concurrent requests cannot all pass the check.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`spend:${spend.apiKeyId}`}))`;
+      if (spend.limitMicros != null) {
+        const used = await keySpendInFlight(tx, spend.apiKeyId, spend.since);
+        if (used + input.amountMicros > spend.limitMicros) throw new SpendLimitReached(used);
+      }
+    }
     const rows = await tx.$queryRaw<{ id: string }[]>`
       UPDATE "Wallet"
          SET "reservedMicros" = "reservedMicros" + ${input.amountMicros}, "updatedAt" = ${NOW_UTC}
@@ -93,11 +178,12 @@ export async function reserve(prisma: PrismaClient, input: ReserveInput): Promis
         id: input.requestId,
         walletId: input.walletId,
         amountMicros: input.amountMicros,
+        apiKeyId: spend?.apiKeyId ?? null,
         expiresAt,
       },
     });
     return true;
-  });
+  }, BUSY_TX);
 }
 
 export type SettleInput = {
@@ -180,7 +266,7 @@ export async function settle(prisma: PrismaClient, input: SettleInput): Promise<
         duplicate: false,
         absorbed: input.chargeMicros - charge,
       };
-    });
+    }, BUSY_TX);
   } catch (err) {
     // A concurrent settle of the same request won the race: the unique ledger key rejected us.
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {

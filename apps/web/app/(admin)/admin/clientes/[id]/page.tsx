@@ -106,8 +106,8 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
             <h2 className="font-semibold text-lg">Extrato</h2>
             {org.wallet.consistent ? (
               <span className="flex items-center gap-1 text-muted-foreground text-xs">
-                <CheckCircle2 className="size-3.5 text-success" aria-hidden /> Ledger confere com o
-                saldo
+                <CheckCircle2 className="size-3.5 text-success-foreground" aria-hidden /> Ledger
+                confere com o saldo
               </span>
             ) : (
               <span className="flex items-center gap-1 text-destructive text-xs">

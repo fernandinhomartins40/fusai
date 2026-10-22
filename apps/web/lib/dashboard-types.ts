@@ -30,6 +30,13 @@ export type Overview = {
   wallet: { balanceMicros: string; reservedMicros: string; availableMicros: string };
   lowBalance: { thresholdMicros: string; isLow: boolean };
   billingType: 'PREPAID' | 'POSTPAID' | 'INTERNAL';
+  activation: {
+    hasProject: boolean;
+    hasKey: boolean;
+    hasCredits: boolean;
+    hasFirstCall: boolean;
+    projectId: string | null;
+  };
   spend: { today: string; last7d: string; last30d: string };
   requests: { today: number; last7d: number; last30d: number };
   daily: DailyPoint[];

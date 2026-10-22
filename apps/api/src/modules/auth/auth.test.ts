@@ -8,6 +8,7 @@ import {
   signIn,
   signUp,
 } from '../../../test/helpers';
+import { LOGIN_MAX_FAILURES } from './login-throttle';
 
 describe('auth flow', () => {
   let ctx: Awaited<ReturnType<typeof createTestApp>>;
@@ -238,6 +239,18 @@ describe('auth flow', () => {
       },
     });
     const admin = await signIn(ctx.app, 'admin@example.com', 'senha-admin-123');
+    // PIE S-05: without the authenticator confirmation the panel stays closed.
+    const noMfa = await ctx.app.inject({
+      method: 'GET',
+      url: '/internal/admin/overview',
+      headers: { cookie: admin.cookie },
+    });
+    expect(noMfa.statusCode).toBe(403);
+    expect(noMfa.json().error.code).toBe('mfa_required');
+    await ctx.prisma.session.updateMany({
+      where: { userId: adminId },
+      data: { mfaVerifiedAt: new Date() },
+    });
     const allowed = await ctx.app.inject({
       method: 'GET',
       url: '/internal/admin/overview',
@@ -245,5 +258,37 @@ describe('auth flow', () => {
     });
     expect(allowed.statusCode).toBe(200);
     expect(allowed.json()).toMatchObject({ users: 2 });
+  });
+
+  it('PIE S-05: caps wrong passwords per account, across IPs, temporarily', async () => {
+    const email = 'alvo@example.com';
+    await signUp(ctx.app, email);
+    await ctx.prisma.user.update({ where: { email }, data: { emailVerified: true } });
+    const attempt = (password: string, i: number) =>
+      ctx.app.inject({
+        method: 'POST',
+        url: '/api/auth/sign-in/email',
+        headers: { origin: APP_URL, 'x-forwarded-for': `203.0.113.${i % 250}` },
+        payload: { email, password },
+      });
+
+    // A success before the cap clears the count.
+    for (let i = 0; i < LOGIN_MAX_FAILURES - 1; i++)
+      expect((await attempt('Errada-123456', i)).statusCode).toBe(401);
+    expect((await signIn(ctx.app, email)).res.statusCode).toBe(200);
+
+    for (let i = 0; i < LOGIN_MAX_FAILURES; i++)
+      expect((await attempt('Errada-123456', i)).statusCode).toBe(401);
+    // Locked even with the right password and a fresh IP; other accounts are not affected.
+    const locked = await attempt('Senha-Forte-123', 99);
+    expect(locked.statusCode).toBe(429);
+    expect(locked.json()).toMatchObject({ code: 'ACCOUNT_TEMPORARILY_LOCKED' });
+    expect((await signIn(ctx.app, 'ALVO@example.com')).res.statusCode).toBe(429);
+    await signUp(ctx.app, 'outro@example.com');
+    await ctx.prisma.user.update({
+      where: { email: 'outro@example.com' },
+      data: { emailVerified: true },
+    });
+    expect((await signIn(ctx.app, 'outro@example.com')).res.statusCode).toBe(200);
   });
 });

@@ -4,7 +4,7 @@ import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import { audit } from '../../lib/audit';
 import { conflict, HttpError, notFound } from '../../lib/errors';
-import { pricingSummary } from '../../lib/model-pricing';
+import { priceModel, pricingSummary, sellsBelowCost } from '../../lib/model-pricing';
 import type { SettingsStore } from '../../lib/settings';
 import type { CatalogStore } from '../gateway/catalog';
 
@@ -12,12 +12,18 @@ type Options = { prisma: PrismaClient; settings: SettingsStore; catalog: Catalog
 
 const idParams = z.object({ id: z.string().min(1) });
 const invalid = (message: string) => new HttpError(400, 'invalid_request', message);
+const negativeMargin = () =>
+  new HttpError(
+    400,
+    'negative_margin',
+    'Com esse preço a fusai vende abaixo do custo do provedor. Confirme para salvar mesmo assim.',
+  );
 
 type ModelInput = z.output<typeof modelUpdateSchema>;
 
 /** Converts validated input into Prisma data (micros strings -> BigInt). */
 function toData(input: ModelInput) {
-  const { inputPriceMicrosPerM, outputPriceMicrosPerM, ...rest } = input;
+  const { inputPriceMicrosPerM, outputPriceMicrosPerM, allowNegativeMargin: _, ...rest } = input;
   return {
     ...rest,
     ...(inputPriceMicrosPerM !== undefined && {
@@ -85,6 +91,21 @@ export const adminModelRoutes: FastifyPluginAsyncZod<Options> = async (
     }
   }
 
+  /** Runs the write in a transaction and rolls it back if the result sells below cost. */
+  async function guardMargin(
+    allow: boolean | undefined,
+    write: (tx: Prisma.TransactionClient) => Promise<Model & { provider: Provider }>,
+  ) {
+    const s = await settings.get();
+    return prisma.$transaction(async (tx) => {
+      const model = await write(tx);
+      if (!allow && sellsBelowCost(model, priceModel(model, s), s.usd_brl_rate)) {
+        throw negativeMargin();
+      }
+      return model;
+    });
+  }
+
   async function assertSlugFree(slug: string | undefined, selfId: string | null) {
     if (!slug) return;
     const existing = await prisma.model.findUnique({ where: { slug } });
@@ -117,14 +138,16 @@ export const adminModelRoutes: FastifyPluginAsyncZod<Options> = async (
       await validateRefs(null, input);
       await assertSlugFree(input.slug, null);
 
-      const model = await prisma.model.create({
-        data: {
-          active: false,
-          fallbackModelIds: [],
-          ...toData(input),
-        } as Prisma.ModelUncheckedCreateInput,
-        include: { provider: true },
-      });
+      const model = await guardMargin(input.allowNegativeMargin, (tx) =>
+        tx.model.create({
+          data: {
+            active: false,
+            fallbackModelIds: [],
+            ...toData(input),
+          } as Prisma.ModelUncheckedCreateInput,
+          include: { provider: true },
+        }),
+      );
       settings.invalidate();
       catalog.invalidate();
       await audit(prisma, req, 'model.create', model.id, { slug: model.slug });
@@ -153,16 +176,19 @@ export const adminModelRoutes: FastifyPluginAsyncZod<Options> = async (
       await validateRefs(current.id, input);
       await assertSlugFree(input.slug, current.id);
 
-      const model = await prisma.model.update({
-        where: { id: current.id },
-        data: toData(input) as Prisma.ModelUncheckedUpdateInput,
-        include: { provider: true },
-      });
+      const model = await guardMargin(input.allowNegativeMargin, (tx) =>
+        tx.model.update({
+          where: { id: current.id },
+          data: toData(input) as Prisma.ModelUncheckedUpdateInput,
+          include: { provider: true },
+        }),
+      );
       settings.invalidate();
       catalog.invalidate();
       await audit(prisma, req, 'model.update', model.id, {
         slug: model.slug,
-        fields: Object.keys(input),
+        fields: Object.keys(input).filter((k) => k !== 'allowNegativeMargin'),
+        ...(input.allowNegativeMargin ? { negativeMarginConfirmed: true } : {}),
       });
       return serialize(model);
     },

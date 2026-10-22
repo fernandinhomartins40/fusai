@@ -14,10 +14,11 @@ import { Gift } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { PageHeader } from '@/components/admin/page-header';
+import { ReadinessChecklist } from '@/components/admin/readiness-checklist';
 import { DailySpendChart } from '@/components/charts/daily-spend-chart';
 import { FilterFrame } from '@/components/filter-frame';
 import { StatTile } from '@/components/stat-tile';
-import type { AdminDashboard } from '@/lib/admin-types';
+import type { AdminDashboard, AdminReadiness } from '@/lib/admin-types';
 import { intBR } from '@/lib/format';
 import { PERIODS } from '@/lib/periods';
 import { serverApi } from '@/lib/session';
@@ -36,7 +37,10 @@ type Props = { searchParams: Promise<{ periodo?: string }> };
 export default async function AdminHomePage({ searchParams }: Props) {
   const { periodo } = await searchParams;
   const days = PERIODS.some((p) => p.value === periodo) ? Number(periodo) : 30;
-  const { data } = await serverApi<AdminDashboard>(`/internal/admin/dashboard?days=${days}`);
+  const [{ data }, { data: readiness }] = await Promise.all([
+    serverApi<AdminDashboard>(`/internal/admin/dashboard?days=${days}`),
+    serverApi<AdminReadiness>('/internal/admin/readiness'),
+  ]);
   if (!data) throw new Error('Não foi possível carregar o painel');
   const t = data.totals;
   const periodLabel = PERIODS.find((p) => Number(p.value) === days)?.label.toLowerCase() ?? '';
@@ -56,6 +60,8 @@ export default async function AdminHomePage({ searchParams }: Props) {
           </Button>
         }
       />
+
+      {readiness ? <ReadinessChecklist readiness={readiness} /> : null}
 
       <FilterFrame
         filters={[{ name: 'periodo', label: 'Período', options: PERIODS, defaultValue: '30' }]}

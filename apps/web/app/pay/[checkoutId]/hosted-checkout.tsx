@@ -105,7 +105,7 @@ export function HostedCheckout({
         ) : c.status === 'RECEIVED' || c.status === 'CONFIRMED' ? (
           <div className="relative grid justify-items-center gap-3 py-4 text-center" role="status">
             <Confetti />
-            <CheckCircle2 className="size-14 text-success" aria-hidden />
+            <CheckCircle2 className="size-14 text-success-foreground" aria-hidden />
             <p className="font-semibold text-lg">Pagamento confirmado!</p>
             <p className="text-muted-foreground text-sm">
               Seus créditos já estão disponíveis{returnUrl ? '. Pode voltar ao app.' : '.'}
@@ -156,11 +156,8 @@ function PendingView({ checkout: c }: { checkout: PublicCheckout }) {
           <CopyButton value={c.copyPaste} label="Copiar código Pix" />
         </div>
       ) : null}
-      <div
-        className="flex items-center justify-between gap-2 rounded-xl border p-3 text-sm"
-        aria-live="polite"
-      >
-        <span className="flex items-center gap-2">
+      <div className="flex items-center justify-between gap-2 rounded-xl border p-3 text-sm">
+        <span className="flex items-center gap-2" role="status">
           <Loader2 className="size-4 animate-spin text-fusai-accent" aria-hidden />
           Aguardando pagamento…
         </span>

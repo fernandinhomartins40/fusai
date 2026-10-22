@@ -25,6 +25,15 @@ export default async function ProjectsPage() {
         </div>
         <NewProjectButton orgId={org.id} />
       </div>
+      {org.projects.length === 0 ? (
+        <div className="grid justify-items-center gap-3 rounded-2xl border border-dashed p-8 text-center">
+          <p className="font-medium">Nenhum projeto ainda</p>
+          <p className="max-w-md text-muted-foreground text-sm">
+            Crie um projeto para gerar chaves de API e conectar seu app à fusai.
+          </p>
+          <NewProjectButton orgId={org.id} />
+        </div>
+      ) : null}
       <div className="grid gap-4 sm:grid-cols-2">
         {org.projects.map((p) => (
           <Link key={p.id} href={`/app/projetos/${p.id}`} className="group rounded-2xl">

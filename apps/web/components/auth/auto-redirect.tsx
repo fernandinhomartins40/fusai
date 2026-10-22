@@ -15,9 +15,11 @@ export function AutoRedirect({ href, seconds = 4 }: { href: string; seconds?: nu
     const t = setTimeout(() => setLeft((s) => s - 1), 1000);
     return () => clearTimeout(t);
   }, [left, href, router]);
+  // The ticking number stays out of the accessibility tree so screen readers aren't spammed.
   return (
-    <p className="text-muted-foreground text-xs" aria-live="polite">
-      {left > 0 ? `Abrindo o painel em ${left}s…` : 'Abrindo o painel…'}
+    <p className="text-muted-foreground text-xs">
+      <span className="sr-only">Abrindo o painel em instantes.</span>
+      <span aria-hidden>{left > 0 ? `Abrindo o painel em ${left}s…` : 'Abrindo o painel…'}</span>
     </p>
   );
 }

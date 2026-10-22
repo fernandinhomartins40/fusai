@@ -5,17 +5,23 @@
 # Entrada (variáveis de ambiente):
 #   FUSEAI_API_IMAGE  imagem da API/worker por digest (ghcr.io/...@sha256:...)
 #   FUSEAI_WEB_IMAGE  imagem da web por digest
+#   SKIP_MIGRATIONS=1 só no rollback (workflow "Rollback"): reimplanta imagens antigas sem
+#                     rodar migração nem seed (o banco continua no schema mais novo)
 #
 # Passos:
 #   1. .env com segredos: gerado UMA vez aqui mesmo (openssl), nunca sobrescrito;
 #   2. baixa as imagens novas;
 #   3. Postgres e Redis no ar; backup do banco (pg_dump) antes de migrar;
 #   4. prisma migrate deploy + seed idempotente com a imagem NOVA (se falhar, nada mudou);
-#   5. sobe api, worker, web e nginx com as imagens novas;
-#   6. saúde pela porta 3500 (Host api e www); se falhar, volta às imagens anteriores.
+#   5. pré-teste: a API e a web novas sobem em contêineres à parte e precisam responder
+#      (a API com Postgres e Redis) enquanto a versão atual segue no ar; se falhar, para aqui;
+#   6. sobe api, worker, web, nginx e backup com as imagens novas;
+#   7. saúde pela porta 3500 (Host api e www) e worker rodando; se falhar, volta às imagens
+#      anteriores.
 #
 # As migrações não são desfeitas na volta automática (são aditivas). O backup do passo 3
-# fica em /root/fuseai/backups para restauração manual.
+# fica em /root/fuseai/backups; os diários (serviço backup) em /root/fuseai/backups/daily.
+# Procedimentos manuais (restauração, rollback): docs/OPERACAO.md.
 set -euo pipefail
 
 APP_DIR="${APP_DIR:-/root/fuseai/deploy}"
@@ -37,6 +43,7 @@ if [ ! -f .env ]; then
   cat > .env <<EOF
 # Gerado por deploy.sh em $(date -u +%Y-%m-%dT%H:%M:%SZ). NÃO troque ENCRYPTION_KEY nem
 # KEY_PEPPER: invalida as chaves de provedor cifradas e todas as chaves de API dos clientes.
+# A API não sobe com BETTER_AUTH_SECRET ou SESSION_TOKEN_SECRET < 32 caracteres, nem KEY_PEPPER < 16.
 NODE_ENV=production
 APP_URL=https://www.fusai.com.br
 API_URL=https://api.fusai.com.br
@@ -118,6 +125,12 @@ fi
 
 compose() { docker compose -f docker-compose.vps.yml --env-file .env --env-file "$1" "${@:2}"; }
 
+# Backups diários: fora do volume do Postgres, graváveis pelo usuário postgres (uid 70) do
+# contêiner fuseai-backup.
+export FUSEAI_BACKUP_DIR="$BACKUP_DIR/daily"
+install -d -m 700 "$BACKUP_DIR"
+install -d -m 700 -o 70 -g 70 "$FUSEAI_BACKUP_DIR"
+
 printf 'FUSEAI_API_IMAGE=%s\nFUSEAI_WEB_IMAGE=%s\n' "$FUSEAI_API_IMAGE" "$FUSEAI_WEB_IMAGE" > images.env.new
 PREVIOUS=""
 if [ -f images.env ]; then
@@ -134,8 +147,6 @@ docker pull -q "$FUSEAI_WEB_IMAGE"
 log "Postgres e Redis"
 compose images.env.new up -d --wait postgres redis
 
-mkdir -p "$BACKUP_DIR"
-chmod 700 "$BACKUP_DIR"
 tables="$(compose images.env.new exec -T postgres psql -U fuseai -d fuseai -tAc \
   "select count(*) from information_schema.tables where table_schema='public'" | tr -d '[:space:]')"
 if [ "${tables:-0}" -gt 0 ]; then
@@ -151,19 +162,76 @@ else
 fi
 
 # ---------------------------------------------------------------------------- 4. migrações + seed
-log "Migrações (prisma migrate deploy)"
-compose images.env.new run --rm --no-deps -T -w /app/packages/db api \
-  node_modules/.bin/prisma migrate deploy
+if [ "${SKIP_MIGRATIONS:-0}" = 1 ]; then
+  log "Rollback: sem migração e sem seed (o banco fica no schema atual)"
+else
+  log "Migrações (prisma migrate deploy)"
+  compose images.env.new run --rm --no-deps -T -w /app/packages/db api \
+    node_modules/.bin/prisma migrate deploy
 
-log "Seed idempotente (admin, settings, provedores, pacotes)"
-compose images.env.new run --rm --no-deps -T -w /app/packages/db api \
-  node_modules/.bin/tsx prisma/seed.ts
+  # O seed vem empacotado na imagem (apps/api/dist/seed.js): a imagem não leva tsx.
+  log "Seed idempotente (admin, settings, provedores, pacotes)"
+  compose images.env.new run --rm --no-deps -T api node apps/api/dist/seed.js
+fi
 
-# ---------------------------------------------------------------------------- 5. aplicação
-log "Subindo api, worker, web e nginx"
+# ---------------------------------------------------------------------------- 5. pré-teste
+# Prontidão da API dentro de um contêiner: /health/ready (Postgres + Redis). Imagens antigas,
+# sem essa rota (404), caem no /health.
+api_ready_in() {
+  docker exec "$1" node -e "
+    const get = (p) => fetch('http://127.0.0.1:4000' + p, { signal: AbortSignal.timeout(5000) });
+    get('/health/ready').then((r) => (r.status === 404 ? get('/health') : r))
+      .then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1));" 2>/dev/null
+}
+web_ready_in() {
+  docker exec "$1" node -e "
+    fetch('http://127.0.0.1:3000/api/health', { signal: AbortSignal.timeout(5000) })
+      .then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1));" 2>/dev/null
+}
+running() { [ "$(docker inspect -f '{{.State.Running}}' "$1" 2>/dev/null)" = true ]; }
+
+# A API e a web novas sobem em contêineres à parte (sem porta publicada, mesma rede e mesmo
+# .env). Uma imagem que não sobe (segredo fraco recusado no boot, engine do Prisma faltando,
+# import quebrado) é barrada aqui, sem tocar na versão que está atendendo.
+preflight() {
+  local ok=1 attempt
+  docker rm -f fuseai-api-preflight fuseai-web-preflight >/dev/null 2>&1 || true
+  if ! compose images.env.new run -d --no-deps --name fuseai-api-preflight api >/dev/null ||
+    ! compose images.env.new run -d --no-deps --name fuseai-web-preflight web >/dev/null; then
+    ok=2
+  fi
+  if [ "$ok" = 1 ]; then
+    for attempt in $(seq 1 30); do
+      if api_ready_in fuseai-api-preflight && web_ready_in fuseai-web-preflight; then
+        ok=0
+        break
+      fi
+      # Processo encerrado (erro no boot): não adianta esperar.
+      if ! running fuseai-api-preflight || ! running fuseai-web-preflight; then break; fi
+      sleep 3
+    done
+  fi
+  if [ "$ok" != 0 ]; then
+    echo "--- api (pré-teste)" >&2
+    docker logs --tail 60 fuseai-api-preflight >&2 || true
+    echo "--- web (pré-teste)" >&2
+    docker logs --tail 30 fuseai-web-preflight >&2 || true
+  fi
+  docker rm -f fuseai-api-preflight fuseai-web-preflight >/dev/null 2>&1 || true
+  [ "$ok" = 0 ]
+}
+
+log "Pré-teste das imagens novas (a versão atual continua no ar)"
+if ! preflight; then
+  echo "ERRO: a imagem nova não ficou pronta no pré-teste. Nada foi trocado; a versão anterior segue no ar." >&2
+  exit 1
+fi
+
+# ---------------------------------------------------------------------------- 6. aplicação
+log "Subindo api, worker, web, nginx e backup"
 # Com depends_on (service_healthy), uma API que não sobe faz o `up` falhar. Não aborta aqui:
 # quem decide é a verificação de saúde abaixo, que faz a volta automática.
-compose images.env.new up -d --remove-orphans api worker web nginx || echo "AVISO: up retornou erro; verificando saúde" >&2
+compose images.env.new up -d --remove-orphans api worker web nginx backup || echo "AVISO: up retornou erro; verificando saúde" >&2
 # O nginx interno lê a pasta deploy/nginx montada. Confere que o contêiner vê exatamente o
 # arquivo do disco, valida e recarrega (um rsync não recria o contêiner).
 sync_nginx() {
@@ -179,9 +247,19 @@ sync_nginx() {
 }
 sync_nginx images.env.new || echo "AVISO: falha ao validar/recarregar o nginx interno" >&2
 
-# ---------------------------------------------------------------------------- 6. saúde
+# ---------------------------------------------------------------------------- 7. saúde
+# API pela porta 3500: /health/ready (com banco e Redis); imagem antiga sem a rota (404) cai
+# no /health.
+api_ready() {
+  local code
+  code="$(curl -s -o /dev/null -w '%{http_code}' -m 5 -H 'Host: api.fusai.com.br' "http://127.0.0.1:$PORT/health/ready" || true)"
+  [ "$code" = 200 ] && return 0
+  [ "$code" = 404 ] &&
+    curl -fsS -m 5 -H 'Host: api.fusai.com.br' "http://127.0.0.1:$PORT/health" | grep -q '"fuseai-api"'
+}
 healthy() {
-  curl -fsS -m 5 -H 'Host: api.fusai.com.br' "http://127.0.0.1:$PORT/health" | grep -q '"fuseai-api"' &&
+  api_ready &&
+    running fuseai-worker &&
     curl -fsS -m 10 -o /dev/null -H 'Host: www.fusai.com.br' "http://127.0.0.1:$PORT/docs" &&
     curl -fsS -m 10 -o /dev/null -H 'Host: www.fusai.com.br' "http://127.0.0.1:$PORT/brand/logo-fusai.png"
 }
@@ -197,17 +275,21 @@ for attempt in $(seq 1 30); do
       compose images.env run --rm --no-deps -T -v "$APP_DIR/asaas-webhook.mjs:/tmp/asaas-webhook.mjs:ro"         api node /tmp/asaas-webhook.mjs || echo "AVISO: não foi possível conferir o webhook do Asaas" >&2
     fi
     compose images.env ps --format 'table {{.Name}}\t{{.Status}}'
+    if [ -f "$FUSEAI_BACKUP_DIR/backup.log" ]; then
+      log "Últimos registros do backup diário"
+      tail -n 3 "$FUSEAI_BACKUP_DIR/backup.log"
+    fi
     exit 0
   fi
   sleep 4
 done
 
 echo "ERRO: a aplicação não ficou saudável em 120 s." >&2
-compose images.env.new logs --tail 60 api worker web nginx >&2 || true
+compose images.env.new logs --tail 60 api worker web nginx backup >&2 || true
 
 if [ -n "$PREVIOUS" ]; then
   log "Voltando às imagens anteriores"
-  compose "$PREVIOUS" up -d --remove-orphans api worker web nginx || true
+  compose "$PREVIOUS" up -d --remove-orphans api worker web nginx backup || true
   sync_nginx "$PREVIOUS" || true
   for attempt in $(seq 1 30); do
     if healthy; then

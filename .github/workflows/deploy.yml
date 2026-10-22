@@ -141,6 +141,13 @@ jobs:
       - id: out
         name: Referência imutável (repositório@digest)
         run: echo "image=${{ steps.image.outputs.name }}@${{ steps.build.outputs.digest }}" >> "$GITHUB_OUTPUT"
+      # Medida do PIE V-02 (antes: 1,44 GB descomprimida na VPS). Aqui é a soma das camadas
+      # comprimidas, o que o deploy baixa.
+      - name: Tamanho da imagem
+        run: |
+          set -euo pipefail
+          bytes=$(docker buildx imagetools inspect --raw "${{ steps.out.outputs.image }}" | jq '[.layers[].size] | add')
+          echo "Imagem da API: $((bytes / 1024 / 1024)) MiB comprimidos" | tee -a "$GITHUB_STEP_SUMMARY"
 
   build-web:
     needs: test

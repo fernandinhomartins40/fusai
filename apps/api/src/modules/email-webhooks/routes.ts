@@ -82,7 +82,16 @@ export const emailWebhookRoutes: FastifyPluginAsync<{
           provider: 'velomail',
           eventKey,
           type: parsed.event,
-          payload: parsed as Prisma.InputJsonValue,
+          // Only ids and status: VeloMail also sends the recipient, which we do not need to keep.
+          payload: {
+            event: parsed.event,
+            timestamp: parsed.timestamp,
+            data: {
+              email_id: parsed.data.email_id ?? null,
+              message_id: parsed.data.message_id ?? null,
+              status: parsed.data.status ?? null,
+            },
+          },
           processedAt: new Date(),
         },
       });

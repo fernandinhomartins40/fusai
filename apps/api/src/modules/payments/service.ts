@@ -20,7 +20,8 @@ import {
 } from '@fusai/shared';
 import { HttpError } from '../../lib/errors';
 import type { NormalizedPaymentEvent, PaymentProvider } from '../../payments/types';
-import { applyLedger } from '../billing/wallet';
+import { giveEndUserCredit } from '../app-users/service';
+import { applyLedger, type Tx } from '../billing/wallet';
 import { emitEvent } from '../webhooks-out/service';
 
 /** How long a Pix QR code stays payable on our side (the job then cancels it at Asaas). */
@@ -302,7 +303,11 @@ export async function createAppUserCheckout(
 }
 
 /** Customer-facing webhook data for a payment (camelCase, like the /v1 checkout API). */
-async function paymentEventData(tx: Prisma.TransactionClient, payment: Payment) {
+async function paymentEventData(
+  tx: Prisma.TransactionClient,
+  payment: Payment,
+  extra: Record<string, unknown> = {},
+) {
   const appUser = payment.appUserId
     ? await tx.appUser.findUnique({ where: { id: payment.appUserId }, include: { wallet: true } })
     : null;
@@ -315,6 +320,7 @@ async function paymentEventData(tx: Prisma.TransactionClient, payment: Payment) 
       creditMicros: payment.creditMicros.toString(),
       packageId: payment.packageId,
     },
+    ...extra,
     ...(appUser
       ? {
           appUser: {
@@ -352,8 +358,17 @@ export async function creditPayment(
   }
 
   const meta = (payment.metadata ?? {}) as Partial<PaymentMeta>;
-  const base = BigInt(meta.baseMicros ?? payment.creditMicros.toString());
-  const bonus = BigInt(meta.bonusMicros ?? '0');
+  let base = BigInt(meta.baseMicros ?? payment.creditMicros.toString());
+  let bonus = BigInt(meta.bonusMicros ?? '0');
+  // PIE R-01: an end user's purchase buys at most what was paid. Anything above (the package
+  // bonus, or credits of an older package priced below them) is paid by the organization.
+  if (payment.appUserId) {
+    const paid = centsToMicros(payment.amountCents);
+    if (base > paid) {
+      bonus += base - paid;
+      base = paid;
+    }
+  }
 
   try {
     const updated = await prisma.$transaction(async (tx) => {
@@ -370,7 +385,32 @@ export async function creditPayment(
         description: `Recarga via Pix (${formatBRL(centsToMicros(payment.amountCents))})`,
         ...ref,
       });
-      if (bonus > 0n) {
+      if (bonus > 0n && payment.appUserId) {
+        const given = await giveEndUserCredit(tx, {
+          orgId: payment.orgId,
+          walletId: payment.walletId,
+          amountMicros: bonus,
+          description: 'Bônus do pacote (pago pela organização)',
+          ...ref,
+        });
+        if (!given) {
+          // The buyer still gets what they paid for; the bonus waits for nobody (audit only).
+          await tx.payment.update({ where: { id: payment.id }, data: { creditMicros: base } });
+          await tx.auditLog.create({
+            data: {
+              actorId: null,
+              action: 'payment.bonus_skipped',
+              target: payment.orgId,
+              metadata: {
+                paymentId: payment.id,
+                appUserId: payment.appUserId,
+                bonusMicros: bonus.toString(),
+                reason: 'insufficient_org_balance',
+              },
+            },
+          });
+        }
+      } else if (bonus > 0n) {
         await applyLedger(tx, {
           walletId: payment.walletId,
           type: 'BONUS',
@@ -399,73 +439,229 @@ export async function creditPayment(
   }
 }
 
-/** Refund received at the PSP: debits what was credited (may leave the wallet negative, PRD §9.1 step 8). */
-export async function applyRefund(prisma: PrismaClient, paymentId: string): Promise<boolean> {
-  const payment = await prisma.payment.findUnique({ where: { id: paymentId } });
-  if (!payment?.creditedAt || payment.status === 'REFUNDED') return false;
-  try {
-    await prisma.$transaction(async (tx) => {
-      const claimed = await tx.payment.updateMany({
-        where: { id: payment.id, status: { not: 'REFUNDED' } },
-        data: { status: 'REFUNDED' },
+/** Hold that freezes the credits of a charged-back payment (no expiry: released by reconcile). */
+const chargebackHoldId = (paymentId: string) => `chargeback:${paymentId}`;
+const FROZEN_UNTIL = new Date('2100-01-01T00:00:00Z');
+/** Expired payments and webhook events are rechecked with the PSP for this long (R-11). */
+export const RECONCILE_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+
+/** Releases a chargeback freeze, if any. Returns the amount released. */
+async function unfreeze(tx: Tx, paymentId: string): Promise<bigint> {
+  const rows = await tx.$queryRaw<{ walletId: string; amountMicros: bigint }[]>`
+    DELETE FROM "WalletHold" WHERE id = ${chargebackHoldId(paymentId)}
+    RETURNING "walletId", "amountMicros"`;
+  const hold = rows[0];
+  if (!hold) return 0n;
+  if (hold.amountMicros > 0n) {
+    await tx.$executeRaw`
+      UPDATE "Wallet" SET "reservedMicros" = "reservedMicros" - ${hold.amountMicros}
+       WHERE id = ${hold.walletId}`;
+  }
+  return hold.amountMicros;
+}
+
+/** Credits to take back for `refundedCents` returned: the same fraction of what was credited. */
+function proportionalMicros(payment: Payment, refundedCents: number): bigint {
+  if (payment.amountCents <= 0) return payment.creditMicros;
+  const target = ceilDiv(payment.creditMicros * BigInt(refundedCents), BigInt(payment.amountCents));
+  return target < payment.creditMicros ? target : payment.creditMicros;
+}
+
+/**
+ * Takes back the credits of a refunded payment up to `targetMicros` in total (PIE R-06):
+ * a partial refund debits the same fraction of the credits delivered (bonus included), and a
+ * later refund only debits the difference (`Payment.refundedMicros`). Debits at most what is
+ * still available: a refund never leaves anyone owing (D-128). Credits already spent are a
+ * shortfall: the organization is suspended, or the end user blocked (R-07).
+ * Without `targetMicros` the whole payment is refunded.
+ */
+export async function applyRefund(
+  prisma: PrismaClient,
+  paymentId: string,
+  targetMicros?: bigint,
+): Promise<boolean> {
+  return prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT 1 FROM "Payment" WHERE id = ${paymentId} FOR UPDATE`;
+    const payment = await tx.payment.findUnique({ where: { id: paymentId } });
+    if (!payment?.creditedAt) return false;
+    let target = targetMicros ?? payment.creditMicros;
+    if (target > payment.creditMicros) target = payment.creditMicros;
+    const delta = target - payment.refundedMicros;
+    if (delta <= 0n) return false;
+
+    // Frozen credits (chargeback) are exactly what is being taken back now.
+    await unfreeze(tx, payment.id);
+    const [w] = await tx.$queryRaw<{ balanceMicros: bigint; reservedMicros: bigint }[]>`
+      SELECT "balanceMicros", "reservedMicros" FROM "Wallet" WHERE id = ${payment.walletId} FOR UPDATE`;
+    const available = (w?.balanceMicros ?? 0n) - (w?.reservedMicros ?? 0n);
+    const debit = delta <= available ? delta : available > 0n ? available : 0n;
+    const shortfall = delta - debit;
+    const full = target === payment.creditMicros;
+    if (debit > 0n) {
+      await applyLedger(tx, {
+        walletId: payment.walletId,
+        type: 'REFUND',
+        amountMicros: -debit,
+        referenceType: 'payment',
+        // The cumulative target makes each step unique: re-deliveries never debit twice.
+        referenceId: payment.refundedMicros === 0n ? payment.id : `${payment.id}:${target}`,
+        description: full ? 'Estorno da recarga via Pix' : 'Estorno parcial da recarga via Pix',
       });
-      if (claimed.count === 0) return;
-      // Debit at most what is still available: a refund never leaves anyone owing (D-128).
-      const [w] = await tx.$queryRaw<{ balanceMicros: bigint; reservedMicros: bigint }[]>`
-        SELECT "balanceMicros", "reservedMicros" FROM "Wallet" WHERE id = ${payment.walletId} FOR UPDATE`;
-      const available = (w?.balanceMicros ?? 0n) - (w?.reservedMicros ?? 0n);
-      const debit =
-        payment.creditMicros <= available ? payment.creditMicros : available > 0n ? available : 0n;
-      const shortfall = payment.creditMicros - debit;
-      if (debit > 0n) {
-        await applyLedger(tx, {
-          walletId: payment.walletId,
-          type: 'REFUND',
-          amountMicros: -debit,
-          referenceType: 'payment',
-          referenceId: payment.id,
-          description: 'Estorno da recarga via Pix',
+    }
+    await tx.payment.update({
+      where: { id: payment.id },
+      data: { refundedMicros: target, ...(full ? { status: 'REFUNDED' } : {}) },
+    });
+    if (shortfall > 0n) {
+      // Paid, used the credits, then got the money back (refund/MED outside fusai). An
+      // organization is suspended until the admin reviews it; an end user is blocked (R-07).
+      if (payment.appUserId) {
+        await tx.appUser.update({
+          where: { id: payment.appUserId },
+          data: { blockedAt: new Date() },
+        });
+      } else {
+        await tx.organization.update({
+          where: { id: payment.orgId },
+          data: { status: 'SUSPENDED' },
         });
       }
-      if (shortfall > 0n) {
-        // Paid, used the credits, then got the money back (refund/MED outside fusai). The
-        // organization is suspended until the admin reviews it; the case goes to the audit log.
-        if (!payment.appUserId) {
-          await tx.organization.update({
-            where: { id: payment.orgId },
-            data: { status: 'SUSPENDED' },
-          });
-        }
-        await tx.auditLog.create({
-          data: {
-            actorId: null,
-            action: 'payment.refund_shortfall',
-            target: payment.orgId,
-            metadata: {
-              paymentId: payment.id,
-              creditMicros: payment.creditMicros.toString(),
-              debitedMicros: debit.toString(),
-              shortfallMicros: shortfall.toString(),
-              suspended: !payment.appUserId,
-            },
+      await tx.auditLog.create({
+        data: {
+          actorId: null,
+          action: 'payment.refund_shortfall',
+          target: payment.orgId,
+          metadata: {
+            paymentId: payment.id,
+            creditMicros: payment.creditMicros.toString(),
+            refundedMicros: target.toString(),
+            debitedMicros: debit.toString(),
+            shortfallMicros: shortfall.toString(),
+            suspended: !payment.appUserId,
+            appUserBlocked: payment.appUserId,
           },
-        });
-      }
-      if (payment.projectId) {
-        const refunded = await tx.payment.findUniqueOrThrow({ where: { id: payment.id } });
-        await emitEvent(
-          tx,
-          payment.projectId,
-          'payment.refunded',
-          await paymentEventData(tx, refunded),
-        );
-      }
+        },
+      });
+    }
+    if (payment.projectId) {
+      const refunded = await tx.payment.findUniqueOrThrow({ where: { id: payment.id } });
+      // The customer learns how much of the refund was already spent (R-07).
+      await emitEvent(
+        tx,
+        payment.projectId,
+        'payment.refunded',
+        await paymentEventData(tx, refunded, {
+          refund: {
+            debitedMicros: debit.toString(),
+            shortfallMicros: shortfall.toString(),
+            refundedMicros: target.toString(),
+            partial: !full,
+          },
+        }),
+      );
+    }
+    return true;
+  });
+}
+
+/**
+ * Chargeback opened (PIE, owner's rule): the credits of that payment are frozen as a hold that
+ * never expires, so they cannot be spent while the dispute lasts. What was already spent cannot
+ * be frozen: the end user who did it is blocked. The organization keeps working.
+ */
+async function freezeForChargeback(prisma: PrismaClient, paymentId: string): Promise<boolean> {
+  return prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT 1 FROM "Payment" WHERE id = ${paymentId} FOR UPDATE`;
+    const payment = await tx.payment.findUnique({ where: { id: paymentId } });
+    if (!payment?.creditedAt) return false;
+    const exists = await tx.walletHold.findUnique({ where: { id: chargebackHoldId(paymentId) } });
+    if (exists) return false;
+    const remaining = payment.creditMicros - payment.refundedMicros;
+    if (remaining <= 0n) return false;
+    const [w] = await tx.$queryRaw<{ balanceMicros: bigint; reservedMicros: bigint }[]>`
+      SELECT "balanceMicros", "reservedMicros" FROM "Wallet" WHERE id = ${payment.walletId} FOR UPDATE`;
+    const available = (w?.balanceMicros ?? 0n) - (w?.reservedMicros ?? 0n);
+    const frozen = remaining <= available ? remaining : available > 0n ? available : 0n;
+    if (frozen > 0n) {
+      await tx.$executeRaw`
+        UPDATE "Wallet" SET "reservedMicros" = "reservedMicros" + ${frozen}
+         WHERE id = ${payment.walletId}`;
+    }
+    // A zero hold still marks the payment as frozen (repeated events do nothing).
+    await tx.walletHold.create({
+      data: {
+        id: chargebackHoldId(paymentId),
+        walletId: payment.walletId,
+        amountMicros: frozen,
+        expiresAt: FROZEN_UNTIL,
+      },
+    });
+    const spent = remaining - frozen;
+    if (spent > 0n && payment.appUserId) {
+      await tx.appUser.update({
+        where: { id: payment.appUserId },
+        data: { blockedAt: new Date() },
+      });
+    }
+    await tx.auditLog.create({
+      data: {
+        actorId: null,
+        action: 'payment.chargeback_frozen',
+        target: payment.orgId,
+        metadata: {
+          paymentId: payment.id,
+          frozenMicros: frozen.toString(),
+          spentMicros: spent.toString(),
+          appUserBlocked: spent > 0n ? payment.appUserId : null,
+        },
+      },
     });
     return true;
-  } catch (err) {
-    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') return false;
-    throw err;
+  });
+}
+
+export type ReconcileResult = {
+  remoteStatus: string;
+  /** The PSP shows money returned to the payer (total or partial). */
+  refundConfirmed: boolean;
+};
+
+/**
+ * Brings a credited payment in line with the PSP (source of truth, never the webhook body):
+ * refunds -> debit the proportional difference; chargeback -> freeze; paid again (dispute won)
+ * -> unfreeze. Safe to run any number of times.
+ */
+export async function reconcilePayment(
+  prisma: PrismaClient,
+  provider: PaymentProvider,
+  paymentId: string,
+): Promise<ReconcileResult | null> {
+  const payment = await prisma.payment.findUnique({ where: { id: paymentId } });
+  if (!payment?.creditedAt || !payment.providerPaymentId) return null;
+  const remote = await provider.getPayment(payment.providerPaymentId);
+  const target =
+    remote.status === 'REFUNDED'
+      ? payment.creditMicros
+      : remote.refundedCents > 0
+        ? proportionalMicros(payment, remote.refundedCents)
+        : 0n;
+  if (target > payment.refundedMicros) await applyRefund(prisma, payment.id, target);
+  if (remote.status === 'CHARGEBACK') {
+    await freezeForChargeback(prisma, payment.id);
+  } else if (remote.status === 'RECEIVED' || remote.status === 'CONFIRMED') {
+    const released = await prisma.$transaction((tx) => unfreeze(tx, payment.id));
+    if (released > 0n) {
+      await prisma.auditLog.create({
+        data: {
+          actorId: null,
+          action: 'payment.chargeback_released',
+          target: payment.orgId,
+          metadata: { paymentId: payment.id, releasedMicros: released.toString() },
+        },
+      });
+    }
   }
+  return { remoteStatus: remote.status, refundConfirmed: target > 0n };
 }
 
 /** Resolves our Payment from a webhook (externalReference = our payment id, else the PSP id). */
@@ -493,18 +689,48 @@ export async function processWebhookEvent(
   if (!stored || stored.processedAt) return;
   const event = stored.payload as unknown as NormalizedPaymentEvent & { raw?: unknown };
   let error: string | null = null;
+  // R-11: a "paid" event the PSP does not confirm yet stays open and is retried for a while.
+  let retry = false;
   try {
     const payment = await findPaymentForEvent(prisma, event);
     if (!payment) {
       error = 'payment_not_found';
+    } else if (event.kind === 'paid' && payment.creditedAt) {
+      // Paid again after a chargeback (dispute won): release the frozen credits.
+      await reconcilePayment(prisma, provider, payment.id);
     } else if (event.kind === 'paid') {
       const result = await creditPayment(prisma, provider, payment.id);
       if (result.credited && result.payment)
         await hooks.onCredited?.(result.payment).catch(() => {});
-      if (!result.credited && result.reason !== 'already_credited')
+      if (!result.credited && result.reason !== 'already_credited') {
         error = result.reason ?? 'not_credited';
-    } else if (event.kind === 'refunded') {
-      await applyRefund(prisma, payment.id);
+        retry =
+          error.startsWith('not_paid:') &&
+          Date.now() - stored.createdAt.getTime() < RECONCILE_WINDOW_MS;
+      }
+    } else if (event.kind === 'refunded' || event.kind === 'chargeback') {
+      // Same rule as the credit: the PSP decides how much moved, never the webhook body.
+      const result = await reconcilePayment(prisma, provider, payment.id);
+      // Not refunded at the PSP yet: throw, so the event stays pending and the sweep retries it.
+      if (event.kind === 'refunded' && result && !result.refundConfirmed)
+        throw new Error(`refund_not_confirmed:${result.remoteStatus}`);
+    } else if (event.kind === 'review') {
+      // Refund in progress / cash receipt undone: nothing to debit yet, but the admin sees it
+      // in the audit log instead of the event being silently ignored.
+      await prisma.auditLog.create({
+        data: {
+          actorId: null,
+          action: 'payment.needs_review',
+          target: payment.orgId,
+          metadata: {
+            paymentId: payment.id,
+            event: event.type,
+            valueCents: event.valueCents,
+            credited: !!payment.creditedAt,
+            appUserId: payment.appUserId,
+          },
+        },
+      });
     } else if (event.kind === 'expired') {
       await markExpired(
         prisma,
@@ -522,7 +748,7 @@ export async function processWebhookEvent(
   }
   await prisma.inboundWebhookEvent.update({
     where: { id: stored.id },
-    data: { processedAt: new Date(), error },
+    data: { processedAt: retry ? null : new Date(), error },
   });
 }
 
@@ -591,4 +817,50 @@ export async function expirePendingPayments(prisma: PrismaClient, provider: Paym
     if (await markExpired(prisma, p.id, 'EXPIRED')) expired += 1;
   }
   return expired;
+}
+
+/**
+ * Periodic reconciliation with the PSP (PIE R-11 and chargebacks):
+ * - expired payments of the last 7 days that the PSP says were paid get credited (late Pix,
+ *   or an OVERDUE event processed before the RECEIVED one);
+ * - frozen chargebacks are rechecked until the dispute ends (released or refunded).
+ */
+export async function reconcilePayments(
+  prisma: PrismaClient,
+  provider: PaymentProvider,
+  hooks: ProcessHooks = {},
+) {
+  let credited = 0;
+  const expired = await prisma.payment.findMany({
+    where: {
+      status: 'EXPIRED',
+      creditedAt: null,
+      providerPaymentId: { not: null },
+      createdAt: { gte: new Date(Date.now() - RECONCILE_WINDOW_MS) },
+    },
+    orderBy: { createdAt: 'desc' },
+    take: 200,
+  });
+  for (const p of expired) {
+    try {
+      const remote = await provider.getPayment(p.providerPaymentId as string);
+      if (remote.status !== 'RECEIVED' && remote.status !== 'CONFIRMED') continue;
+      const result = await creditPayment(prisma, provider, p.id);
+      if (result.credited && result.payment) {
+        credited += 1;
+        await hooks.onCredited?.(result.payment).catch(() => {});
+      }
+    } catch {
+      // PSP unavailable: next run.
+    }
+  }
+  const frozen = await prisma.walletHold.findMany({
+    where: { id: { startsWith: 'chargeback:' } },
+    select: { id: true },
+    take: 200,
+  });
+  for (const h of frozen) {
+    await reconcilePayment(prisma, provider, h.id.slice('chargeback:'.length)).catch(() => {});
+  }
+  return { credited, frozen: frozen.length };
 }

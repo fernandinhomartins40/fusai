@@ -1,6 +1,6 @@
 'use client';
 
-import { brlToMicros } from '@fusai/shared';
+import { type ApiKeyScopeValue, brlToMicros } from '@fusai/shared';
 import { Button } from '@fusai/ui/components/button';
 import { Input } from '@fusai/ui/components/input';
 import { cn } from '@fusai/ui/lib/utils';
@@ -9,11 +9,24 @@ import { useState } from 'react';
 import { Field, FormAlert } from '@/components/form-field';
 import { ApiError, apiFetch } from '@/lib/api';
 import type { CreatedApiKey } from '@/lib/api-key-types';
+import { ScopePicker } from './scope-picker';
 
-type Props = { projectId: string; onCreated: (key: CreatedApiKey) => void; defaultName?: string };
+type Props = {
+  projectId: string;
+  onCreated: (key: CreatedApiKey) => void;
+  defaultName?: string;
+  /** New keys get the minimum (chat only) unless the flow needs more, like onboarding's MCP. */
+  defaultScopes?: ApiKeyScopeValue[];
+};
 
-export function CreateKeyForm({ projectId, onCreated, defaultName = '' }: Props) {
+export function CreateKeyForm({
+  projectId,
+  onCreated,
+  defaultName = '',
+  defaultScopes = ['chat'],
+}: Props) {
   const [name, setName] = useState(defaultName);
+  const [scopes, setScopes] = useState<ApiKeyScopeValue[]>(defaultScopes);
   const [env, setEnv] = useState<'LIVE' | 'TEST'>('LIVE');
   const [rpm, setRpm] = useState('');
   const [limit, setLimit] = useState('');
@@ -36,6 +49,7 @@ export function CreateKeyForm({ projectId, onCreated, defaultName = '' }: Props)
         body: JSON.stringify({
           name: name.trim(),
           env,
+          scopes,
           rpmLimit: rpm.trim() ? Number(rpm) : null,
           spendLimitMicros,
         }),
@@ -110,6 +124,7 @@ export function CreateKeyForm({ projectId, onCreated, defaultName = '' }: Props)
           />
         </Field>
       </div>
+      <ScopePicker value={scopes} onChange={setScopes} />
       <Button type="submit" variant="brand" disabled={pending || !name.trim()}>
         {pending ? <Loader2 className="animate-spin" /> : null}
         Gerar chave

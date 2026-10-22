@@ -1,0 +1,61 @@
+name: E2E (Playwright)
+
+# Smoke de ponta a ponta: web + API reais contra Postgres e Redis de serviço, Asaas falso
+# e um SMTP local (e2e/support/services.ts). Não faz deploy e não chama serviços externos.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: fuseai
+          POSTGRES_PASSWORD: fuseai
+          POSTGRES_DB: fuseai_e2e
+          POSTGRES_INITDB_ARGS: --encoding=UTF8
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U fuseai -d fuseai_e2e"
+          --health-interval 5s --health-timeout 3s --health-retries 20
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 3s --health-retries 20
+    env:
+      CI: 'true'
+      E2E_DATABASE_URL: postgresql://fuseai:fuseai@localhost:5432/fuseai_e2e
+      E2E_REDIS_URL: redis://localhost:6379/3
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec tsc -p e2e/tsconfig.json
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:e2e
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: e2e/.tmp/
+          retention-days: 7

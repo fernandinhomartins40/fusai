@@ -176,7 +176,7 @@ export function PricePreview({ draft, settings }: { draft: PriceDraft; settings:
               <div>
                 <dt className="text-muted-foreground">Lucro bruto</dt>
                 <dd
-                  className={`font-semibold tabular-nums ${sim.profit < 0n ? 'text-destructive' : 'text-success'}`}
+                  className={`font-semibold tabular-nums ${sim.profit < 0n ? 'text-destructive' : 'text-success-foreground'}`}
                 >
                   {formatBRL(sim.profit)}
                 </dd>

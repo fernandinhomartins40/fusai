@@ -12,7 +12,7 @@ Authorization: Bearer fai_live_...
 
 - `fai_live_…`: produção. `fai_test_…`: teste, só com modelos baratos.
 - A fusai guarda apenas um hash da chave. Se perder, gere outra e revogue a antiga em **Projetos → Chaves de API**.
-- Cada chave pode ter limite de requisições por minuto, limite de gasto mensal e data de expiração.
+- Cada chave pode ter limite de requisições por minuto, limite de gasto mensal e data de expiração. O limite mensal também vale para o consumo dos session tokens emitidos pela chave.
 
 **A chave secreta nunca pode ir para o front-end nem para o app.** Se a API recebe uma chave secreta com header `Origin` (vinda de um navegador), ela recusa com `403 secret_key_in_browser`.
 

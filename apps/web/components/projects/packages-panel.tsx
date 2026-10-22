@@ -19,6 +19,7 @@ import { Loader2, Package, Plus } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { toast } from 'sonner';
+import { confirmAction } from '@/components/confirm';
 import { Field, FormAlert } from '@/components/form-field';
 import { ApiError, apiFetch } from '@/lib/api';
 import type { ProjectPackage } from '@/lib/end-user-types';
@@ -49,7 +50,13 @@ export function PackagesPanel({
   const [editing, setEditing] = useState<ProjectPackage | 'new' | null>(null);
 
   async function remove(pkg: ProjectPackage) {
-    if (!confirm(`Remover o pacote “${pkg.name}”?`)) return;
+    if (
+      !(await confirmAction(`Remover o pacote “${pkg.name}”?`, {
+        confirmLabel: 'Remover',
+        destructive: true,
+      }))
+    )
+      return;
     try {
       const res = await apiFetch<{ deactivated: boolean }>(`${basePath}/${pkg.id}`, {
         method: 'DELETE',
@@ -83,7 +90,7 @@ export function PackagesPanel({
       </div>
 
       {billingMode === 'ORG_WALLET' ? (
-        <FormAlert>
+        <FormAlert tone="info">
           Este projeto está em “Carteira da organização”: usuários finais não compram créditos. Mude
           o modo de cobrança em Configurações para vender pacotes.
         </FormAlert>
@@ -160,6 +167,7 @@ export function PackagesPanel({
         {editing ? (
           <PackageForm
             basePath={basePath}
+            forEndUsers={billingMode !== undefined}
             pkg={editing === 'new' ? null : editing}
             onSaved={() => close(true)}
           />
@@ -171,10 +179,13 @@ export function PackagesPanel({
 
 function PackageForm({
   basePath,
+  forEndUsers,
   pkg,
   onSaved,
 }: {
   basePath: string;
+  /** Project package: credits ≤ price, the bonus is paid by the organization (PIE R-01). */
+  forEndUsers: boolean;
   pkg: ProjectPackage | null;
   onSaved: () => void;
 }) {
@@ -202,6 +213,11 @@ function PackageForm({
       return setError('Use valores no formato 9,90.');
     }
     if (priceMicros % 10_000n !== 0n) return setError('O preço precisa estar em centavos.');
+    if (forEndUsers && creditMicros > priceMicros) {
+      return setError(
+        'Os créditos não podem passar do preço. Use o bônus para dar mais (o bônus sai do saldo da organização).',
+      );
+    }
     setPending(true);
     try {
       await apiFetch(pkg ? `${basePath}/${pkg.id}` : basePath, {
@@ -247,7 +263,11 @@ function PackageForm({
             required
           />
         </Field>
-        <Field id="pkg-credit" label="Créditos (R$)">
+        <Field
+          id="pkg-credit"
+          label="Créditos (R$)"
+          hint={forEndUsers ? 'Até o valor do preço' : undefined}
+        >
           <Input
             id="pkg-credit"
             inputMode="decimal"
@@ -256,7 +276,11 @@ function PackageForm({
             required
           />
         </Field>
-        <Field id="pkg-bonus" label="Bônus (R$)" hint="Opcional">
+        <Field
+          id="pkg-bonus"
+          label="Bônus (R$)"
+          hint={forEndUsers ? 'Opcional; sai do saldo da organização' : 'Opcional'}
+        >
           <Input
             id="pkg-bonus"
             inputMode="decimal"
@@ -286,8 +310,9 @@ function PackageForm({
         </div>
       </div>
       <p className="text-muted-foreground text-xs">
-        A margem é sua: o usuário paga o preço e recebe créditos + bônus, que são consumidos pelos
-        preços da fusai.
+        {forEndUsers
+          ? 'A margem é sua: o usuário paga o preço e recebe os créditos, consumidos pelos preços da fusai. O bônus é um presente seu: a cada venda ele sai do saldo da sua organização (sem saldo, o usuário recebe só os créditos).'
+          : 'A margem é sua: o usuário paga o preço e recebe créditos + bônus, que são consumidos pelos preços da fusai.'}
       </p>
       <Button type="submit" variant="brand" disabled={pending || !name.trim()}>
         {pending ? <Loader2 className="animate-spin" /> : null}

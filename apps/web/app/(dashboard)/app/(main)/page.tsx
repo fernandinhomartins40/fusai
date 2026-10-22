@@ -1,17 +1,11 @@
 import { formatBRL } from '@fusai/shared';
 import { Button } from '@fusai/ui/components/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@fusai/ui/components/card';
-import { AlertTriangle, ArrowRight, Plus } from 'lucide-react';
+import { AlertTriangle, Plus } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { DailySpendChart } from '@/components/charts/daily-spend-chart';
 import { ModelSpendChart } from '@/components/charts/model-spend-chart';
+import { ActivationChecklist } from '@/components/onboarding/activation-checklist';
 import { StatTile } from '@/components/stat-tile';
 import { getCurrentOrg } from '@/lib/current-org';
 import type { Overview } from '@/lib/dashboard-types';
@@ -31,8 +25,6 @@ export default async function OverviewPage() {
   if (!o) throw new Error('Não foi possível carregar a visão geral');
 
   const available = BigInt(o.wallet.availableMicros);
-  const firstProject = org.projects[0];
-  const noTraffic = o.requests.last30d === 0;
 
   return (
     <div className="grid gap-6">
@@ -57,11 +49,11 @@ export default async function OverviewPage() {
           role="alert"
           className="flex flex-wrap items-center gap-3 rounded-2xl border border-warning/40 bg-warning/10 p-4 text-sm"
         >
-          <AlertTriangle className="size-5 shrink-0 text-warning" aria-hidden />
+          <AlertTriangle className="size-5 shrink-0 text-warning-foreground" aria-hidden />
           <p className="min-w-0 flex-1">
             <strong>Saldo baixo:</strong> {formatBRL(available)} disponíveis (alerta abaixo de{' '}
-            {formatBRL(BigInt(o.lowBalance.thresholdMicros))}). Quando acabar, as requisições
-            recebem 402.
+            {formatBRL(BigInt(o.lowBalance.thresholdMicros))}). Quando acabar, seus apps param de
+            receber respostas da IA até você recarregar.
           </p>
           <Button asChild size="sm" variant="outline">
             <Link href="/app/carteira?recarga=1">Recarregar</Link>
@@ -99,24 +91,7 @@ export default async function OverviewPage() {
         />
       </div>
 
-      {noTraffic && firstProject ? (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Comece por aqui</CardTitle>
-            <CardDescription>
-              Gere uma chave no projeto {firstProject.name} e faça a primeira chamada com o SDK da
-              OpenAI.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button asChild variant="outline">
-              <Link href={`/app/projetos/${firstProject.id}/chaves`}>
-                Ir para as chaves <ArrowRight />
-              </Link>
-            </Button>
-          </CardContent>
-        </Card>
-      ) : null}
+      <ActivationChecklist activation={o.activation} />
 
       <div className="grid gap-4 xl:grid-cols-2">
         <DailySpendChart data={o.daily} description="Últimos 30 dias, horário de Brasília" />

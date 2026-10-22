@@ -277,6 +277,21 @@ describe('super admin panel', () => {
     expect(me.json().user.impersonatedBy).toBeTruthy();
     expect((await call('GET', '/internal/admin/system', asCustomer)).statusCode).toBe(403);
 
+    // PIE S-04: actions taken while impersonating keep the real super admin in the audit log.
+    const adminUser = await ctx.prisma.user.findUniqueOrThrow({
+      where: { email: 'admin@example.com' },
+    });
+    const patched = await call('PATCH', `/internal/organizations/${orgId}`, asCustomer, {
+      name: 'Cliente Um',
+    });
+    expect(patched.statusCode).toBe(200);
+    const update = await ctx.prisma.auditLog.findFirstOrThrow({
+      where: { action: 'org.update', target: orgId },
+      orderBy: { createdAt: 'desc' },
+    });
+    expect(update.actorId).toBe(customer.id);
+    expect(update.metadata).toMatchObject({ fields: ['name'], impersonatedBy: adminUser.id });
+
     const stop = await ctx.app.inject({
       method: 'POST',
       url: '/api/auth/admin/stop-impersonating',

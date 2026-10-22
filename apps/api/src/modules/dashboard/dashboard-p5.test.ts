@@ -1,5 +1,5 @@
 import { prisma } from '@fusai/db';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   APP_URL,
   createTestApp,
@@ -109,6 +109,38 @@ describe('customer dashboard (phase 5)', () => {
       expect(o.requests.last30d).toBe(2);
       expect(o.byModel).toMatchObject([{ slug: 'fuse/x', chargedMicros: '3000', requests: 2 }]);
       expect(o.lowBalance).toMatchObject({ isLow: true, thresholdMicros: '5000000' });
+    });
+
+    it('reports the activation checklist steps (O-02)', async () => {
+      const activation = async () =>
+        (await call('GET', `/internal/organizations/${orgId}/overview`, owner)).json().activation;
+      expect(await activation()).toEqual({
+        hasProject: true,
+        hasKey: false,
+        hasCredits: false,
+        hasFirstCall: false,
+        projectId,
+      });
+
+      const key = await call('POST', `/internal/projects/${projectId}/api-keys`, owner, {
+        name: 'prod',
+      });
+      expect(key.statusCode).toBe(201);
+      const wallet = await prisma.wallet.findFirstOrThrow({ where: { orgId } });
+      await prisma.wallet.update({ where: { id: wallet.id }, data: { balanceMicros: 1_000n } });
+      const m = await seedModel();
+      // A call refused for lack of credits does not count as the first call.
+      await log(new Date().toISOString(), 0n, m.id, { status: 'INSUFFICIENT_FUNDS' });
+      await prisma.apiKey.updateMany({ where: { projectId }, data: { lastUsedAt: new Date() } });
+      expect((await activation()).hasFirstCall).toBe(false);
+      await log(new Date().toISOString(), 0n, m.id);
+      expect(await activation()).toEqual({
+        hasProject: true,
+        hasKey: true,
+        hasCredits: true,
+        hasFirstCall: true,
+        projectId,
+      });
     });
 
     it('uses the São Paulo calendar: 02:59 UTC still counts as the previous day', async () => {
@@ -290,6 +322,17 @@ describe('customer dashboard (phase 5)', () => {
       const token = mail?.text.match(/\/convite\/([\w-]+)/)?.[1];
       return { res, token };
     }
+
+    it('revokes the invitation and answers 502 when the email cannot be sent', async () => {
+      vi.spyOn(ctx.mailer, 'send').mockRejectedValueOnce(new Error('velomail down'));
+      const { res } = await invite('nomail@example.com');
+      expect(res.statusCode).toBe(502);
+      expect(res.json()).toMatchObject({ error: { code: 'email_failed' } });
+      const pending = await prisma.invitation.count({
+        where: { email: 'nomail@example.com', revokedAt: null },
+      });
+      expect(pending).toBe(0);
+    });
 
     it('invites by email and lets the right person accept', async () => {
       const { res, token } = await invite('Dev@Example.com');

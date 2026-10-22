@@ -5,9 +5,9 @@ import type { ReactNode } from 'react';
 type Tone = 'success' | 'error' | 'expired' | 'info';
 
 const ICONS = {
-  success: { Icon: CheckCircle2, className: 'bg-success/10 text-success' },
+  success: { Icon: CheckCircle2, className: 'bg-success/10 text-success-foreground' },
   error: { Icon: XCircle, className: 'bg-destructive/10 text-destructive' },
-  expired: { Icon: Clock, className: 'bg-warning/10 text-warning' },
+  expired: { Icon: Clock, className: 'bg-warning/10 text-warning-foreground' },
   info: { Icon: MailCheck, className: 'bg-fusai-accent/10 text-fusai-accent' },
 } as const;
 

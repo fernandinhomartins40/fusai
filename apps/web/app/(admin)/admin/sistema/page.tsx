@@ -4,6 +4,7 @@ import { CheckCircle2, XCircle } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { PageHeader } from '@/components/admin/page-header';
+import { RetentionForm } from '@/components/admin/retention-form';
 import { RefreshButton } from '@/components/refresh-button';
 import { StatTile } from '@/components/stat-tile';
 import type { AdminSystem } from '@/lib/admin-types';
@@ -24,7 +25,7 @@ function Check({ label, check }: { label: string; check: AdminSystem['database']
     <li className="flex items-center justify-between gap-3">
       <span className="flex items-center gap-2">
         {check.ok ? (
-          <CheckCircle2 className="size-4 text-success" aria-hidden />
+          <CheckCircle2 className="size-4 text-success-foreground" aria-hidden />
         ) : (
           <XCircle className="size-4 text-destructive" aria-hidden />
         )}
@@ -41,6 +42,7 @@ export default async function SystemPage() {
   const { data } = await serverApi<AdminSystem>('/internal/admin/system');
   if (!data) throw new Error('Não foi possível carregar o status');
   const q = data.queue;
+  const retention = await serverApi<{ days: number }>('/internal/admin/privacy/retention');
 
   return (
     <div className="grid gap-6">
@@ -128,6 +130,15 @@ export default async function SystemPage() {
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Retenção de dados (LGPD)</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <RetentionForm days={retention.data?.days ?? 0} />
+        </CardContent>
+      </Card>
     </div>
   );
 }

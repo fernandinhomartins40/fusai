@@ -16,6 +16,7 @@ import { Loader2, Send } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { toast } from 'sonner';
+import { confirmAction } from '@/components/confirm';
 import { FormAlert } from '@/components/form-field';
 import { orgRoleLabel } from '@/lib/admin-labels';
 import { ApiError, apiFetch } from '@/lib/api';
@@ -178,8 +179,13 @@ export function TeamPanel({
                         variant="ghost"
                         size="sm"
                         className="text-destructive"
-                        onClick={() => {
-                          if (!confirm(isMe ? 'Sair desta organização?' : `Remover ${m.name}?`))
+                        onClick={async () => {
+                          if (
+                            !(await confirmAction(
+                              isMe ? 'Sair desta organização?' : `Remover ${m.name}?`,
+                              { confirmLabel: isMe ? 'Sair' : 'Remover', destructive: true },
+                            ))
+                          )
                             return;
                           act(
                             async () => {

@@ -9,6 +9,7 @@ import { Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { toast } from 'sonner';
+import { confirmAction } from '@/components/confirm';
 import { Field, FormAlert } from '@/components/form-field';
 import { ApiError, apiFetch } from '@/lib/api';
 
@@ -36,7 +37,12 @@ export function WalletAdjustForm({ orgId, orgName }: { orgId: string; orgName: s
     if (reason.trim().length < 5) return setError('Descreva o motivo (mínimo 5 caracteres).');
     const signed = direction === 'credit' ? micros : -micros;
     const verb = direction === 'credit' ? 'Creditar' : 'Debitar';
-    if (!confirm(`${verb} ${formatBRL(micros)} na carteira de ${orgName}?`)) return;
+    if (
+      !(await confirmAction(`${verb} ${formatBRL(micros)} na carteira de ${orgName}?`, {
+        confirmLabel: verb,
+      }))
+    )
+      return;
 
     setPending(true);
     try {

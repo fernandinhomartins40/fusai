@@ -8,19 +8,25 @@ import { CreateKeyForm } from '@/components/api-keys/create-key-form';
 import { KeyReveal } from '@/components/api-keys/key-reveal';
 import type { CreatedApiKey } from '@/lib/api-key-types';
 
-/** Step 3: first API key, shown once, then into the dashboard. */
+/** Step 3: first API key, shown once, then into the project's Integration Kit (PRD §11.3). */
 export function KeyStep({ projectId, projectName }: { projectId: string; projectName: string }) {
   const router = useRouter();
   const [created, setCreated] = useState<CreatedApiKey | null>(null);
-  const goToDashboard = () => {
-    router.replace(`/app/projetos/${projectId}/chaves`);
+  const goTo = (path: string) => {
+    router.replace(`/app/projetos/${projectId}/${path}`);
     router.refresh();
   };
+  const goToDashboard = () => goTo('chaves');
 
   if (!created) {
     return (
       <div className="grid gap-4">
-        <CreateKeyForm projectId={projectId} onCreated={setCreated} defaultName="Produção" />
+        <CreateKeyForm
+          projectId={projectId}
+          onCreated={setCreated}
+          defaultName="Produção"
+          defaultScopes={['chat', 'mcp']}
+        />
         <Button variant="ghost" onClick={goToDashboard}>
           Pular por enquanto
         </Button>
@@ -42,8 +48,8 @@ export function KeyStep({ projectId, projectName }: { projectId: string; project
         </div>
       </div>
       <KeyReveal created={created} />
-      <Button variant="brand" onClick={goToDashboard}>
-        Já copiei, ir para o painel <ArrowRight />
+      <Button variant="brand" onClick={() => goTo('integracao')}>
+        Já copiei, ver o Kit de Integração <ArrowRight />
       </Button>
     </div>
   );

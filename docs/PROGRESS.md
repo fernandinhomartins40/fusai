@@ -20,7 +20,7 @@
 - Monorepo Turborepo + pnpm: `apps/web`, `apps/api`, `packages/{config,shared,ui,db}`.
 - `packages/config`: tsconfigs base/node/library/next (strict, `noUncheckedIndexedAccess`).
 - `packages/shared/money.ts`: `brlToMicros`, `microsToBrl`, `centsToMicros`, `microsToCentsCeil`, `formatBRL`, `costForTokens` (arredonda para cima), `ceilDiv` — 15 testes.
-- `packages/ui`: tokens CSS (dark-first + claro, Geist, raio 2xl, gradiente âmbar → rosa → violeta), logo SVG (`assets/logo.svg`, `assets/mark.svg`, componentes `<Logo/>` e `<LogoMark/>`), componentes Button (incl. variante `brand`), Card, Badge, Input, Label.
+- `packages/ui`: tokens CSS (dark-first + claro, Geist, raio 2xl, gradiente do logo azul-marinho `#162a9e` → azul `#0066fe` → ciano `#00d2ff`), logo SVG (`assets/logo.svg`, `assets/mark.svg`, componentes `<Logo/>` e `<LogoMark/>`), componentes Button (incl. variante `brand`), Card, Badge, Input, Label.
 - `packages/db`: Prisma 6 configurado (modelo `Setting` como esqueleto; schema completo na Fase 1), client singleton.
 - `apps/api`: Fastify 5 + zod type provider, helmet, CORS para `APP_URL`, env validado, logs pino com redact, request id propagado, `GET /health` (+ 2 testes).
 - `apps/web`: Next 15 App Router + Tailwind v4 + Geist + next-themes; home provisória usando o design system; `GET /api/health`; ícone SVG.
@@ -510,3 +510,34 @@ pnpm --filter @fusai/docs generate               # depois de editar packages/doc
 ## Saldo nunca negativo
 
 - D-128: teto na cobrança, débito e estorno limitados ao disponível, suspensão em estorno externo de crédito já usado, pós-pago desativado. API 153 testes (3 novos em `never-negative.test.ts`), 2 rodadas seguidas.
+
+## Auditoria PIE (2026-10-22)
+- **Onde está:** relatórios em `docs/pie/`; decisões D-129 a D-135 em `DECISIONS.md`.
+- **Receita:**
+  - créditos de usuário final saem da carteira da org;
+  - limite mensal também vale para session tokens, com checagem atômica;
+  - estorno parcial proporcional e contestação congelando os créditos;
+  - Pix pago depois de vencido é creditado automaticamente.
+- **Segurança:**
+  - MFA (TOTP) obrigatório para super admin;
+  - trava de login por conta;
+  - MCP com escopos mínimos e email aos donos;
+  - segredos fortes em produção;
+  - tokens OAuth cifrados;
+  - SSRF, logs e cabeçalhos corrigidos;
+  - dependências atualizadas.
+- **Produto:**
+  - checklist de ativação e email de saldo baixo ou esgotado;
+  - "Pronto para vender" e saúde dos provedores no admin;
+  - chaves com escopos mínimos e edição;
+  - retomar Pix pendente e ConfirmDialog;
+  - 16 correções de UX e acessibilidade.
+- **LGPD:**
+  - rascunho de `/termos` e `/privacidade`;
+  - exportação de dados e exclusão de conta com 7 dias de carência;
+  - retenção pronta, mas desligada.
+- **Infra (em andamento):** backup diário com teste de restauração, healthcheck do worker, shutdown sem cortar streams, limites por container e imagem menor com rollback.
+- **Pendências:**
+  - jurídico: textos, CNPJ e prazos (`apps/web/lib/legal.ts`);
+  - conferir o tamanho dos segredos de produção antes do deploy;
+  - o super admin cadastrar o autenticador no primeiro acesso.

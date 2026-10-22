@@ -140,7 +140,15 @@ describe('end users, session tokens and Pix checkout (Phase 7)', () => {
     expect(again.json()).toMatchObject({ email: 'a@b.com', balanceMicros: '1000000' });
     const got = await v1('GET', '/app-users/u-42', g.plain);
     expect(got.json().balanceMicros).toBe('1000000');
-    expect(await prisma.ledgerEntry.count({ where: { referenceType: 'free_credit' } })).toBe(1);
+    expect(
+      await prisma.ledgerEntry.count({
+        where: { referenceType: 'free_credit', type: 'TRANSFER_IN' },
+      }),
+    ).toBe(1);
+    // PIE R-01: the welcome credit came out of the organization's wallet.
+    expect(
+      (await prisma.wallet.findUniqueOrThrow({ where: { id: g.walletId } })).balanceMicros,
+    ).toBe(4_000_000n);
 
     expect((await v1('GET', '/app-users/nobody', g.plain)).statusCode).toBe(404);
   });
@@ -166,11 +174,13 @@ describe('end users, session tokens and Pix checkout (Phase 7)', () => {
     expect(chat.statusCode).toBe(200);
     expect(chat.headers['access-control-allow-origin']).toBe(ORIGIN);
     expect((await appUserWallet(user.id)).balanceMicros).toBe(1_000_000n - ECHO_CHARGE);
+    // The chat is paid by the end user; only the welcome credit came from the org (PIE R-01).
     expect(
       (await prisma.wallet.findUniqueOrThrow({ where: { id: g.walletId } })).balanceMicros,
-    ).toBe(5_000_000n);
+    ).toBe(4_000_000n);
     const log = await prisma.usageLog.findFirstOrThrow();
-    expect(log).toMatchObject({ appUserId: user.id, apiKeyId: null });
+    // Counted against the key that issued the session token (its monthly limit, PIE R-04).
+    expect(log).toMatchObject({ appUserId: user.id, apiKeyId: g.key.id });
 
     const balance = await v1('GET', '/balance', token, undefined, { origin: ORIGIN });
     expect(balance.json()).toMatchObject({
@@ -323,9 +333,10 @@ describe('end users, session tokens and Pix checkout (Phase 7)', () => {
         await processWebhookEvent(prisma, ctx.provider, String(job.data.eventId));
     }
     expect((await appUserWallet(user.id)).balanceMicros).toBe(11_000_000n);
+    // PIE R-01: welcome credit (R$ 1) and package bonus (R$ 1) are paid by the organization.
     expect(
       (await prisma.wallet.findUniqueOrThrow({ where: { id: g.walletId } })).balanceMicros,
-    ).toBe(5_000_000n);
+    ).toBe(3_000_000n);
     const status = await v1('GET', `/checkout/${checkout.checkoutId}`, token, undefined, {
       origin: ORIGIN,
     });
@@ -482,7 +493,7 @@ describe('end users, session tokens and Pix checkout (Phase 7)', () => {
     const created = await dash('POST', `${base}/packages`, owner, {
       name: 'Pacote grande',
       priceCents: 4990,
-      creditMicros: '50000000',
+      creditMicros: '49900000',
       bonusMicros: '5000000',
       highlight: true,
       active: true,
@@ -500,8 +511,12 @@ describe('end users, session tokens and Pix checkout (Phase 7)', () => {
     });
     expect(cheap.statusCode).toBe(400);
     const id = created.json().id;
-    const upd = await dash('PATCH', `${base}/packages/${id}`, owner, { priceCents: 3990 });
-    expect(upd.json().priceCents).toBe(3990);
+    // PIE R-01: credits never above the price, on update too.
+    const below = await dash('PATCH', `${base}/packages/${id}`, owner, { priceCents: 3990 });
+    expect(below.statusCode).toBe(400);
+    expect(below.json().error.code).toBe('package_credit_above_price');
+    const upd = await dash('PATCH', `${base}/packages/${id}`, owner, { priceCents: 5990 });
+    expect(upd.json().priceCents).toBe(5990);
     expect((await dash('GET', `${base}/packages`, owner)).json().packages).toHaveLength(2);
     expect((await dash('DELETE', `${base}/packages/${id}`, owner)).json()).toMatchObject({
       deleted: true,

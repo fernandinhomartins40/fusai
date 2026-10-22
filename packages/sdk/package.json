@@ -10,12 +10,54 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "build:npm": "tsup",
+    "prepublishOnly": "pnpm run build:npm"
   },
   "devDependencies": {
     "@fusai/config": "workspace:*",
     "@types/node": "22.20.5",
+    "tsup": "^8.5.0",
     "typescript": "5.9.3",
     "vitest": "3.2.7"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "main": "./dist/index.cjs",
+    "module": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+      ".": {
+        "import": {
+          "types": "./dist/index.d.ts",
+          "default": "./dist/index.js"
+        },
+        "require": {
+          "types": "./dist/index.d.cts",
+          "default": "./dist/index.cjs"
+        }
+      },
+      "./server": {
+        "import": {
+          "types": "./dist/server.d.ts",
+          "default": "./dist/server.js"
+        },
+        "require": {
+          "types": "./dist/server.d.cts",
+          "default": "./dist/server.cjs"
+        }
+      }
+    },
+    "typesVersions": {
+      "*": {
+        "server": [
+          "./dist/server.d.ts"
+        ]
+      }
+    }
   }
 }

@@ -17,6 +17,8 @@ export type AppUserInfo = {
   name: string | null;
   balanceMicros: string;
   availableMicros: string;
+  /** Blocked after refunding credits already spent (PIE R-07); null = allowed. */
+  blockedAt: string | null;
   createdAt: string;
 };
 

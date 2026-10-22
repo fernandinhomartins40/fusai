@@ -159,6 +159,20 @@ describe('VeloMail webhook', () => {
     expect(rows[0]?.processedAt).not.toBeNull();
   });
 
+  it('stores only ids and status, never the recipient address', async () => {
+    const withRecipient = JSON.stringify({
+      event: 'email.failed',
+      timestamp: '2026-10-16T12:05:00.000Z',
+      data: { message_id: '<uz-2@velomail.com.br>', status: 'failed', to: 'ana@exemplo.com' },
+    });
+    expect((await post(withRecipient, sign(withRecipient))).statusCode).toBe(200);
+    const row = await prisma.inboundWebhookEvent.findFirstOrThrow({
+      where: { type: 'email.failed' },
+    });
+    expect(JSON.stringify(row.payload)).not.toContain('ana@exemplo.com');
+    expect(row.payload).toMatchObject({ data: { message_id: '<uz-2@velomail.com.br>' } });
+  });
+
   it('rejects missing, wrong-secret and tampered signatures', async () => {
     expect((await post(body)).statusCode).toBe(401);
     expect((await post(body, sign(body, 'outro-segredo'))).statusCode).toBe(401);

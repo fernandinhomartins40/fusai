@@ -16,10 +16,13 @@
     "db:generate": "pnpm --filter @fusai/db generate",
     "db:migrate": "pnpm --filter @fusai/db migrate",
     "db:seed": "pnpm --filter @fusai/db seed",
-    "db:studio": "pnpm --filter @fusai/db studio"
+    "db:studio": "pnpm --filter @fusai/db studio",
+    "test:e2e": "playwright test --config e2e/playwright.config.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",
+    "@playwright/test": "1.64.0",
+    "@types/node": "22.20.5",
     "turbo": "2.11.8",
     "typescript": "5.9.3"
   }

@@ -4,6 +4,7 @@ import { Button } from '@fusai/ui/components/button';
 import { Eye, EyeOff, Loader2, RotateCw } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
+import { confirmAction } from '@/components/confirm';
 import { CopyButton } from '@/components/copy-button';
 import { ApiError, apiFetch } from '@/lib/api';
 
@@ -17,7 +18,10 @@ export function WebhookSecret({ projectId, hasSecret }: { projectId: string; has
     if (
       action === 'rotate' &&
       exists &&
-      !confirm('Gerar um novo segredo? O atual para de valer imediatamente.')
+      !(await confirmAction('Gerar um novo segredo? O atual para de valer imediatamente.', {
+        confirmLabel: 'Gerar novo',
+        destructive: true,
+      }))
     )
       return;
     setPending(true);

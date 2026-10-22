@@ -94,7 +94,15 @@ export async function createUserSession(
 ) {
   await signUp(app, email);
   await prisma.user.update({ where: { email }, data: { emailVerified: true, role } });
-  return (await signIn(app, email)).cookie;
+  const { cookie } = await signIn(app, email);
+  // Super admins need a TOTP-confirmed session for /admin (PIE S-05); the real TOTP flow is
+  // covered in auth/mfa.test.ts, so other suites start from an already confirmed session.
+  if (role === 'SUPER_ADMIN')
+    await prisma.session.updateMany({
+      where: { user: { email } },
+      data: { mfaVerifiedAt: new Date() },
+    });
+  return cookie;
 }
 
 export async function signIn(app: TestApp, email: string, password = 'Senha-Forte-123') {

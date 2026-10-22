@@ -5,15 +5,20 @@ import { KeyRound, Pencil, Plus } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { PageHeader } from '@/components/admin/page-header';
+import { ProviderHealthRow } from '@/components/admin/provider-health';
 import { ProviderTest } from '@/components/admin/provider-test';
-import type { AdminProvider } from '@/lib/admin-types';
+import type { AdminProvider, ProviderHealth } from '@/lib/admin-types';
 import { serverApi } from '@/lib/session';
 
 export const metadata: Metadata = { title: 'Provedores' };
 
 export default async function ProvidersPage() {
-  const { data } = await serverApi<{ providers: AdminProvider[] }>('/internal/admin/providers');
+  const [{ data }, { data: healthData }] = await Promise.all([
+    serverApi<{ providers: AdminProvider[] }>('/internal/admin/providers'),
+    serverApi<{ providers: ProviderHealth[] }>('/internal/admin/providers/health'),
+  ]);
   const providers = data?.providers ?? [];
+  const health = new Map((healthData?.providers ?? []).map((h) => [h.providerId, h]));
 
   return (
     <div className="grid gap-6">
@@ -32,7 +37,7 @@ export default async function ProvidersPage() {
       {providers.length === 0 ? (
         <Card>
           <CardContent className="py-10 text-center text-muted-foreground text-sm">
-            Nenhum provedor cadastrado. Rode o seed ou crie um novo.
+            Nenhum provedor cadastrado. Cadastre o primeiro provedor para começar a vender.
           </CardContent>
         </Card>
       ) : (
@@ -57,7 +62,7 @@ export default async function ProvidersPage() {
                       {p.keyError ? (
                         <span className="text-destructive">erro</span>
                       ) : (
-                        (p.keyMask ?? <span className="text-warning">sem chave</span>)
+                        (p.keyMask ?? <span className="text-warning-foreground">sem chave</span>)
                       )}
                     </dd>
                   </div>
@@ -70,6 +75,7 @@ export default async function ProvidersPage() {
                     <dd className="mt-0.5 tabular-nums">{p.priority}</dd>
                   </div>
                 </dl>
+                <ProviderHealthRow health={health.get(p.id)} />
               </CardHeader>
               <CardContent className="grid gap-3">
                 <div className="flex flex-wrap gap-2">

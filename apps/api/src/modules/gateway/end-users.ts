@@ -84,8 +84,10 @@ export const endUserRoutes: FastifyPluginAsync<Options> = async (app, opts) => {
     requireSecretKey(ctx);
     requireScope(ctx, 'app_users');
     const body = req.body as z.infer<typeof appUserBody>;
-    const { user, wallet, created } = await upsertAppUser(prisma, ctx.project, body);
-    return reply.status(created ? 201 : 200).send(serializeAppUser(user, wallet));
+    const { user, wallet, created, freeCredit } = await upsertAppUser(prisma, ctx.project, body);
+    return reply
+      .status(created ? 201 : 200)
+      .send({ ...serializeAppUser(user, wallet), ...(freeCredit ? { freeCredit } : {}) });
   });
 
   app.get('/app-users/:externalId', { schema: { params: externalIdParams } }, async (req) => {
@@ -106,7 +108,13 @@ export const endUserRoutes: FastifyPluginAsync<Options> = async (app, opts) => {
       requireScope(ctx, 'app_users');
       const { externalId } = req.params as z.infer<typeof externalIdParams>;
       const user = await findAppUser(ctx.project.id, externalId);
-      const { token, expiresAt } = issueSessionToken(user.id, ctx.project.id, opts.sessionSecret);
+      const { token, expiresAt } = issueSessionToken(
+        user.id,
+        ctx.project.id,
+        opts.sessionSecret,
+        Date.now(),
+        ctx.key?.id,
+      );
       return {
         object: 'session_token',
         token,

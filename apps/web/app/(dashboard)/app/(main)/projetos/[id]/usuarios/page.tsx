@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
+import { FormAlert } from '@/components/form-field';
 import { AppUsersPanel } from '@/components/projects/app-users-panel';
 import type { ProjectDetail } from '@/lib/dashboard-types';
 import type { AppUserPage } from '@/lib/end-user-types';
@@ -21,11 +22,20 @@ export default async function ProjectAppUsersPage({ params, searchParams }: Prop
   if (!data || !project) notFound();
   const role = me?.organizations.find((o) => o.id === project.orgId)?.role;
   return (
-    <AppUsersPanel
-      projectId={id}
-      query={q}
-      initial={data}
-      canAdjust={role === 'OWNER' || role === 'ADMIN'}
-    />
+    <div className="grid gap-4">
+      {project.billingMode === 'ORG_WALLET' ? (
+        <FormAlert tone="info">
+          Este projeto está em “Carteira da organização”: o consumo sai dos créditos da sua conta e
+          os usuários finais não têm saldo próprio. Mude o modo de cobrança em Configurações para
+          vender créditos a eles.
+        </FormAlert>
+      ) : null}
+      <AppUsersPanel
+        projectId={id}
+        query={q}
+        initial={data}
+        canAdjust={role === 'OWNER' || role === 'ADMIN'}
+      />
+    </div>
   );
 }

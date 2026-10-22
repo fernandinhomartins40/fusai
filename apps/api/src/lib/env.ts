@@ -71,7 +71,30 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
   if (env.NODE_ENV === 'production' && env.KEY_PEPPER.startsWith('change-me')) {
     throw new Error('KEY_PEPPER must be changed in production');
   }
+  if (env.NODE_ENV === 'production') assertStrongSecrets(env);
   return env;
+}
+
+/**
+ * Minimum lengths in production (PIE S-14). deploy.sh generates 64 hex chars for all three.
+ * KEY_PEPPER only needs 16: changing it invalidates every customer API key, so an existing
+ * shorter pepper is never forced to rotate by a stricter rule here.
+ */
+const MIN_SECRET_LENGTH = {
+  BETTER_AUTH_SECRET: 32,
+  SESSION_TOKEN_SECRET: 32,
+  KEY_PEPPER: 16,
+} as const;
+
+function assertStrongSecrets(env: Env) {
+  for (const [name, min] of Object.entries(MIN_SECRET_LENGTH)) {
+    const value = env[name as keyof typeof MIN_SECRET_LENGTH];
+    // Never print the value, only its name and the rule.
+    if (value.length < min)
+      throw new Error(
+        `${name} must have at least ${min} characters in production (generate with: openssl rand -hex 32)`,
+      );
+  }
 }
 
 /** Minimal env for unit tests that do not touch the database or auth. */

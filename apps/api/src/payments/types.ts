@@ -10,13 +10,20 @@ export type ProviderPaymentStatus =
   | 'OVERDUE'
   | 'REFUNDED'
   | 'DELETED'
+  /** Chargeback requested, in dispute or awaiting reversal: credits stay frozen (PIE). */
+  | 'CHARGEBACK'
   | 'OTHER';
 
 export type NormalizedPaymentEvent = {
   /** Provider event id when available, else `${type}:${paymentId}` (idempotency key). */
   eventKey: string;
   type: string;
-  kind: 'paid' | 'refunded' | 'expired' | 'ignored';
+  /**
+   * `refunded`: total or partial refund (the amount comes from the PSP, never from the body).
+   * `chargeback`: dispute opened or moving: the PSP status decides whether credits freeze.
+   * `review`: money may be leaving later (refund in progress); recorded for the admin.
+   */
+  kind: 'paid' | 'refunded' | 'chargeback' | 'expired' | 'review' | 'ignored';
   providerPaymentId: string | null;
   externalRef: string | null;
   valueCents: number | null;
@@ -26,6 +33,8 @@ export type ProviderPayment = {
   providerPaymentId: string;
   status: ProviderPaymentStatus;
   valueCents: number;
+  /** Sum of the refunds already done (partial or total). */
+  refundedCents: number;
   externalRef: string | null;
 };
 

@@ -21,8 +21,15 @@ export const ASAAS_URLS = {
 } as const;
 
 const PAID_EVENTS = new Set(['PAYMENT_RECEIVED', 'PAYMENT_CONFIRMED']);
-const REFUND_EVENTS = new Set(['PAYMENT_REFUNDED']);
+const REFUND_EVENTS = new Set(['PAYMENT_REFUNDED', 'PAYMENT_PARTIALLY_REFUNDED']);
+const CHARGEBACK_EVENTS = new Set([
+  'PAYMENT_CHARGEBACK_REQUESTED',
+  'PAYMENT_CHARGEBACK_DISPUTE',
+  'PAYMENT_AWAITING_CHARGEBACK_REVERSAL',
+]);
 const EXPIRED_EVENTS = new Set(['PAYMENT_OVERDUE', 'PAYMENT_DELETED']);
+/** Money may leave later (nothing to debit yet): recorded for the admin (PIE R-06). */
+const REVIEW_EVENTS = new Set(['PAYMENT_REFUND_IN_PROGRESS', 'PAYMENT_RECEIVED_IN_CASH_UNDONE']);
 
 const toCents = (value: unknown): number | null =>
   typeof value === 'number' && Number.isFinite(value) ? Math.round(value * 100) : null;
@@ -46,6 +53,10 @@ function mapStatus(status: unknown): ProviderPaymentStatus {
       return status;
     case 'RECEIVED_IN_CASH':
       return 'RECEIVED';
+    case 'CHARGEBACK_REQUESTED':
+    case 'CHARGEBACK_DISPUTE':
+    case 'AWAITING_CHARGEBACK_REVERSAL':
+      return 'CHARGEBACK';
     default:
       return 'OTHER';
   }
@@ -156,11 +167,17 @@ export class AsaasProvider implements PaymentProvider {
       value: number;
       externalReference?: string | null;
       deleted?: boolean;
+      refunds?: { status?: string; value?: number }[] | null;
     }>('GET', `/payments/${encodeURIComponent(providerPaymentId)}`);
+    // Each refund of the charge is listed in `refunds`; only DONE ones moved money.
+    const refundedCents = (p.refunds ?? [])
+      .filter((r) => r.status === 'DONE')
+      .reduce((sum, r) => sum + (toCents(r.value) ?? 0), 0);
     return {
       providerPaymentId: p.id,
       status: p.deleted ? 'DELETED' : mapStatus(p.status),
       valueCents: toCents(p.value) ?? 0,
+      refundedCents,
       externalRef: p.externalReference ?? null,
     };
   }
@@ -186,9 +203,13 @@ export class AsaasProvider implements PaymentProvider {
       ? 'paid'
       : REFUND_EVENTS.has(type)
         ? 'refunded'
-        : EXPIRED_EVENTS.has(type)
-          ? 'expired'
-          : 'ignored';
+        : CHARGEBACK_EVENTS.has(type)
+          ? 'chargeback'
+          : EXPIRED_EVENTS.has(type)
+            ? 'expired'
+            : REVIEW_EVENTS.has(type)
+              ? 'review'
+              : 'ignored';
     return {
       eventKey: typeof b.id === 'string' && b.id ? b.id : `${type}:${paymentId ?? 'none'}`,
       type,

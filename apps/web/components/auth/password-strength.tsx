@@ -7,8 +7,8 @@ import { Check, X } from 'lucide-react';
 const LEVEL_STYLE = {
   vazia: { bar: 'bg-border', text: 'text-muted-foreground' },
   fraca: { bar: 'bg-destructive', text: 'text-destructive' },
-  media: { bar: 'bg-warning', text: 'text-warning' },
-  forte: { bar: 'bg-success', text: 'text-success' },
+  media: { bar: 'bg-warning', text: 'text-warning-foreground' },
+  forte: { bar: 'bg-success', text: 'text-success-foreground' },
 } as const;
 
 /** Live strength meter (4 segments) + requirement checklist, same rules the API enforces. */
@@ -42,7 +42,7 @@ export function PasswordStrengthMeter({ password, id }: { password: string; id: 
             key={r.id}
             className={cn(
               'flex items-center gap-1.5',
-              r.met ? 'text-success' : 'text-muted-foreground',
+              r.met ? 'text-success-foreground' : 'text-muted-foreground',
             )}
           >
             {r.met ? (
@@ -67,7 +67,10 @@ export function PasswordMatch({ password, confirm }: { password: string; confirm
   const ok = password === confirm;
   return (
     <p
-      className={cn('flex items-center gap-1.5 text-xs', ok ? 'text-success' : 'text-destructive')}
+      className={cn(
+        'flex items-center gap-1.5 text-xs',
+        ok ? 'text-success-foreground' : 'text-destructive',
+      )}
       aria-live="polite"
     >
       {ok ? <Check className="size-3.5" aria-hidden /> : <X className="size-3.5" aria-hidden />}

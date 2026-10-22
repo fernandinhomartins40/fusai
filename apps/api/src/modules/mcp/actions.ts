@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import type { PrismaClient, Project } from '@fusai/db';
-import { brlToMicros, projectPackageSchema, projectUpdateSchema } from '@fusai/shared';
+import { brlToMicros, endUserPackageSchema, projectUpdateSchema } from '@fusai/shared';
 import { encryptSecret } from '../../lib/crypto';
 import { deliverWebhook, emitEvent } from '../webhooks-out/service';
 
@@ -59,7 +59,8 @@ export async function createPackage(
   if (price == null || credit == null || bonus == null)
     return no('Valores inválidos. Use reais como texto, ex.: "9.90".');
   if (price % 10_000n !== 0n) return no('O preço precisa estar em centavos inteiros.');
-  const parsed = projectPackageSchema.safeParse({
+  // R-01: credits ≤ price; the bonus is paid by the organization when the Pix is credited.
+  const parsed = endUserPackageSchema.safeParse({
     name: args.name,
     priceCents: Number(price / 10_000n),
     creditMicros: credit.toString(),

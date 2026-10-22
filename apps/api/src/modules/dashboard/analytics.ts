@@ -119,6 +119,30 @@ async function totals(prisma: PrismaClient, f: Filter) {
   };
 }
 
+/** Onboarding steps for the "Primeiros passos" checklist (O-02). */
+async function activationOf(prisma: PrismaClient, orgId: string) {
+  const [firstProject, keyProject, firstSuccess] = await Promise.all([
+    prisma.project.findFirst({
+      where: { orgId },
+      orderBy: { createdAt: 'asc' },
+      select: { id: true },
+    }),
+    prisma.apiKey.findFirst({
+      where: { revokedAt: null, project: { orgId } },
+      orderBy: { createdAt: 'asc' },
+      select: { projectId: true },
+    }),
+    // Only a successful call counts: `lastUsedAt` and refused calls (e.g. 402) do not.
+    prisma.usageLog.findFirst({ where: { orgId, status: 'SUCCESS' }, select: { id: true } }),
+  ]);
+  return {
+    hasProject: !!firstProject,
+    hasKey: !!keyProject,
+    hasFirstCall: !!firstSuccess,
+    projectId: keyProject?.projectId ?? firstProject?.id ?? null,
+  };
+}
+
 /** Overview, usage, logs and CSV exports for organization members. */
 export const dashboardAnalyticsRoutes: FastifyPluginAsyncZod<{
   prisma: PrismaClient;
@@ -144,13 +168,14 @@ export const dashboardAnalyticsRoutes: FastifyPluginAsyncZod<{
         from: addDays(today, -(days - 1)),
         to: now,
       });
-      const [d1, d7, d30, series, byModelRaw, s] = await Promise.all([
+      const [d1, d7, d30, series, byModelRaw, s, activation] = await Promise.all([
         totals(prisma, window(1)),
         totals(prisma, window(7)),
         totals(prisma, window(30)),
         daily(prisma, window(30)),
         grouped(prisma, window(30), 'modelId'),
         settings.get(),
+        activationOf(prisma, orgId),
       ]);
       const balance = org.wallet?.balanceMicros ?? 0n;
       const reserved = org.wallet?.reservedMicros ?? 0n;
@@ -167,6 +192,10 @@ export const dashboardAnalyticsRoutes: FastifyPluginAsyncZod<{
           isLow: org.billingType !== 'INTERNAL' && balance - reserved < threshold,
         },
         billingType: org.billingType,
+        activation: {
+          ...activation,
+          hasCredits: org.billingType === 'INTERNAL' || balance - reserved > 0n,
+        },
         spend: { today: d1.chargedMicros, last7d: d7.chargedMicros, last30d: d30.chargedMicros },
         requests: { today: d1.requests, last7d: d7.requests, last30d: d30.requests },
         daily: series,

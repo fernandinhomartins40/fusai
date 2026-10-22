@@ -80,7 +80,7 @@ export function LedgerTable({ endpoint, initial }: { endpoint: string; initial: 
                     {e.description ?? '—'}
                   </TableCell>
                   <TableCell
-                    className={`text-right font-medium tabular-nums ${amount < 0n ? '' : 'text-success'}`}
+                    className={`text-right font-medium tabular-nums ${amount < 0n ? '' : 'text-success-foreground'}`}
                   >
                     {amount > 0n ? '+' : ''}
                     {formatBRL(amount, { precise: amount !== 0n && amount % 10_000n !== 0n })}

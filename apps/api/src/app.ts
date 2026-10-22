@@ -30,6 +30,8 @@ import { gatewayRoutes } from './modules/gateway/routes';
 import { healthRoutes } from './modules/health/routes';
 import { mcpRoutes } from './modules/mcp/routes';
 import { paymentWebhookRoutes, publicCheckoutRoutes } from './modules/payments/routes';
+import { privacyRoutes } from './modules/privacy/routes';
+import { publicModelRoutes } from './modules/public/models';
 import { createPaymentProvider, type PaymentProvider } from './payments';
 
 declare module 'fastify' {
@@ -145,7 +147,7 @@ export async function buildApp(env: Env, deps: AppDeps = {}) {
     },
   });
 
-  await app.register(healthRoutes);
+  await app.register(healthRoutes, { prisma, redis });
   await app.register(authRoutes, { auth });
   await app.register(dashboardRoutes, {
     prisma,
@@ -169,6 +171,7 @@ export async function buildApp(env: Env, deps: AppDeps = {}) {
     redis,
     jobs,
   });
+  await app.register(privacyRoutes, { prisma, env, guards, mailer, redis });
   await app.register(paymentWebhookRoutes, { prisma, provider, jobs });
   await app.register(emailWebhookRoutes, { prisma, secret: env.VELOMAIL_WEBHOOK_SECRET });
   await app.register(gatewayRoutes, {
@@ -182,8 +185,10 @@ export async function buildApp(env: Env, deps: AppDeps = {}) {
     sessionSecret: env.SESSION_TOKEN_SECRET,
     provider,
     appUrl: env.APP_URL,
+    mailer,
   });
   await app.register(publicCheckoutRoutes, { prefix: '/public', prisma, redis });
+  await app.register(publicModelRoutes, { prefix: '/public', redis, catalog, settings });
   await app.register(mcpRoutes, {
     prisma,
     catalog,
@@ -192,6 +197,7 @@ export async function buildApp(env: Env, deps: AppDeps = {}) {
     redis,
     env,
     encryptionKey,
+    mailer,
   });
 
   // In-memory caches (catalog 10s, settings 60s); exposed so tests can reset them.

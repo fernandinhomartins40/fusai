@@ -2,6 +2,7 @@ import { GeistMono } from 'geist/font/mono';
 import { GeistSans } from 'geist/font/sans';
 import type { Metadata, Viewport } from 'next';
 import type { ReactNode } from 'react';
+import { ConfirmHost } from '@/components/confirm';
 import { ThemeProvider } from '@/components/theme-provider';
 import { Toaster } from '@/components/toaster';
 import './globals.css';
@@ -36,6 +37,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <ThemeProvider>
           {children}
           <Toaster />
+          <ConfirmHost />
         </ThemeProvider>
       </body>
     </html>

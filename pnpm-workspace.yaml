@@ -10,3 +10,7 @@ onlyBuiltDependencies:
   - esbuild
   - prisma
   - sharp
+
+overrides:
+  # Next 15 pins a postcss with known advisories (PIE S-08).
+  postcss: ^8.5.23

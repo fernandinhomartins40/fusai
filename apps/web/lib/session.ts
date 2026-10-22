@@ -11,6 +11,10 @@ export type Me = {
     role: 'USER' | 'SUPER_ADMIN';
     /** Super admin id while in "entrar como cliente". */
     impersonatedBy: string | null;
+    /** Authenticator app (TOTP) turned on. */
+    twoFactorEnabled: boolean;
+    /** This session passed the TOTP check (required for /admin). */
+    mfaVerified: boolean;
   };
   organizations: {
     id: string;

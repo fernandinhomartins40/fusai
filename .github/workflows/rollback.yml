@@ -1,0 +1,111 @@
+name: Rollback fusai (manual)
+
+# Volta a produção para as imagens de um commit anterior que já estão no GHCR (tag sha-<commit>),
+# sem build, sem testes e sem migração (PIE V-03). Use quando um defeito aparecer depois do
+# deploy. O banco continua no schema mais novo: as migrações são aditivas, então a versão
+# antiga funciona com ele. Para voltar o CÓDIGO da main, reverta o commit depois.
+on:
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: 'Commit (SHA completo) cujas imagens voltam ao ar'
+        required: true
+        type: string
+
+# Mesma fila do deploy: nunca roda ao mesmo tempo que um deploy.
+concurrency:
+  group: deploy-fuseai-main
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: read
+
+env:
+  VPS_HOST: 72.60.10.112
+  VPS_APP_DIR: /root/fuseai/deploy
+  VPS_HOST_FINGERPRINT: SHA256:6ZU1oyYcSKKrodyE2uYKme3ciSkCWFxfniTKCGn7NW8
+
+jobs:
+  rollback:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Validar o SHA
+        env:
+          SHA: ${{ inputs.sha }}
+        run: |
+          set -euo pipefail
+          [[ "$SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "ERRO: informe o SHA completo (40 caracteres hexadecimais)"; exit 1; }
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: images
+        name: Imagens do commit por digest
+        env:
+          SHA: ${{ inputs.sha }}
+        run: |
+          set -euo pipefail
+          owner=$(printf '%s' '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')
+          for app in api web; do
+            repo="ghcr.io/$owner/fuseai-$app"
+            digest=$(docker buildx imagetools inspect "$repo:sha-$SHA" --format '{{json .Manifest}}' | jq -r .digest)
+            case "$digest" in sha256:*) ;; *) echo "ERRO: imagem $repo:sha-$SHA não encontrada"; exit 1 ;; esac
+            echo "$app=$repo@$digest" >> "$GITHUB_OUTPUT"
+            echo "ok: $repo@$digest"
+          done
+
+      - name: Chave de host fixada e chave SSH de deploy
+        env:
+          DEPLOY_KEY: ${{ secrets.FUSEAI_DEPLOY_SSH_KEY }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          install -m 600 .github/vps_known_hosts ~/.ssh/known_hosts
+          ssh-keygen -lf ~/.ssh/known_hosts -E sha256 | awk -v fp="$VPS_HOST_FINGERPRINT" '$2 == fp { found=1 } END { exit !found }' \
+            || { echo "ERRO: .github/vps_known_hosts não tem a impressão esperada"; exit 1; }
+          [ -n "$DEPLOY_KEY" ] || { echo "Secret FUSEAI_DEPLOY_SSH_KEY ausente"; exit 1; }
+          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/fuseai_deploy
+          chmod 600 ~/.ssh/fuseai_deploy
+          cat > ~/.ssh/config <<EOF
+          Host vps
+            HostName $VPS_HOST
+            User root
+            IdentityFile ~/.ssh/fuseai_deploy
+            IdentitiesOnly yes
+            StrictHostKeyChecking yes
+            UserKnownHostsFile ~/.ssh/known_hosts
+            PasswordAuthentication no
+            BatchMode yes
+            ConnectTimeout 30
+            ServerAliveInterval 30
+            ServerAliveCountMax 120
+          EOF
+          chmod 600 ~/.ssh/config
+
+      # Usa o deploy.sh que já está na VPS (o da main atual): mesmo pré-teste, mesma troca e
+      # mesma volta automática, só que sem migração nem seed.
+      - name: Reimplantar na VPS
+        env:
+          GHCR_USERNAME: ${{ github.actor }}
+          GHCR_TOKEN: ${{ github.token }}
+          FUSEAI_API_IMAGE: ${{ steps.images.outputs.api }}
+          FUSEAI_WEB_IMAGE: ${{ steps.images.outputs.web }}
+        run: |
+          set -euo pipefail
+          ssh vps bash -s <<EOF
+          set -euo pipefail
+          printf '%s' '${GHCR_TOKEN}' | docker login ghcr.io --username '${GHCR_USERNAME}' --password-stdin >/dev/null
+          trap 'docker logout ghcr.io >/dev/null 2>&1 || true' EXIT
+          APP_DIR='${VPS_APP_DIR}' \
+          FUSEAI_API_IMAGE='${FUSEAI_API_IMAGE}' \
+          FUSEAI_WEB_IMAGE='${FUSEAI_WEB_IMAGE}' \
+          SKIP_MIGRATIONS=1 \
+            '${VPS_APP_DIR}/deploy.sh'
+          EOF

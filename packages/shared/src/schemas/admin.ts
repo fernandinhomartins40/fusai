@@ -7,7 +7,7 @@ const decimal = (maxDecimals: number, message = 'Número inválido') =>
     .string()
     .trim()
     .transform((v) => v.replace(',', '.'))
-    .refine((v) => isDecimalString(v, maxDecimals), message);
+    .refine((v) => isDecimalString(v, maxDecimals), { message, abort: true });
 
 const positiveDecimal = (maxDecimals: number) =>
   decimal(maxDecimals).refine((v) => compareDecimals(v, '0') > 0, 'Precisa ser maior que zero');
@@ -85,6 +85,8 @@ const modelFields = z.object({
   active: z.boolean(),
   public: z.boolean(),
   sortOrder: z.coerce.number().int(),
+  /** R-10: confirms saving a price below the provider cost (otherwise 400 negative_margin). */
+  allowNegativeMargin: z.boolean(),
 });
 
 export const modelCreateSchema = modelFields.partial().required({
@@ -195,6 +197,8 @@ export const orgAdminUpdateSchema = z
       .nullable(),
     /** Required when suspending (shown in the audit log). */
     reason: z.string().trim().min(5, 'Descreva o motivo (mínimo 5 caracteres)').max(300),
+    /** R-10: confirms a markup below 1× (every automatic price below cost). */
+    allowNegativeMargin: z.boolean(),
   })
   .partial()
   .refine((v) => v.status !== 'SUSPENDED' || !!v.reason, {

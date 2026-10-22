@@ -8,7 +8,9 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "build:npm": "tsup",
+    "prepublishOnly": "pnpm run build:npm"
   },
   "dependencies": {
     "@fusai/sdk": "workspace:*"
@@ -20,6 +22,29 @@
     "@fusai/config": "workspace:*",
     "@types/react": "^19.1.0",
     "react": "19.2.0",
+    "tsup": "^8.5.0",
     "typescript": "5.9.3"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "main": "./dist/index.cjs",
+    "module": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+      ".": {
+        "import": {
+          "types": "./dist/index.d.ts",
+          "default": "./dist/index.js"
+        },
+        "require": {
+          "types": "./dist/index.d.cts",
+          "default": "./dist/index.cjs"
+        }
+      }
+    }
   }
 }

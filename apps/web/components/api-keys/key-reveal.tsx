@@ -11,7 +11,7 @@ export function KeyReveal({ created }: { created: CreatedApiKey }) {
   return (
     <div className="grid gap-4">
       <div className="flex gap-2 rounded-xl border border-warning/40 bg-warning/10 p-3 text-sm">
-        <AlertTriangle className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden />
+        <AlertTriangle className="mt-0.5 size-4 shrink-0 text-warning-foreground" aria-hidden />
         <p>
           Copie a chave agora: por segurança ela <strong>não será exibida de novo</strong>. Use-a só
           no servidor, nunca no front-end ou no app.
@@ -27,13 +27,19 @@ export function KeyReveal({ created }: { created: CreatedApiKey }) {
         </div>
       </div>
       <CodeBlock label=".env" code={`FUSAI_API_KEY=${created.key}\nFUSAI_BASE_URL=${baseUrl}`} />
-      <div className="grid gap-2">
-        <span className="font-medium text-sm">Conecte sua IA de programação (MCP)</span>
-        <McpCommands apiKey={created.key} />
+      {created.scopes.includes('mcp') ? (
+        <div className="grid gap-2">
+          <span className="font-medium text-sm">Conecte sua IA de programação (MCP)</span>
+          <McpCommands apiKey={created.key} />
+          <p className="text-muted-foreground text-xs">
+            Depois peça: “{SUGGESTED_PROMPT}” O FUSAI.md fica no Kit de Integração do projeto.
+          </p>
+        </div>
+      ) : (
         <p className="text-muted-foreground text-xs">
-          Depois peça: “{SUGGESTED_PROMPT}” O FUSAI.md fica no Kit de Integração do projeto.
+          Para conectar sua IA de programação (MCP), crie uma chave marcando “MCP” em Avançado.
         </p>
-      </div>
+      )}
       <CodeBlock
         label="SDK oficial da OpenAI (Node)"
         code={`import OpenAI from 'openai';

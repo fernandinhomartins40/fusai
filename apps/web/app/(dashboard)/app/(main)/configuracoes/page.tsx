@@ -7,6 +7,8 @@ import {
 } from '@fusai/ui/components/card';
 import type { Metadata } from 'next';
 import { OrgSettingsForm } from '@/components/org-settings-form';
+import { PrivacySection } from '@/components/privacy-section';
+import { SecuritySection } from '@/components/security/security-section';
 import { billingTypeLabel } from '@/lib/admin-labels';
 import { getCurrentOrg } from '@/lib/current-org';
 import type { OrgSettings } from '@/lib/dashboard-types';
@@ -38,6 +40,8 @@ export default async function SettingsPage() {
           <OrgSettingsForm org={data} />
         </CardContent>
       </Card>
+      <SecuritySection />
+      <PrivacySection />
     </div>
   );
 }

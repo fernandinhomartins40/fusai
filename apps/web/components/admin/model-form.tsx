@@ -12,6 +12,7 @@ import { Loader2, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { type ReactNode, useState } from 'react';
 import { toast } from 'sonner';
+import { confirmAction } from '@/components/confirm';
 import { Field, FormAlert } from '@/components/form-field';
 import type { AdminModel, AdminProvider, AdminSettings } from '@/lib/admin-types';
 import { ApiError, apiFetch } from '@/lib/api';
@@ -156,11 +157,24 @@ export function ModelForm({ model, providers, models, settings }: Props) {
       return setError('Preço fixo inválido. Use o formato 14,52.');
     }
     setSaving(true);
-    try {
-      await apiFetch(model ? `/internal/admin/models/${model.id}` : '/internal/admin/models', {
+    const send = (body: object) =>
+      apiFetch(model ? `/internal/admin/models/${model.id}` : '/internal/admin/models', {
         method: model ? 'PATCH' : 'POST',
-        body: JSON.stringify(payload),
+        body: JSON.stringify(body),
       });
+    try {
+      try {
+        await send(payload);
+      } catch (err) {
+        // R-10: price below the provider cost needs an explicit confirmation.
+        if (!(err instanceof ApiError && err.code === 'negative_margin')) throw err;
+        const ok = await confirmAction(`Vender abaixo do custo? ${err.message}`, {
+          confirmLabel: 'Salvar mesmo assim',
+          destructive: true,
+        });
+        if (!ok) return;
+        await send({ ...payload, allowNegativeMargin: true });
+      }
       toast.success(model ? 'Modelo atualizado' : 'Modelo criado');
       router.push('/admin/modelos');
       router.refresh();
@@ -173,7 +187,14 @@ export function ModelForm({ model, providers, models, settings }: Props) {
   }
 
   async function remove() {
-    if (!model || !confirm(`Excluir o modelo ${model.displayName}?`)) return;
+    if (
+      !model ||
+      !(await confirmAction(`Excluir o modelo ${model.displayName}?`, {
+        confirmLabel: 'Excluir',
+        destructive: true,
+      }))
+    )
+      return;
     try {
       await apiFetch(`/internal/admin/models/${model.id}`, { method: 'DELETE' });
       toast.success('Modelo excluído');

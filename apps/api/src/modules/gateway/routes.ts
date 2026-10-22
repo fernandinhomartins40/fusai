@@ -3,6 +3,7 @@ import { microsToBrl } from '@fusai/shared';
 import type { FastifyError, FastifyPluginAsync } from 'fastify';
 import { hasZodFastifySchemaValidationErrors } from 'fastify-type-provider-zod';
 import { z } from 'zod';
+import type { Mailer } from '../../lib/mailer';
 import type { RedisClient } from '../../lib/redis';
 import type { SettingsStore } from '../../lib/settings';
 import { untilNow } from '../../lib/time';
@@ -26,6 +27,7 @@ type Options = {
   sessionSecret: string;
   provider: PaymentProvider;
   appUrl: string;
+  mailer: Mailer;
 };
 
 const usageQuery = z.object({

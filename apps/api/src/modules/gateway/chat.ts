@@ -4,6 +4,7 @@ import type { PrismaClient } from '@fusai/db';
 import { estimateHoldMicros, type ModelPrices } from '@fusai/shared';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
+import type { Mailer } from '../../lib/mailer';
 import { priceModel } from '../../lib/model-pricing';
 import { slidingWindow } from '../../lib/rate-limit';
 import type { RedisClient } from '../../lib/redis';
@@ -15,13 +16,15 @@ import {
   type ChatUsage,
   UpstreamError,
 } from '../../providers/types';
-import { reserve } from '../billing/wallet';
+import { reserve, SpendLimitReached } from '../billing/wallet';
 import { emitEvent } from '../webhooks-out/service';
 import type { GatewayContext } from './auth';
 import { AUTO_MODEL, autoCandidates, modelNeeds } from './auto-model';
+import { emailLowBalance } from './balance-alert';
 import {
   finishRequest,
   monthlySpend,
+  monthStartUtc,
   resolveBilling,
   type WalletTarget,
   ZERO_USAGE,
@@ -66,6 +69,8 @@ type Deps = {
   settings: SettingsStore;
   breaker: CircuitBreaker;
   redis: RedisClient;
+  mailer: Mailer;
+  appUrl: string;
 };
 
 class ClientAborted extends Error {}
@@ -96,6 +101,7 @@ export function createChatHandler(deps: Deps) {
             [...catalog.bySlug.values()].filter((e) => isServable(e) && allowed(e)),
             modelNeeds(body as Record<string, unknown>),
             pricesOf,
+            settings.usd_brl_rate,
           )
         : null;
     if (auto && auto.length === 0) {
@@ -163,23 +169,27 @@ export function createChatHandler(deps: Deps) {
     const usageId = randomUUID();
     reply.header('x-fuse-request-id', usageId);
 
-    const key = ctx.key;
-    if (key?.spendLimitMicros != null) {
+    // Monthly spend limit of the key (or of the key that issued the session token, PIE R-04).
+    const key = ctx.spendKey;
+    const spendLimitReached = async (spent: bigint) => {
+      if (!key) return;
+      await notifyOnce(deps.redis, `limit:${key.id}`, () =>
+        emitEvent(deps.prisma, ctx.project.id, 'usage.limit_reached', {
+          apiKey: { id: key.id, prefix: key.prefix, name: key.name },
+          spendLimitMicros: key.spendLimitMicros?.toString(),
+          spentMicros: spent.toString(),
+        }),
+      );
+      throw new GatewayError(
+        402,
+        'spend_limit_reached',
+        'Limite de gasto mensal desta chave atingido.',
+      );
+    };
+    // INTERNAL organizations hold nothing, so the limit is checked against what was charged.
+    if (key?.spendLimitMicros != null && billing.mode === 'internal') {
       const spent = await monthlySpend(deps.prisma, key.id);
-      if (spent + hold > key.spendLimitMicros) {
-        await notifyOnce(deps.redis, `limit:${key.id}`, () =>
-          emitEvent(deps.prisma, ctx.project.id, 'usage.limit_reached', {
-            apiKey: { id: key.id, prefix: key.prefix, name: key.name },
-            spendLimitMicros: key.spendLimitMicros?.toString(),
-            spentMicros: spent.toString(),
-          }),
-        );
-        throw new GatewayError(
-          402,
-          'spend_limit_reached',
-          'Limite de gasto mensal desta chave atingido.',
-        );
-      }
+      if (spent + hold > key.spendLimitMicros) await spendLimitReached(spent);
     }
 
     const finish = (
@@ -203,13 +213,30 @@ export function createChatHandler(deps: Deps) {
         return charged;
       });
 
-    /** balance.low webhook when the org wallet crosses its alert threshold (once a day). */
-    const checkLowBalance = async (walletId: string) => {
+    /**
+     * balance.low webhook when the org wallet crosses its alert threshold (once a day), plus an
+     * e-mail to owners and billing. `outOfFunds`: a request was just refused for lack of balance.
+     */
+    const checkLowBalance = async (walletId: string, outOfFunds = false) => {
       const wallet = await deps.prisma.wallet.findUnique({ where: { id: walletId } });
       if (!wallet) return;
       const threshold =
         ctx.org.lowBalanceAlertMicros ?? BigInt(settings.low_balance_threshold_micros);
       const available = wallet.balanceMicros - wallet.reservedMicros;
+      const empty = outOfFunds || available <= 0n;
+      if (available >= threshold && !empty) return;
+      // E-mail to owners and billing: once a day for "low" and once for "empty" (O-06).
+      await notifyOnce(deps.redis, `${empty ? 'empty' : 'low'}-email:${ctx.org.id}`, () =>
+        emailLowBalance(
+          deps.prisma,
+          deps.mailer,
+          deps.appUrl,
+          ctx.org.id,
+          available,
+          threshold,
+          empty,
+        ),
+      );
       if (available >= threshold) return;
       await notifyOnce(deps.redis, `low:${ctx.org.id}:${ctx.project.id}`, () =>
         emitEvent(deps.prisma, ctx.project.id, 'balance.low', {
@@ -223,12 +250,21 @@ export function createChatHandler(deps: Deps) {
     //    INTERNAL organizations skip it.
     let target: WalletTarget | null = null;
     if (billing.mode === 'wallet') {
+      // The spend limit is checked inside the reservation, against in-flight holds too (R-05).
+      const spendLimit =
+        key?.spendLimitMicros != null
+          ? { apiKeyId: key.id, limitMicros: key.spendLimitMicros, since: monthStartUtc() }
+          : undefined;
       for (const candidate of billing.candidates) {
         const ok = await reserve(deps.prisma, {
           walletId: candidate.walletId,
           requestId: usageId,
           amountMicros: hold,
           creditLimitMicros: candidate.creditLimitMicros,
+          spendLimit,
+        }).catch(async (err) => {
+          if (err instanceof SpendLimitReached) await spendLimitReached(err.spentMicros);
+          throw err;
         });
         if (ok) {
           target = candidate;
@@ -241,7 +277,7 @@ export function createChatHandler(deps: Deps) {
             requestId: usageId,
             orgId: ctx.org.id,
             projectId: ctx.project.id,
-            apiKeyId: ctx.key?.id ?? null,
+            apiKeyId: ctx.spendKey?.id ?? null,
             appUserId: ctx.appUser?.id ?? null,
             walletId: billing.candidates[0]?.walletId ?? null,
             modelId: requested.model.id,
@@ -250,6 +286,8 @@ export function createChatHandler(deps: Deps) {
             errorCode: 'insufficient_funds',
           },
         });
+        const orgWallet = billing.candidates.find((c) => c.owner === 'org');
+        if (orgWallet) void checkLowBalance(orgWallet.walletId, true);
         throw insufficientFunds();
       }
     }
@@ -261,8 +299,21 @@ export function createChatHandler(deps: Deps) {
     };
     reply.raw.on('close', onClose);
 
-    const { model: _model, stream_options: _so, ...rest } = body;
-    const upstreamBody = (e: CatalogEntry) => ({ ...rest, model: e.model.upstreamModel });
+    // The provider gets the same output cap the hold used, in one field and never above the
+    // model's max, so a request cannot reserve for 1 token and generate thousands.
+    const {
+      model: _model,
+      stream_options: _so,
+      max_tokens: _mt,
+      max_completion_tokens: _mct,
+      ...rest
+    } = body;
+    const capField = body.max_completion_tokens != null ? 'max_completion_tokens' : 'max_tokens';
+    const upstreamBody = (e: CatalogEntry) => ({
+      ...rest,
+      model: e.model.upstreamModel,
+      [capField]: Math.min(maxTokens ?? e.model.maxOutputTokens, e.model.maxOutputTokens),
+    });
     const providerFor = (e: CatalogEntry) =>
       new OpenAICompatibleProvider({
         baseUrl: e.provider.baseUrl,

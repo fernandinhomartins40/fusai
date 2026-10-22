@@ -5,7 +5,7 @@
 ## Antes de começar
 
 1. Projeto em **Cobrar do usuário final** ou **Híbrido**.
-2. Crie os pacotes em **Projetos → Pacotes de créditos**: preço (mínimo R$ 5), créditos e bônus. A diferença entre o preço e os créditos é a sua margem.
+2. Crie os pacotes em **Projetos → Pacotes de créditos**: preço (mínimo R$ 5), créditos (no máximo o valor do preço) e bônus. A diferença entre o preço e os créditos é a sua margem. O bônus é um presente seu: a cada venda ele sai do saldo da sua organização (sem saldo, o comprador recebe só os créditos).
 3. Configure o [webhook](/docs/webhooks) para saber quando o pagamento caiu.
 
 Na primeira compra, o Pix exige **CPF ou CNPJ** de quem paga: envie `document` (e `name`) ou deixe o componente pedir.
