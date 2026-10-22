@@ -6,14 +6,14 @@
 export const legal = {
   draft: true,
   brand: 'fusai',
-  companyName: '[RAZÃO SOCIAL]',
-  cnpj: '[CNPJ]',
-  address: '[ENDEREÇO COMPLETO]',
-  supportEmail: '[EMAIL DE SUPORTE]',
-  dpoName: '[NOME DO ENCARREGADO]',
-  dpoEmail: '[EMAIL DO ENCARREGADO]',
-  forum: '[COMARCA DO FORO]',
-  updatedAt: '22/10/2026',
+  companyName: 'FUSE AGENCIA LTDA',
+  cnpj: '42.761.086/0001-15',
+  address: 'Rua Antonio Gregorio Ferreira, 298, Conradinho, Guarapuava/PR, CEP 85055-270',
+  supportEmail: 'fernandinhomartins040@gmail.com',
+  dpoName: 'Luiz Fernando Martins Oliveira',
+  dpoEmail: 'fernandinhomartins040@gmail.com',
+  forum: 'Guarapuava/PR',
+  updatedAt: '23/10/2026',
   /**
    * Commercial answers for the landing FAQ. A question stays hidden while its answer is
    * "[DEFINIR]", so nothing is promised before the owner decides.
