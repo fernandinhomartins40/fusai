@@ -1,6 +1,7 @@
 {
   "name": "@fusai/sdk",
   "version": "0.1.0",
+  "license": "MIT",
   "description": "Cliente TypeScript da fusai: chat, saldo e checkout Pix (browser, Node e React Native).",
   "type": "module",
   "sideEffects": false,
@@ -23,7 +24,8 @@
   },
   "files": [
     "dist",
-    "README.md"
+    "README.md",
+    "LICENSE"
   ],
   "publishConfig": {
     "access": "public",

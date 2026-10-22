@@ -19,8 +19,9 @@ export const legal = {
    * "[DEFINIR]", so nothing is promised before the owner decides.
    */
   faq: {
-    creditsExpire: '[DEFINIR]',
-    refunds: '[DEFINIR]',
+    creditsExpire: 'Não. Os créditos ficam na sua conta até serem usados.',
+    refunds:
+      'Os créditos comprados não são reembolsáveis, exceto nos casos previstos em lei. Recarregue a partir de R$ 5,00 e acompanhe o consumo em tempo real no painel.',
   },
 } as const;
 

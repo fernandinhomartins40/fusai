@@ -68,7 +68,8 @@ export default function TermsPage() {
             Estornos e contestações de pagamento podem remover os créditos correspondentes; se os
             créditos já tiverem sido usados, a conta pode ser suspensa até a regularização.
           </li>
-          <li>[Regra de validade dos créditos e de reembolso de saldo não usado — definir.]</li>
+          <li>Os créditos não expiram: ficam na conta até serem usados.</li>
+          <li>Créditos comprados não são reembolsáveis, exceto nos casos previstos em lei.</li>
         </ul>
       </section>
 
@@ -109,9 +110,8 @@ export default function TermsPage() {
         <h2>8. Limitação de responsabilidade</h2>
         <p>
           O serviço é fornecido como está. Na medida permitida em lei, a responsabilidade da{' '}
-          {legal.brand} fica limitada ao valor pago pelo cliente nos [12] meses anteriores ao fato.
-          [Cláusula a revisar pelo jurídico, observando o Código de Defesa do Consumidor quando
-          aplicável.]
+          {legal.brand} fica limitada ao valor pago pelo cliente nos 12 meses anteriores ao fato,
+          sem prejuízo dos direitos garantidos pelo Código de Defesa do Consumidor quando aplicável.
         </p>
       </section>
 
@@ -119,8 +119,8 @@ export default function TermsPage() {
         <h2>9. Encerramento</h2>
         <p>
           Você pode excluir sua conta em Configurações → Privacidade. Registros financeiros são
-          mantidos pelo prazo legal. [Regra de devolução de saldo restante no encerramento —
-          definir.]
+          mantidos pelo prazo legal. O saldo restante não é devolvido no encerramento, exceto nos
+          casos previstos em lei.
         </p>
       </section>
 
