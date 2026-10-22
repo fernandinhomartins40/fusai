@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { once } from 'node:events';
 import type { PrismaClient } from '@fusai/db';
-import { estimateHoldMicros, type ModelPrices } from '@fusai/shared';
+import { DEFAULT_MAX_OUTPUT_FOR_HOLD, estimateHoldMicros, type ModelPrices } from '@fusai/shared';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import type { Mailer } from '../../lib/mailer';
@@ -309,10 +309,12 @@ export function createChatHandler(deps: Deps) {
       ...rest
     } = body;
     const capField = body.max_completion_tokens != null ? 'max_completion_tokens' : 'max_tokens';
+    // Model-level provider fields (e.g. DeepSeek thinking off) win over the client's, never over the cap.
     const upstreamBody = (e: CatalogEntry) => ({
       ...rest,
+      ...(e.model.upstreamParams as Record<string, unknown> | null),
       model: e.model.upstreamModel,
-      [capField]: Math.min(maxTokens ?? e.model.maxOutputTokens, e.model.maxOutputTokens),
+      [capField]: Math.min(maxTokens ?? DEFAULT_MAX_OUTPUT_FOR_HOLD, e.model.maxOutputTokens),
     });
     const providerFor = (e: CatalogEntry) =>
       new OpenAICompatibleProvider({

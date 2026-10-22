@@ -197,3 +197,42 @@ Primeira bateria (mesmo código, máquina a 74% de CPU): overhead p95 de 321 ms 
 4. **Medir na VPS** com a mesma bateria (fora do horário de pico, poucos segundos por cenário), porque a VPS é Linux, com outra CPU e vizinhos.
 
 Artefatos (fora do repositório): `scratchpad/perf/bench.mjs`, `fake.cjs`, `result-before.json`, `result-after.json`, `before.cpuprofile`.
+
+## 8. Autenticação em 1 consulta e 2 réplicas da API (2026-10-23)
+
+Aprovado pelo dono: (a) consulta de autenticação única e (b) duas réplicas da API na VPS.
+
+**Mudanças**
+- `schema.prisma`: `previewFeatures = ["relationJoins"]`. `gateway/auth.ts` usa `relationLoadStrategy: 'join'`: chave → projeto → organização → carteira passam de **4 consultas para 1** (conferido com o log de queries do Prisma). No session token, o usuário final e a chave emissora são lidos em paralelo. Sem cache de chave: uma chave revogada continua recusada na hora.
+- `deploy/docker-compose.vps.yml`: serviço `api2` (`fuseai-api-2`), igual ao `api`; cada réplica com teto de 0,75 vCPU e 512 MB.
+- `deploy/nginx/fuseai.conf`: upstream com as duas réplicas (`least_conn`, `max_fails=3 fail_timeout=10s`, `keepalive 32`), e `proxy_next_upstream error` com 2 tentativas. O nginx não reenvia um POST que já chegou a uma API, então uma cobrança não roda duas vezes.
+- `deploy/deploy.sh`: as réplicas são trocadas **uma de cada vez** (`api2` primeiro, depois `api`), esperando o healthcheck de cada uma; a outra segue atendendo. Se a réplica nova não ficar saudável, o script volta às imagens anteriores **sem tocar na réplica que ainda está com a versão atual**.
+
+**Validação**
+- `bash -n` e `dash -n` no `deploy.sh`; `docker compose config` renderiza `api2` com healthcheck, limites e `depends_on` herdados.
+- `nginx -t` (nginx 1.26.3 oficial) aprovou a configuração, com os nomes dos contêineres trocados por `127.0.0.1`.
+- Simulação do `deploy.sh` com `docker` e `curl` falsos (o `docker` guarda qual imagem cada réplica roda):
+
+  | Cenário | Resultado |
+  |---|---|
+  | Primeiro deploy (sem `api2`) | `api2` nasce, o nginx recarrega com as duas, depois a `api` é trocada; "Deploy OK" |
+  | Deploy de rotina | Mesma ordem; "Deploy OK" |
+  | Réplica nova com defeito | Só a `api2` recebe a imagem nova; a `api` nunca é tocada; volta às imagens anteriores; saída 1 |
+
+- A própria simulação achou um defeito na primeira versão, já corrigido: depois de uma réplica falhar, o `up` seguinte trocaria também a réplica saudável pela imagem ruim.
+
+**Medição (máquina dev Windows, não é a VPS)**
+
+Mesmo método da seção 7 (bench do scratchpad, 10 s por cenário). As duas réplicas rodaram atrás do **nginx real** com a configuração de produção; a carga ficou dividida igualmente (2.734 / 2.733 requisições). **A máquina estava muito carregada pelas suítes de outros agentes**, e a carga variou entre as baterias.
+
+| Cenário | CPU da máquina | Overhead p95 c=1 | Overhead p95 c=10 · req/s | Overhead p95 c=50 · req/s | Repasse do 1º chunk p99 |
+|---|---|---|---|---|---|
+| Antes (client antigo, 1 processo) | 32–57 % | 20,9 ms | 212 ms · 76 | 980 ms · 77 | ≤ 17,6 ms |
+| Join, 1 processo | 66 % | 17,9 ms | 209 ms · 70 | 940 ms · 71 | ≤ 6,1 ms |
+| Join, 2 réplicas + nginx | 28–53 % | 23,7 ms | **152 ms · 91** | 1.202 ms · 82 | ≤ 2,5 ms |
+
+**Conclusões**
+- Com 1 conexão, a meta de 50 ms continua atendida. O streaming continua dentro da meta (p99 ≤ 30 ms) em todos os cenários.
+- Com 10 conexões, as 2 réplicas deram **+30 % de vazão** e reduziram o p95 de 209 para 152 ms, ainda **acima da meta**. Com 50 conexões, a fila aumentou (o nginx para Windows usa um processo só, com `select`, e as réplicas disputavam CPU com os testes dos outros agentes).
+- **Não dá para afirmar que a meta foi atingida.** Os números desta máquina, sob carga externa, não representam a VPS: na bateria da seção 7, com a máquina mais livre, um único processo chegou a 132–146 req/s. A confirmação precisa da mesma bateria **na VPS**, fora do pico.
+- O ganho estrutural das réplicas independe da medição local: elas dobram o teto de CPU disponível para a API (de 1 para 1,5 vCPU no total) e eliminam a janela de indisponibilidade da API no deploy.

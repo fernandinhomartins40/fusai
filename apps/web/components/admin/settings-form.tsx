@@ -3,6 +3,7 @@
 import { brlToMicros } from '@fusai/shared';
 import { Button } from '@fusai/ui/components/button';
 import { Input } from '@fusai/ui/components/input';
+import { Switch } from '@fusai/ui/components/switch';
 import { Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -28,6 +29,7 @@ const comma = (v: string) => v.replace('.', ',');
 export function SettingsForm({ settings }: { settings: AdminSettings }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
+  const [autoRate, setAutoRate] = useState(settings.usd_brl_auto === 'true');
   const form = useForm<Values>({
     defaultValues: {
       usdBrlRate: comma(settings.usd_brl_rate),
@@ -53,6 +55,7 @@ export function SettingsForm({ settings }: { settings: AdminSettings }) {
         low_balance_threshold_micros: brlToMicros(v.lowBalanceBrl).toString(),
         welcome_bonus_micros: brlToMicros(v.welcomeBonusBrl).toString(),
         test_key_max_output_micros: brlToMicros(v.testKeyMaxBrl).toString(),
+        usd_brl_auto: autoRate ? 'true' : 'false',
       };
     } catch {
       return setError('Valor em reais inválido. Use o formato 10,00.');
@@ -69,11 +72,32 @@ export function SettingsForm({ settings }: { settings: AdminSettings }) {
   return (
     <form onSubmit={onSubmit} className="grid gap-5">
       {error ? <FormAlert>{error}</FormAlert> : null}
+      <div className="flex items-center justify-between gap-4 rounded-xl border p-3">
+        <div className="grid gap-0.5">
+          <span id="auto-rate-label" className="font-medium text-sm">
+            Atualizar o câmbio automaticamente
+          </span>
+          <span className="text-muted-foreground text-xs">
+            Todo dia útil, às 13h30, usa a cotação PTAX de venda do Banco Central. Variações acima
+            de 10% não são aplicadas: você recebe um e-mail para conferir. Desligue para fixar o
+            valor abaixo.
+          </span>
+        </div>
+        <Switch
+          checked={autoRate}
+          onCheckedChange={setAutoRate}
+          aria-labelledby="auto-rate-label"
+        />
+      </div>
       <div className="grid gap-5 sm:grid-cols-2">
         <Field
           id="rate"
           label="Câmbio USD → BRL"
-          hint="Usado no preço automático de todos os modelos."
+          hint={
+            autoRate
+              ? 'Atualizado pelo Banco Central. Se você mudar à mão, vale até a próxima atualização.'
+              : 'Usado no preço automático de todos os modelos.'
+          }
         >
           <Input
             id="rate"

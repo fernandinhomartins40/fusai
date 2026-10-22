@@ -282,3 +282,13 @@ Documentação do Asaas consultada em out/2026 (docs.asaas.com: cobranças via P
   - **Retenção:** desligada por padrão. O super admin liga em admin → Sistema, com mínimo de 180 dias. Apaga UsageLog, AuditLog, webhooks finalizados, eventos processados, sessões vencidas e convites encerrados. Nunca apaga pagamentos nem extrato.
   - **Personificação:** exportação e exclusão ficam bloqueadas (403) enquanto um super admin está personificando a conta.
   - **Migração:** `20261023130000_pie_privacy`, aditiva (`User.deletionRequestedAt`, `User.deletedAt`).
+- **D-136 — Rodada 3 (decisões do dono, 2026-10-23).**
+  - **FAQ e Termos:** créditos não expiram; créditos comprados não são reembolsáveis, exceto nos casos previstos em lei, e o saldo restante não é devolvido no encerramento. Dados da empresa (FUSE AGENCIA LTDA) e do encarregado em `apps/web/lib/legal.ts`. `@fusai/sdk` e `@fusai/react` sob MIT.
+  - **DeepSeek:** `deepseek-chat` e `deepseek-reasoner` saíram da documentação oficial. `fuse/deepseek-chat` passa a usar `deepseek-flash` com raciocínio desligado (`upstreamParams` = `{"thinking":{"type":"disabled"}}`), `fuse/deepseek-reasoner` usa `deepseek-flash` com raciocínio e `fuse/deepseek-v4-pro` entra ativo. O custo é sempre o preço de pico. Nova coluna `Model.upstreamParams`, mesclada no corpo enviado ao provedor sem vencer o teto de saída. Migration `20261023150000_deepseek_v4`.
+  - **Teto de saída:** sem `max_tokens`, o provedor recebe `DEFAULT_MAX_OUTPUT_FOR_HOLD` (4096), o mesmo valor usado na reserva. Antes recebia o máximo do modelo, e a diferença era absorvida pela fusai.
+  - **Gateway:** a autenticação usa uma só consulta (`relationJoins`). A API roda em 2 réplicas (`api`, `api2`) atrás do `fuseai-nginx` (`least_conn`, sem reenviar POST), trocadas uma de cada vez no deploy. Os caches de configurações (60 s) e de catálogo (10 s) são por processo.
+  - **Login:** quem tem 2FA ativo precisa do código também no login com Google; até confirmar, a API responde 403 `mfa_required`.
+  - **Backup:** o worker lê o `status.json` do backup a cada hora e avisa os super admins quando ele falha ou fica com mais de 26 h.
+  - **Câmbio:** job diário com a PTAX de venda do BCB. O admin pode travar (`usd_brl_auto`). Variação acima de 10% não é aplicada e gera alerta.
+  - **CSP:** passa a bloquear, depois de 27 telas validadas sem violações. Mantém `'unsafe-inline'` nos scripts, porque o Next 15 não usa nonce em páginas estáticas, e o Zod roda em modo `jitless`.
+  - **Fontes:** subsets latin da Geist via `next/font/local` (49 KB, antes 141 KB). A home no celular chegou a 91,5 de mediana no Lighthouse.

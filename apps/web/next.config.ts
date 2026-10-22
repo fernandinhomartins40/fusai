@@ -9,11 +9,13 @@ if (existsSync(rootEnv)) process.loadEnvFile(rootEnv);
 const apiUrl = process.env.API_URL ?? 'http://localhost:4000';
 
 /**
- * Candidate CSP (PIE S-07), sent as Report-Only: browsers log violations without blocking.
- * Next 15 inlines scripts without nonces, hence 'unsafe-inline'; dev also needs 'unsafe-eval'.
- * Enforce it (rename the header) once the console stays clean in production.
+ * Content Security Policy (PIE S-07), enforced. Validated with Playwright on a production build
+ * (public pages, sign-up, onboarding, wallet Pix QR, 2FA QR, admin): zero violations.
+ * Next 15 inlines its bootstrap scripts without nonces, hence 'unsafe-inline' (nonces would make
+ * every page dynamic); dev also needs 'unsafe-eval'. zod's eval probe is turned off in
+ * instrumentation-client.ts.
  */
-const cspReportOnly = [
+const csp = [
   "default-src 'self'",
   `script-src 'self' 'unsafe-inline'${process.env.NODE_ENV === 'development' ? " 'unsafe-eval'" : ''}`,
   "style-src 'self' 'unsafe-inline'",
@@ -39,14 +41,13 @@ const nextConfig: NextConfig = {
     NEXT_PUBLIC_APP_URL: process.env.APP_URL ?? 'http://localhost:3000',
   },
   // Security headers (PIE S-07). No page is meant to be framed (no iframe use anywhere), so
-  // clickjacking is blocked outright. The full CSP runs in Report-Only mode for now.
+  // clickjacking is blocked outright.
   async headers() {
     return [
       {
         source: '/:path*',
         headers: [
-          { key: 'Content-Security-Policy', value: "frame-ancestors 'none'; base-uri 'self'" },
-          { key: 'Content-Security-Policy-Report-Only', value: cspReportOnly },
+          { key: 'Content-Security-Policy', value: csp },
           { key: 'X-Frame-Options', value: 'DENY' },
           { key: 'X-Content-Type-Options', value: 'nosniff' },
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },

@@ -17,7 +17,7 @@ x-logging: &logging
 # Limits (PIE V-06), on a shared 2 vCPU / 7.75 GB host. Measured at rest on 2026-10-21: the
 # whole stack used ~384 MiB and ~0 % CPU. `cpus` is a ceiling, not a reservation: each service
 # can still burst up to it, but none can take both vCPUs from the ~11 other apps. Sum of cpus
-# ceilings = 4.25 (overcommit is fine: they rarely peak together). mem_limit values are the
+# ceilings = 4.75 (overcommit is fine: they rarely peak together). mem_limit values are the
 # ones already in use (2-4x the measured usage). pids_limit stops fork bombs and leaks.
 x-app-env: &app-env
   NODE_ENV: production
@@ -66,7 +66,11 @@ services:
     logging: *logging
     networks: [internal]
 
-  api:
+  # Two API replicas behind fuseai-nginx (PIE: gateway overhead under concurrency). One Node
+  # process tops out at ~1 core; two double the throughput and let deploy.sh replace them one
+  # at a time. All shared state (rate limits, circuit breaker, login throttle) is in Redis and
+  # MCP is stateless. The settings/catalog caches are per process (60 s / 10 s TTL).
+  api: &api
     image: ${FUSEAI_API_IMAGE:?defina no images.env}
     container_name: fuseai-api
     restart: unless-stopped
@@ -87,10 +91,15 @@ services:
     # SIGTERM -> the API waits up to 55 s for requests and chat streams in flight (server.ts).
     stop_grace_period: 65s
     mem_limit: 512m
-    cpus: "1.0"
+    # 0.75 each: together the replicas get 1.5 vCPU, never both vCPUs of the shared host.
+    cpus: "0.75"
     pids_limit: 256
     logging: *logging
     networks: [internal]
+
+  api2:
+    <<: *api
+    container_name: fuseai-api-2
 
   worker:
     image: ${FUSEAI_API_IMAGE:?defina no images.env}
@@ -100,6 +109,10 @@ services:
     env_file: .env
     environment:
       <<: *app-env
+      # Backup alert (PIE V-01): only the status file, never the dumps.
+      BACKUP_STATUS_FILE: /backup-status/status.json
+    volumes:
+      - ${FUSEAI_BACKUP_STATUS_DIR:-../backups/status}:/backup-status:ro
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
@@ -155,6 +168,7 @@ services:
       - ./nginx:/etc/nginx/conf.d:ro
     depends_on:
       api: { condition: service_healthy }
+      api2: { condition: service_healthy }
       web: { condition: service_healthy }
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1/nginx-health"]
@@ -185,9 +199,12 @@ services:
       BACKUP_KEEP: "7"
       # 06:30 UTC = 03:30 in Brasília, the quietest hour.
       BACKUP_AT_UTC: "06:30"
+      # status.json (dates and result only) read by the worker to email the super admins.
+      BACKUP_STATUS_DIR: /status
     volumes:
       - ./backup:/opt/backup:ro
       - ${FUSEAI_BACKUP_DIR:-../backups/daily}:/backups
+      - ${FUSEAI_BACKUP_STATUS_DIR:-../backups/status}:/status
     depends_on:
       postgres: { condition: service_healthy }
     # Unhealthy when the last verified backup is older than 26 h (failed or not running).

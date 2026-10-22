@@ -65,6 +65,19 @@ export type AdminSettings = {
   low_balance_threshold_micros: string;
   welcome_bonus_micros: string;
   test_key_max_output_micros: string;
+  usd_brl_auto: 'true' | 'false';
+};
+
+/** GET /internal/admin/fx: automatic USD→BRL rate (PTAX). */
+export type AdminFx = {
+  auto: boolean;
+  rate: string;
+  rateUpdatedAt: string | null;
+  lastRun: {
+    status: 'updated' | 'rejected';
+    at: string;
+    metadata: { from?: string; to?: string; current?: string; quoted?: string } | null;
+  } | null;
 };
 
 type MoneyRow = {

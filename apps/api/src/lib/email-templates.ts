@@ -155,3 +155,40 @@ export function mcpSettingsChangedEmail(
     ),
   };
 }
+
+/** The daily PTAX rate moved more than 10%: not applied until a super admin confirms. */
+export function fxRateRejectedEmail(
+  to: string,
+  current: string,
+  quoted: string,
+  url: string,
+): Email {
+  const brl = (v: string) => v.replace('.', ',');
+  return {
+    to,
+    subject: 'Câmbio do dia não aplicado na fusai (variação acima de 10%)',
+    text: `A cotação PTAX do Banco Central (R$ ${brl(quoted)}) difere mais de 10% do câmbio em uso (R$ ${brl(current)}). Por segurança, o preço dos modelos não foi alterado. Confira e, se estiver certo, salve o novo valor em Preços globais:\n\n${url}\n`,
+    html: layout(
+      'Câmbio do dia não aplicado',
+      `A cotação PTAX do Banco Central (<strong>R$ ${escapeHtml(brl(quoted))}</strong>) difere mais de 10% do câmbio em uso (<strong>R$ ${escapeHtml(brl(current))}</strong>). Por segurança, o preço dos modelos não foi alterado. Confira e, se estiver certo, salve o novo valor em Preços globais.`,
+      { label: 'Abrir Preços globais', url },
+    ),
+  };
+}
+
+/** PIE V-01: the daily database backup failed or is overdue. Sent to super admins. */
+export function backupAlertEmail(to: string, reason: string, url: string): Email {
+  return {
+    to,
+    subject: 'Backup diário da fusai com problema',
+    text: `${reason} Confira o contêiner fuseai-backup e o log em /root/fuseai/backups/daily/backup.log na VPS. O procedimento está em docs/OPERACAO.md.
+
+${url}
+`,
+    html: layout(
+      'Backup diário com problema',
+      `${escapeHtml(reason)} Confira o contêiner <strong>fuseai-backup</strong> e o log em <code>/root/fuseai/backups/daily/backup.log</code> na VPS. O procedimento está em docs/OPERACAO.md.`,
+      { label: 'Abrir o painel admin', url },
+    ),
+  };
+}

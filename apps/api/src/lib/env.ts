@@ -49,6 +49,8 @@ const envSchema = z.object({
   /** HMAC secret of the VeloMail webhook endpoint (X-Webhook-Signature). */
   VELOMAIL_WEBHOOK_SECRET: optional,
   SMTP_URL: z.string().default('smtp://localhost:1025'),
+  /** status.json written by the daily backup (deploy/backup); unset = no backup alert. */
+  BACKUP_STATUS_FILE: optional,
 });
 
 export type Env = z.infer<typeof envSchema>;

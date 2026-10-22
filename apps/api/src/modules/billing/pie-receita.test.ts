@@ -1,4 +1,5 @@
 import { prisma } from '@fusai/db';
+import { DEFAULT_MAX_OUTPUT_FOR_HOLD } from '@fusai/shared';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { startFakeLlm } from '../../../test/fake-llm';
 import { FAKE_PROVIDER_KEY, setupGateway } from '../../../test/gateway-fixtures';
@@ -47,12 +48,13 @@ describe('PIE: proteção de receita', () => {
     expect(sent.max_tokens).toBeUndefined();
   });
 
-  it('R-02: sem max_tokens o gateway envia o teto do modelo', async () => {
+  it('R-02: sem max_tokens o gateway envia o mesmo teto usado na reserva', async () => {
     const g = await setupGateway(ctx.env, fake.baseUrl);
+    // A model whose max output is above the hold default: the provider must not get more.
+    await prisma.model.update({ where: { slug: 'fuse/echo' }, data: { maxOutputTokens: 32_768 } });
     await chat(g.plain);
     const sent = fake.requests.at(-1)?.body ?? {};
-    const model = await prisma.model.findFirstOrThrow({ where: { slug: 'fuse/echo' } });
-    expect(sent.max_tokens).toBe(model.maxOutputTokens);
+    expect(sent.max_tokens).toBe(DEFAULT_MAX_OUTPUT_FOR_HOLD);
   });
 
   it('R-02: max_tokens acima do máximo do modelo é cortado no máximo', async () => {

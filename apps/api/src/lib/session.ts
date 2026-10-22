@@ -18,6 +18,12 @@ export type SessionUser = {
   mfaVerified: boolean;
 };
 
+/**
+ * Routes a session still waiting for the authenticator code can use: the web app reads
+ * `/internal/me` to know it must ask for the code. The code itself goes to /api/auth.
+ */
+const MFA_PENDING_ALLOWED = new Set(['/internal/me']);
+
 declare module 'fastify' {
   interface FastifyRequest {
     user?: SessionUser;
@@ -52,6 +58,19 @@ export function sessionGuards(env: Env, auth: Auth) {
       twoFactorEnabled: twoFactorEnabled === true,
       mfaVerified: Boolean(mfaVerifiedAt),
     };
+    // A sign-in that skipped the code (Google) is not complete for accounts with 2FA on.
+    // Impersonation sessions are exempt: the super admin already proved the second factor.
+    if (
+      req.user.twoFactorEnabled &&
+      !req.user.mfaVerified &&
+      !impersonatedBy &&
+      !MFA_PENDING_ALLOWED.has(req.routeOptions.url ?? '')
+    )
+      throw new HttpError(
+        403,
+        'mfa_required',
+        'Confirme o código do app autenticador para continuar.',
+      );
   }
 
   async function requireSuperAdmin(req: FastifyRequest, reply: FastifyReply) {

@@ -128,6 +128,8 @@ export const settingsSchema = z.object({
   welcome_bonus_micros: microsString,
   /** TEST keys only reach models whose output price per 1M tokens is at most this. */
   test_key_max_output_micros: microsString.default('50000000'),
+  /** "true": the worker updates `usd_brl_rate` daily from the Banco Central PTAX. */
+  usd_brl_auto: z.enum(['true', 'false']).default('true'),
 });
 export type SettingsInput = z.input<typeof settingsSchema>;
 export type Settings = z.output<typeof settingsSchema>;
@@ -140,6 +142,7 @@ export const DEFAULT_SETTINGS: Settings = {
   low_balance_threshold_micros: '5000000',
   welcome_bonus_micros: '0',
   test_key_max_output_micros: '50000000',
+  usd_brl_auto: 'true',
 };
 
 // ---- Wallet adjustments ----

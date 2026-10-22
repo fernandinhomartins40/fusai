@@ -4,7 +4,7 @@
  * Running it again never overwrites values the admin changed.
  */
 import { randomBytes } from 'node:crypto';
-import { PrismaClient } from '@prisma/client';
+import { type Prisma, PrismaClient } from '@prisma/client';
 import { hashPassword } from 'better-auth/crypto';
 
 const prisma = new PrismaClient();
@@ -56,38 +56,65 @@ type ModelSeed = {
   displayName: string;
   provider: string;
   upstreamModel: string;
+  upstreamParams?: Prisma.InputJsonObject;
+  description?: string;
   contextWindow: number;
   maxOutputTokens?: number;
   input: string;
   cachedInput?: string;
   output: string;
   tools?: boolean;
+  vision?: boolean;
   reasoning?: boolean;
 };
 
 // USD per 1M tokens. EXAMPLE VALUES ONLY — the admin must confirm on each provider's site.
 const models: ModelSeed[] = [
+  // DeepSeek official PEAK prices (https://api-docs.deepseek.com/quick_start/pricing, 2026-10-23).
   {
     slug: 'fuse/deepseek-chat',
-    displayName: 'DeepSeek Chat',
+    displayName: 'DeepSeek V4.1 Flash',
+    description:
+      'Modelo rápido de uso geral da DeepSeek (V4.1 Flash), com respostas diretas, sem etapa de raciocínio. Aceita ferramentas (tool calling), saída em JSON e imagens. Contexto de 1 milhão de tokens.',
     provider: 'deepseek',
-    upstreamModel: 'deepseek-chat',
-    contextWindow: 128_000,
-    input: '0.27',
-    cachedInput: '0.07',
-    output: '1.10',
+    upstreamModel: 'deepseek-flash',
+    upstreamParams: { thinking: { type: 'disabled' } },
+    contextWindow: 1_000_000,
+    input: '0.30',
+    cachedInput: '0.006',
+    output: '1.20',
     tools: true,
+    vision: true,
   },
   {
     slug: 'fuse/deepseek-reasoner',
-    displayName: 'DeepSeek Reasoner',
+    displayName: 'DeepSeek V4.1 Flash (raciocínio)',
+    description:
+      'DeepSeek V4.1 Flash com raciocínio: pensa antes de responder, indicado para lógica, matemática e código. Aceita ferramentas (tool calling), saída em JSON e imagens. Contexto de 1 milhão de tokens.',
     provider: 'deepseek',
-    upstreamModel: 'deepseek-reasoner',
-    contextWindow: 128_000,
+    upstreamModel: 'deepseek-flash',
+    contextWindow: 1_000_000,
     maxOutputTokens: 32_768,
-    input: '0.55',
-    cachedInput: '0.14',
-    output: '2.19',
+    input: '0.30',
+    cachedInput: '0.006',
+    output: '1.20',
+    tools: true,
+    vision: true,
+    reasoning: true,
+  },
+  {
+    slug: 'fuse/deepseek-v4-pro',
+    displayName: 'DeepSeek V4 Pro',
+    description:
+      'Modelo mais capaz da DeepSeek (V4 Pro), com raciocínio para tarefas complexas, agentes e código. Aceita ferramentas (tool calling) e saída em JSON. Contexto de 1 milhão de tokens.',
+    provider: 'deepseek',
+    upstreamModel: 'deepseek-v4-pro',
+    contextWindow: 1_000_000,
+    maxOutputTokens: 32_768,
+    input: '1.32',
+    cachedInput: '0.044',
+    output: '3.96',
+    tools: true,
     reasoning: true,
   },
   {
@@ -243,15 +270,17 @@ async function seedCatalog() {
       create: {
         slug: m.slug,
         displayName: m.displayName,
-        description: VERIFY,
+        description: m.description ?? VERIFY,
         providerId,
         upstreamModel: m.upstreamModel,
+        upstreamParams: m.upstreamParams,
         contextWindow: m.contextWindow,
         maxOutputTokens: m.maxOutputTokens ?? 8192,
         inputCostUsdPerM: m.input,
         cachedInputCostUsdPerM: m.cachedInput ?? null,
         outputCostUsdPerM: m.output,
         supportsTools: m.tools ?? false,
+        supportsVision: m.vision ?? false,
         supportsReasoning: m.reasoning ?? false,
         active: false,
         sortOrder: index,

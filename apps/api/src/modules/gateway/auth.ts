@@ -65,10 +65,21 @@ export function createGatewayAuth(prisma: PrismaClient, pepper: string, sessionS
     const claims = verifySessionToken(token, sessionSecret);
     if (!claims)
       throw invalidApiKey('Session token inválido ou expirado. Peça um novo ao seu backend.');
-    const appUser = await prisma.appUser.findUnique({
-      where: { id: claims.sub },
-      include: { wallet: true, project: { include: { org: { include: { wallet: true } } } } },
-    });
+    // One joined query for user → project → org (+ wallets); the issuing key is read in parallel.
+    // Scoping the key to the token's project matches the check on the user below.
+    const [appUser, issuingKey] = await Promise.all([
+      prisma.appUser.findUnique({
+        where: { id: claims.sub },
+        include: { wallet: true, project: { include: { org: { include: { wallet: true } } } } },
+        relationLoadStrategy: 'join',
+      }),
+      claims.kid
+        ? prisma.apiKey.findFirst({
+            where: { id: claims.kid, projectId: claims.pid },
+            select: { id: true, prefix: true, name: true, spendLimitMicros: true },
+          })
+        : null,
+    ]);
     if (!appUser || appUser.projectId !== claims.pid)
       throw invalidApiKey('Session token inválido.');
     const { project, ...user } = appUser;
@@ -84,19 +95,13 @@ export function createGatewayAuth(prisma: PrismaClient, pepper: string, sessionS
         `A origem ${origin} não está nas origens permitidas do projeto (Configurações → Origens permitidas).`,
       );
     }
-    const spendKey = claims.kid
-      ? await prisma.apiKey.findFirst({
-          where: { id: claims.kid, projectId: proj.id },
-          select: { id: true, prefix: true, name: true, spendLimitMicros: true },
-        })
-      : null;
     return {
       kind: 'session',
       key: null,
       project: proj,
       org,
       appUser: user,
-      spendKey,
+      spendKey: issuingKey,
       scopes: claims.scp,
       env: 'LIVE',
       rateKey: `st:${user.id}`,
@@ -118,6 +123,8 @@ export function createGatewayAuth(prisma: PrismaClient, pepper: string, sessionS
     const key = await prisma.apiKey.findUnique({
       where: { hash },
       include: { project: { include: { org: { include: { wallet: true } } } } },
+      // One SQL query instead of four (key, project, org, wallet).
+      relationLoadStrategy: 'join',
     });
     if (!key || !hashesEqual(key.hash, hash)) throw invalidApiKey();
     if (key.revokedAt) throw invalidApiKey('Esta chave foi revogada.');

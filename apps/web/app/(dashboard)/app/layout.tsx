@@ -7,5 +7,8 @@ import { getMe } from '@/lib/session';
 export default async function DashboardLayout({ children }: { children: ReactNode }) {
   const me = await getMe();
   if (!me) redirect('/entrar?next=/app');
+  // A sign-in that skipped the authenticator code (Google) must confirm it first.
+  if (me.user.twoFactorEnabled && !me.user.mfaVerified && !me.user.impersonatedBy)
+    redirect('/seguranca?next=/app');
   return <QueryProvider>{children}</QueryProvider>;
 }

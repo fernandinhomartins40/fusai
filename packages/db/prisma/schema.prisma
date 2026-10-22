@@ -2,7 +2,9 @@
 // Money: integer micro-reais (BigInt). Pix amounts: integer cents. Provider costs: USD per 1M tokens.
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  // One SQL query (LATERAL JOIN) for nested includes, used by the gateway hot path.
+  previewFeatures = ["relationJoins"]
 }
 
 datasource db {
@@ -462,6 +464,7 @@ model Model {
   description            String?
   providerId             String
   upstreamModel          String // model name at the provider
+  upstreamParams         Json? // provider-specific fields merged into the upstream body
   contextWindow          Int
   maxOutputTokens        Int       @default(8192)
   inputCostUsdPerM       Decimal   @db.Decimal(18, 8)

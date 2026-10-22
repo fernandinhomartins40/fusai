@@ -12,6 +12,30 @@ export const adminSettingsRoutes: FastifyPluginAsyncZod<Options> = async (
 ) => {
   app.get('/internal/admin/settings', async () => settings.get());
 
+  /** Automatic USD→BRL rate: whether it is on, when the rate last changed and the last run. */
+  app.get('/internal/admin/fx', async () => {
+    const [current, row, lastRun] = await Promise.all([
+      settings.get(),
+      prisma.setting.findUnique({ where: { key: 'usd_brl_rate' } }),
+      prisma.auditLog.findFirst({
+        where: { action: { in: ['settings.fx_auto', 'settings.fx_rejected'] } },
+        orderBy: { createdAt: 'desc' },
+      }),
+    ]);
+    return {
+      auto: current.usd_brl_auto === 'true',
+      rate: current.usd_brl_rate,
+      rateUpdatedAt: row?.updatedAt.toISOString() ?? null,
+      lastRun: lastRun
+        ? {
+            status: lastRun.action === 'settings.fx_auto' ? 'updated' : 'rejected',
+            at: lastRun.createdAt.toISOString(),
+            metadata: lastRun.metadata,
+          }
+        : null,
+    };
+  });
+
   app.put('/internal/admin/settings', { schema: { body: settingsSchema } }, async (req) => {
     const before = await settings.get();
     const after = await settings.save(req.body);

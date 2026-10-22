@@ -15,7 +15,8 @@
 #   4. prisma migrate deploy + seed idempotente com a imagem NOVA (se falhar, nada mudou);
 #   5. pré-teste: a API e a web novas sobem em contêineres à parte e precisam responder
 #      (a API com Postgres e Redis) enquanto a versão atual segue no ar; se falhar, para aqui;
-#   6. sobe api, worker, web, nginx e backup com as imagens novas;
+#   6. troca as duas réplicas da API uma de cada vez (a outra segue atendendo) e sobe
+#      worker, web, nginx e backup com as imagens novas;
 #   7. saúde pela porta 3500 (Host api e www) e worker rodando; se falhar, volta às imagens
 #      anteriores.
 #
@@ -130,6 +131,9 @@ compose() { docker compose -f docker-compose.vps.yml --env-file .env --env-file 
 export FUSEAI_BACKUP_DIR="$BACKUP_DIR/daily"
 install -d -m 700 "$BACKUP_DIR"
 install -d -m 700 -o 70 -g 70 "$FUSEAI_BACKUP_DIR"
+# Status of the last daily backup, readable by the worker (dates only, no data).
+export FUSEAI_BACKUP_STATUS_DIR="$BACKUP_DIR/status"
+install -d -m 755 -o 70 -g 70 "$FUSEAI_BACKUP_STATUS_DIR"
 
 printf 'FUSEAI_API_IMAGE=%s\nFUSEAI_WEB_IMAGE=%s\n' "$FUSEAI_API_IMAGE" "$FUSEAI_WEB_IMAGE" > images.env.new
 PREVIOUS=""
@@ -189,6 +193,30 @@ web_ready_in() {
       .then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1));" 2>/dev/null
 }
 running() { [ "$(docker inspect -f '{{.State.Running}}' "$1" 2>/dev/null)" = true ]; }
+container_healthy() { [ "$(docker inspect -f '{{.State.Health.Status}}' "$1" 2>/dev/null)" = healthy ]; }
+
+# Two API replicas (api -> fuseai-api, api2 -> fuseai-api-2) replaced one at a time: while
+# one restarts, fuseai-nginx sends traffic to the other. api2 goes first so that, on the
+# deploy that introduces it, it exists before nginx loads a config naming it.
+roll_api() {
+  local env_file="$1" svc ctr attempt
+  for svc in api2 api; do
+    ctr=fuseai-api
+    if [ "$svc" = api2 ]; then ctr=fuseai-api-2; fi
+    compose "$env_file" up -d --no-deps "$svc" || return 1
+    for attempt in $(seq 1 30); do
+      container_healthy "$ctr" && break
+      running "$ctr" || return 1
+      sleep 3
+    done
+    container_healthy "$ctr" || return 1
+    # From here on nginx can route to both replicas.
+    if [ "$svc" = api2 ]; then
+      sync_nginx "$env_file" || echo "AVISO: nginx interno não recarregou" >&2
+    fi
+  done
+  return 0
+}
 
 # A API e a web novas sobem em contêineres à parte (sem porta publicada, mesma rede e mesmo
 # .env). Uma imagem que não sobe (segredo fraco recusado no boot, engine do Prisma faltando,
@@ -228,10 +256,6 @@ if ! preflight; then
 fi
 
 # ---------------------------------------------------------------------------- 6. aplicação
-log "Subindo api, worker, web, nginx e backup"
-# Com depends_on (service_healthy), uma API que não sobe faz o `up` falhar. Não aborta aqui:
-# quem decide é a verificação de saúde abaixo, que faz a volta automática.
-compose images.env.new up -d --remove-orphans api worker web nginx backup || echo "AVISO: up retornou erro; verificando saúde" >&2
 # O nginx interno lê a pasta deploy/nginx montada. Confere que o contêiner vê exatamente o
 # arquivo do disco, valida e recarrega (um rsync não recria o contêiner).
 sync_nginx() {
@@ -245,7 +269,21 @@ sync_nginx() {
   compose "$1" exec -T nginx nginx -t
   compose "$1" exec -T nginx nginx -s reload
 }
-sync_nginx images.env.new || echo "AVISO: falha ao validar/recarregar o nginx interno" >&2
+
+log "Trocando as réplicas da API uma de cada vez"
+ROLLED=1
+if ! roll_api images.env.new; then
+  # The replica not yet replaced keeps serving: do not touch anything else, go straight to
+  # the automatic rollback below.
+  ROLLED=0
+  echo "AVISO: uma réplica da API nova não ficou saudável; voltando às imagens anteriores" >&2
+fi
+if [ "$ROLLED" = 1 ]; then
+  log "Subindo worker, web, nginx e backup"
+  # --no-deps: the API replicas are already up; depends_on must not recreate them.
+  compose images.env.new up -d --no-deps --remove-orphans worker web nginx backup || echo "AVISO: up retornou erro; verificando saúde" >&2
+  sync_nginx images.env.new || echo "AVISO: falha ao validar/recarregar o nginx interno" >&2
+fi
 
 # ---------------------------------------------------------------------------- 7. saúde
 # API pela porta 3500: /health/ready (com banco e Redis); imagem antiga sem a rota (404) cai
@@ -259,6 +297,8 @@ api_ready() {
 }
 healthy() {
   api_ready &&
+    container_healthy fuseai-api &&
+    container_healthy fuseai-api-2 &&
     running fuseai-worker &&
     curl -fsS -m 10 -o /dev/null -H 'Host: www.fusai.com.br' "http://127.0.0.1:$PORT/docs" &&
     curl -fsS -m 10 -o /dev/null -H 'Host: www.fusai.com.br' "http://127.0.0.1:$PORT/brand/logo-fusai.png"
@@ -266,6 +306,7 @@ healthy() {
 
 log "Verificando saúde em 127.0.0.1:$PORT"
 for attempt in $(seq 1 30); do
+  [ "$ROLLED" = 1 ] || break
   if healthy; then
     mv images.env.new images.env
     log "Deploy OK (tentativa $attempt)"
@@ -284,12 +325,17 @@ for attempt in $(seq 1 30); do
   sleep 4
 done
 
-echo "ERRO: a aplicação não ficou saudável em 120 s." >&2
-compose images.env.new logs --tail 60 api worker web nginx backup >&2 || true
+if [ "$ROLLED" = 1 ]; then
+  echo "ERRO: a aplicação não ficou saudável em 120 s." >&2
+else
+  echo "ERRO: a réplica nova da API não ficou saudável." >&2
+fi
+compose images.env.new logs --tail 60 api api2 worker web nginx backup >&2 || true
 
 if [ -n "$PREVIOUS" ]; then
   log "Voltando às imagens anteriores"
-  compose "$PREVIOUS" up -d --remove-orphans api worker web nginx backup || true
+  roll_api "$PREVIOUS" || true
+  compose "$PREVIOUS" up -d --no-deps --remove-orphans worker web nginx backup || true
   sync_nginx "$PREVIOUS" || true
   for attempt in $(seq 1 30); do
     if healthy; then

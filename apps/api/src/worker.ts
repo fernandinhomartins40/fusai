@@ -7,6 +7,9 @@
  * - release-holds    (every 5 min): release orphaned balance holds (PRD §7.4 step 6)
  * - deliver-webhooks (every 30 s, and right after a payment event): signed webhooks to customers
  * - privacy          (every 1 h): anonymize accounts past the deletion grace period; log retention
+ * - fx-rate          (daily 13:30 Brasília, after the PTAX close, and at startup): USD→BRL rate
+ * - backup-check     (every 1 h, when BACKUP_STATUS_FILE is set): email super admins if the
+ *                    daily backup failed or is overdue (at most once a day)
  */
 import { writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -19,7 +22,10 @@ import { parseEncryptionKey } from './lib/crypto';
 import { loadEnv } from './lib/env';
 import { BULL_PREFIX, JOBS_QUEUE } from './lib/jobs';
 import { createMailer } from './lib/mailer';
+import { createSettingsStore } from './lib/settings';
 import { releaseExpiredHolds } from './modules/billing/wallet';
+import { updateUsdBrlRate } from './modules/fx/usd-brl';
+import { checkBackup } from './modules/ops/backup-alert';
 import { notifyPaymentCredited } from './modules/payments/notify';
 import {
   expirePendingPayments,
@@ -36,6 +42,7 @@ const env = loadEnv();
 const log = pino({ name: 'fuseai-worker', level: env.LOG_LEVEL });
 const provider = createPaymentProvider(env);
 const mailer = createMailer(env);
+const settings = createSettingsStore(prisma);
 const deliverOpts = {
   encryptionKey: parseEncryptionKey(env.ENCRYPTION_KEY),
   production: env.NODE_ENV === 'production',
@@ -61,9 +68,25 @@ const schedules = [
 for (const [name, every] of schedules) {
   await queue.upsertJobScheduler(name, { every }, { name, opts: keep });
 }
+await queue.upsertJobScheduler(
+  'fx-rate',
+  { pattern: '30 13 * * *', tz: 'America/Sao_Paulo' },
+  // The BCB API is sometimes slow: retry a few times before waiting for the next day.
+  {
+    name: 'fx-rate',
+    opts: { ...keep, attempts: 3, backoff: { type: 'exponential', delay: 60_000 } },
+  },
+);
 // Repeatable jobs first fire after one interval: also run the maintenance once at startup.
+if (env.BACKUP_STATUS_FILE)
+  await queue.upsertJobScheduler(
+    'backup-check',
+    { every: 60 * 60_000 },
+    { name: 'backup-check', opts: keep },
+  );
 await queue.add('release-holds', {}, keep);
 await queue.add('sweep-webhooks', {}, keep);
+await queue.add('fx-rate', {}, keep);
 
 const worker = new Worker(
   JOBS_QUEUE,
@@ -101,6 +124,24 @@ const worker = new Worker(
         const purged = await purgeExpiredData(prisma);
         if (purged) log.info(purged, 'retention purge');
         return { ...deletion, purged };
+      }
+      case 'fx-rate': {
+        const result = await updateUsdBrlRate({ prisma, settings, mailer, appUrl: env.APP_URL });
+        if (result.status === 'rejected') log.warn(result, 'ptax rate not applied');
+        else if (result.status === 'updated') log.info(result, 'usd_brl_rate updated');
+        return result;
+      }
+      case 'backup-check': {
+        if (!env.BACKUP_STATUS_FILE) return null;
+        const result = await checkBackup({
+          prisma,
+          redis: connection,
+          mailer,
+          appUrl: env.APP_URL,
+          statusFile: env.BACKUP_STATUS_FILE,
+        });
+        if (result.problem) log.warn(result, 'daily backup needs attention');
+        return result;
       }
       case 'release-holds': {
         const released = await releaseExpiredHolds(prisma);

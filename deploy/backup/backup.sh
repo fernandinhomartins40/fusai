@@ -9,6 +9,8 @@
 # teste confere o número de tabelas e de migrações aplicadas e lista as linhas das tabelas
 # principais. Só um dump que passa no teste atualiza /backups/LAST_OK (lido pelo healthcheck)
 # e entra na retenção (BACKUP_KEEP, padrão 7). O resultado fica em /backups/backup.log.
+# Com BACKUP_STATUS_DIR, cada execução também grava status.json (só datas e resultado, sem
+# dados) numa pasta à parte: o worker lê esse arquivo e avisa o super admin por e-mail.
 set -eu
 
 DIR="${BACKUP_DIR:-/backups}"
@@ -16,7 +18,26 @@ KEEP="${BACKUP_KEEP:-7}"
 AT="${BACKUP_AT_UTC:-06:30}"
 LOG="$DIR/backup.log"
 
+STATUS_DIR="${BACKUP_STATUS_DIR:-}"
+
 log() { echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) $*" | tee -a "$LOG"; }
+
+# status.json para o alerta do worker: resultado da última execução e o último backup OK.
+write_status() {
+  [ -n "$STATUS_DIR" ] || return 0
+  now="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  ok_at=""
+  failed_at=""
+  if [ -f "$STATUS_DIR/status.json" ]; then
+    ok_at="$(sed -n 's/.*"lastOkAt": *"\([^"]*\)".*/\1/p' "$STATUS_DIR/status.json")"
+    failed_at="$(sed -n 's/.*"lastFailedAt": *"\([^"]*\)".*/\1/p' "$STATUS_DIR/status.json")"
+  fi
+  if [ "$1" = ok ]; then ok_at="$now"; else failed_at="$now"; fi
+  printf '{"lastRunAt": "%s", "lastResult": "%s", "lastOkAt": "%s", "lastFailedAt": "%s"}\n' \
+    "$now" "$1" "$ok_at" "$failed_at" >"$STATUS_DIR/status.json.tmp"
+  chmod 644 "$STATUS_DIR/status.json.tmp"
+  mv "$STATUS_DIR/status.json.tmp" "$STATUS_DIR/status.json"
+}
 
 # Restaura o dump num cluster temporário (só socket local) e compara com a origem.
 verify() {
@@ -65,6 +86,7 @@ run_once() {
   if ! pg_dump -Fc -f "$file.partial"; then
     rm -f "$file.partial"
     log "ERRO: pg_dump falhou"
+    write_status failed
     return 1
   fi
   mv "$file.partial" "$file"
@@ -72,9 +94,11 @@ run_once() {
   if ! verify "$file"; then
     mv "$file" "$file.failed"
     log "ERRO: dump não passou no teste de restauração (guardado como $file.failed)"
+    write_status failed
     return 1
   fi
   touch "$DIR/LAST_OK"
+  write_status ok
   # Retenção: os KEEP mais recentes que passaram no teste; falhas com mais de 7 dias saem.
   ls -1t "$DIR"/fuseai-daily-*.dump | tail -n +"$((KEEP + 1))" | xargs -r rm -f
   find "$DIR" -name 'fuseai-daily-*.dump.failed' -mtime +7 -exec rm -f {} +

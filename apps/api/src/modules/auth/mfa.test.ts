@@ -149,6 +149,41 @@ describe('PIE S-05: two-factor (TOTP)', () => {
     expect((await overview(enrolled.cookie)).statusCode).toBe(403);
   });
 
+  it('asks any account with 2FA for the code after a sign-in that skipped it (Google)', async () => {
+    const email = 'google-2fa@example.com';
+    const cookie = await verifiedUser(email, 'USER');
+    const deletion = (c: string) =>
+      ctx.app.inject({ method: 'GET', url: '/internal/privacy/deletion', headers: { cookie: c } });
+    // Without 2FA a session that never saw a code works normally (plain Google sign-in).
+    expect((await deletion(cookie)).statusCode).toBe(200);
+
+    const enrolled = await enroll(cookie);
+    expect((await deletion(enrolled.cookie)).statusCode).toBe(200);
+
+    // Google sign-in creates the session without the code.
+    await ctx.prisma.session.updateMany({
+      where: { user: { email } },
+      data: { mfaVerifiedAt: null },
+    });
+    const blocked = await deletion(enrolled.cookie);
+    expect(blocked.statusCode).toBe(403);
+    expect(blocked.json().error.code).toBe('mfa_required');
+    // The web app still learns it must ask for the code.
+    const me = await ctx.app.inject({
+      method: 'GET',
+      url: '/internal/me',
+      headers: { cookie: enrolled.cookie },
+    });
+    expect(me.statusCode).toBe(200);
+    expect(me.json().user).toMatchObject({ twoFactorEnabled: true, mfaVerified: false });
+
+    const stepUp = await post('/api/auth/two-factor/verify-totp', enrolled.cookie, {
+      code: totp(enrolled.totpURI),
+    });
+    expect(stepUp.statusCode).toBe(200);
+    expect((await deletion(enrolled.cookie)).statusCode).toBe(200);
+  });
+
   it('emails the account owner once when password sign-in gets locked', async () => {
     const email = 'alvo@example.com';
     await verifiedUser(email, 'USER');
