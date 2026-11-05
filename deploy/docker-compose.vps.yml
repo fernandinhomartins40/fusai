@@ -38,9 +38,11 @@ services:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U fuseai -d fuseai"]
-      interval: 5s
+      interval: 60s
+      start_interval: 5s
+      start_period: 120s
       timeout: 3s
-      retries: 20
+      retries: 5
     mem_limit: 512m
     cpus: "1.0"
     pids_limit: 256
@@ -57,9 +59,11 @@ services:
       - redisdata:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
+      interval: 60s
+      start_interval: 5s
+      start_period: 120s
       timeout: 3s
-      retries: 20
+      retries: 5
     mem_limit: 192m
     cpus: "0.5"
     pids_limit: 128
@@ -84,10 +88,11 @@ services:
       redis: { condition: service_healthy }
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
-      interval: 10s
+      interval: 60s
+      start_interval: 5s
       timeout: 5s
-      retries: 6
-      start_period: 20s
+      retries: 5
+      start_period: 120s
     # SIGTERM -> the API waits up to 55 s for requests and chat streams in flight (server.ts).
     stop_grace_period: 65s
     mem_limit: 512m
@@ -120,10 +125,11 @@ services:
     # exits by itself after 3 min without a finished job, so `restart` brings it back.
     healthcheck:
       test: ["CMD-SHELL", "find /tmp/fusai-worker-heartbeat -mmin -2 | grep -q ."]
-      interval: 30s
+      interval: 60s
+      start_interval: 5s
       timeout: 5s
       retries: 3
-      start_period: 60s
+      start_period: 120s
     # SIGTERM -> jobs in progress finish (worker.close) before the container stops.
     stop_grace_period: 65s
     mem_limit: 384m
@@ -145,10 +151,11 @@ services:
       api: { condition: service_healthy }
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
-      interval: 10s
+      interval: 60s
+      start_interval: 5s
       timeout: 5s
-      retries: 6
-      start_period: 20s
+      retries: 5
+      start_period: 120s
     stop_grace_period: 30s
     mem_limit: 384m
     cpus: "0.75"
@@ -172,9 +179,11 @@ services:
       web: { condition: service_healthy }
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1/nginx-health"]
-      interval: 10s
+      interval: 60s
+      start_interval: 5s
+      start_period: 120s
       timeout: 3s
-      retries: 6
+      retries: 5
     mem_limit: 64m
     cpus: "0.25"
     pids_limit: 64
